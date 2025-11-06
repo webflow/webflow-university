@@ -1,6 +1,7 @@
 {
   "name": "scripts",
   "version": "1.0.0",
+  "type": "module",
   "description": "Client-side scripts for Webflow University website",
   "main": "dist/index.js",
   "scripts": {

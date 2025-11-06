@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 /**
  * Extracts CMS collection list items from a Webflow collection slot
@@ -20,9 +20,7 @@ export function useCMSCollectionItems(slotName: string) {
         const assignedElements = slot.assignedElements();
         if (assignedElements && assignedElements.length > 0) {
           // Extract all CMS list items and clone them for manipulation
-          const allItems = assignedElements[0].querySelectorAll(
-            `.w-dyn-item[role='listitem']`
-          );
+          const allItems = assignedElements[0].querySelectorAll(`.w-dyn-item[role='listitem']`);
           const slides = (Array.from(allItems) as HTMLDivElement[]).map(
             (slide) => slide.cloneNode(true) as HTMLDivElement
           );
@@ -30,10 +28,9 @@ export function useCMSCollectionItems(slotName: string) {
         }
       } else {
         // Try finding items directly in the ref container
-        const directItems =
-          cmsCollectionComponentSlotRef.current.querySelectorAll(
-            `.w-dyn-item[role='listitem']`
-          );
+        const directItems = cmsCollectionComponentSlotRef.current.querySelectorAll(
+          `.w-dyn-item[role='listitem']`
+        );
         if (directItems.length > 0) {
           const slides = Array.from(directItems).map(
             (slide) => slide.cloneNode(true) as HTMLDivElement
@@ -53,7 +50,7 @@ export function useCMSCollectionItems(slotName: string) {
         // Check if item has data attributes (which is what we need)
         const hasDataAttrs = item.hasAttributes && item.hasAttributes();
         const attrs = Array.from(item.attributes || []);
-        const hasDataSlug = attrs.some((attr) => attr.name === "data-slug");
+        const hasDataSlug = attrs.some((attr) => attr.name === 'data-slug');
         // Keep item if it has data-slug (required field) or has any data attributes
         return hasDataSlug || (hasDataAttrs && attrs.length > 0);
       }) ?? []

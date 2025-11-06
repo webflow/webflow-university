@@ -1,5 +1,5 @@
-import "./App.css";
-import AutoplayTabs from "./components/AutoplayTabs/AutoplayTabs";
+import './App.css';
+import AutoplayTabs from './components/AutoplayTabs/AutoplayTabs';
 // import Calendar from "./components/Calendar/Calendar";
 
 function App() {

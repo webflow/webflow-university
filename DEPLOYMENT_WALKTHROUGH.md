@@ -20,13 +20,6 @@ git checkout -b feat/add-new-feature
 
 Now edit your files in `packages/scripts/src/`:
 
-```bash
-# Example: Edit a file
-code packages/scripts/src/index.ts
-# or
-vim packages/scripts/src/index.ts
-```
-
 ### 2. Test Locally
 
 ```bash

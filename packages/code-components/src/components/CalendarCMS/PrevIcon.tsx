@@ -1,11 +1,6 @@
-import type { IconProps } from "./types";
+import type { IconProps } from './types';
 
-const PrevIcon = ({
-  width = 16,
-  height = 16,
-  stroke = "currentColor",
-  className,
-}: IconProps) => {
+const PrevIcon = ({ width = 16, height = 16, stroke = 'currentColor', className }: IconProps) => {
   return (
     <svg
       width={width}
