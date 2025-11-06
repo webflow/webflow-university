@@ -18,6 +18,7 @@ Complete guide for setting up your GitHub repository with proper protections and
 ```
 
 Update `package.json`:
+
 ```json
 {
   "name": "webflow-university",
@@ -65,12 +66,14 @@ git push -u origin main
 #### ✅ Required Settings
 
 **1. Require a pull request before merging**
+
 - ✅ Check: "Require a pull request before merging"
 - ✅ Check: "Require approvals" → Set to `1` (or more for your team)
 - ✅ Check: "Dismiss stale pull request approvals when new commits are pushed"
 - ✅ Check: "Require review from Code Owners" (if you set up CODEOWNERS)
 
 **2. Require status checks to pass before merging**
+
 - ✅ Check: "Require status checks to pass before merging"
 - ✅ Check: "Require branches to be up to date before merging"
 - ✅ Select these required checks:
@@ -78,27 +81,33 @@ git push -u origin main
   - `build` (from CI workflow)
 
 **3. Require conversation resolution before merging**
+
 - ✅ Check: "Require conversation resolution before merging"
 
 **4. Do not allow bypassing the above settings**
+
 - ✅ Check: "Do not allow bypassing the above settings"
 - ⚠️ **Important**: Uncheck "Allow specified actors to bypass required pull requests" unless you have a specific need
 
 #### ⚠️ Optional but Recommended
 
 **5. Restrict who can push to matching branches**
+
 - ✅ Check: "Restrict pushes that create matching branches"
 - This prevents anyone from pushing directly to `main` (even admins)
 
 **6. Allow force pushes**
+
 - ❌ **Uncheck**: "Allow force pushes" (default is unchecked, which is good)
 
 **7. Allow deletions**
+
 - ❌ **Uncheck**: "Allow deletions" (default is unchecked, which is good)
 
 ### Summary of Protection Rules
 
 Your `main` branch should have:
+
 - ✅ Require PR before merging
 - ✅ Require 1+ approval
 - ✅ Require CI checks to pass (`lint-and-typecheck`, `build`)
@@ -146,6 +155,7 @@ This ensures PRs automatically get assigned reviewers.
 ### 1. Test Branch Protection
 
 Try to push directly to main (should fail):
+
 ```bash
 git checkout main
 # Make a small change
@@ -195,6 +205,7 @@ git push origin test/branch-protection
 ### Issue: "CI checks not showing up"
 
 **Solution:**
+
 - Make sure GitHub Actions is enabled
 - Push a commit to trigger the workflow
 - Check Actions tab to see if workflows are running
@@ -203,6 +214,7 @@ git push origin test/branch-protection
 ### Issue: "Can't merge PR - status checks pending"
 
 **Solution:**
+
 - Wait for CI to finish (usually 2-5 minutes)
 - Check Actions tab for failed workflows
 - Fix any linting/type errors
@@ -211,6 +223,7 @@ git push origin test/branch-protection
 ### Issue: "Release workflow failing"
 
 **Solution:**
+
 - Check that "Read and write permissions" is enabled in Actions settings
 - Verify GITHUB_TOKEN has proper permissions
 - Check Actions logs for specific errors
@@ -218,6 +231,7 @@ git push origin test/branch-protection
 ### Issue: "Version PR not being created"
 
 **Solution:**
+
 - Verify changeset file exists in `.changeset/` directory
 - Check that changesets action has proper permissions
 - Review Actions logs for errors
@@ -269,4 +283,3 @@ Before your first real deployment:
 - [ ] CODEOWNERS file created (optional)
 - [ ] Team members added as collaborators
 - [ ] Repository URL in `package.json` updated
-

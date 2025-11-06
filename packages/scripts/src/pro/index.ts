@@ -1,13 +1,13 @@
-import { DateTime } from "luxon";
+import { DateTime } from 'luxon';
 
-import { initTabMenuScrolling } from "./session-tabs";
+import { initTabMenuScrolling } from './session-tabs';
 import {
   formatTime,
   getNextOccurrence,
   parseBlackoutDates,
   parseDate,
   type RecurrencePattern,
-} from "./utils";
+} from './utils';
 
 /*
 EXPECTED HTML STRUCTURE:
@@ -58,10 +58,10 @@ interface EventData {
  */
 function parseEventData(element: HTMLElement): EventData | null {
   const { slug } = element.dataset;
-  const timezone = "America/New_York"; // Default to ET
+  const timezone = 'America/New_York'; // Default to ET
 
   if (!slug) {
-    console.error("Missing required data-slug attribute", element);
+    console.error('Missing required data-slug attribute', element);
     return null;
   }
 
@@ -81,10 +81,7 @@ function parseEventData(element: HTMLElement): EventData | null {
     }
 
     if (!frequency || !durationStr) {
-      console.error(
-        `Missing frequency or duration for recurrence ${i}`,
-        element
-      );
+      console.error(`Missing frequency or duration for recurrence ${i}`, element);
       continue;
     }
 
@@ -110,13 +107,12 @@ function parseEventData(element: HTMLElement): EventData | null {
   }
 
   if (recurrences.length === 0) {
-    console.error("No valid recurrence patterns found", element);
+    console.error('No valid recurrence patterns found', element);
     return null;
   }
 
   // Parse blackout dates
-  const blackoutDateString =
-    element.getAttribute("data-blackout-date-string") || "";
+  const blackoutDateString = element.getAttribute('data-blackout-date-string') || '';
   const blackoutDates = parseBlackoutDates(blackoutDateString, timezone);
 
   return {
@@ -170,10 +166,7 @@ function findNextOccurrence(
 /**
  * Update event display with next occurrence
  */
-function updateEventDisplay(
-  eventData: EventData,
-  showInUserTimezone: boolean
-): void {
+function updateEventDisplay(eventData: EventData, showInUserTimezone: boolean): void {
   const next = findNextOccurrence(eventData);
 
   if (!next) {
@@ -184,29 +177,25 @@ function updateEventDisplay(
   const { occurrence: nextOccurrence, duration } = next;
 
   // Convert to user's timezone if checkbox is checked
-  const displayDate = showInUserTimezone
-    ? nextOccurrence.setZone("local")
-    : nextOccurrence;
+  const displayDate = showInUserTimezone ? nextOccurrence.setZone('local') : nextOccurrence;
 
   // Calculate end time based on duration
   const endDate = displayDate.plus({ minutes: duration });
 
   // Find the day and time elements within this event
-  const dayElement = eventData.element.querySelector("#pro-day") as HTMLElement;
-  const timeElement = eventData.element.querySelector(
-    "#pro-time"
-  ) as HTMLElement;
+  const dayElement = eventData.element.querySelector('#pro-day') as HTMLElement;
+  const timeElement = eventData.element.querySelector('#pro-time') as HTMLElement;
 
   if (dayElement) {
     // Format: "Oct 22"
-    dayElement.textContent = displayDate.toFormat("MMM d");
+    dayElement.textContent = displayDate.toFormat('MMM d');
   }
 
   if (timeElement) {
     // Format: "11AM - 12PM PT" or "3PM - 4PM ET"
     const startTime = formatTime(displayDate.hour, displayDate.minute);
     const endTime = formatTime(endDate.hour, endDate.minute);
-    const timezoneAbbr = displayDate.toFormat("ZZZZ"); // "PT" or "ET"
+    const timezoneAbbr = displayDate.toFormat('ZZZZ'); // "PT" or "ET"
 
     timeElement.textContent = `${startTime} - ${endTime} ${timezoneAbbr}`;
   }
@@ -218,13 +207,11 @@ function updateEventDisplay(
 function initProEvents(): void {
   // Query all event elements (look for data-slug and data-start-1)
   const eventElements = document.querySelectorAll(
-    "[data-slug][data-start-1]"
+    '[data-slug][data-start-1]'
   ) as NodeListOf<HTMLElement>;
 
   // Query the timezone toggle checkbox
-  const tzCheckbox = document.querySelector(
-    "#pro-show-in-my-tz"
-  ) as HTMLInputElement;
+  const tzCheckbox = document.querySelector('#pro-show-in-my-tz') as HTMLInputElement;
 
   if (eventElements.length === 0) {
     return;
@@ -250,13 +237,13 @@ function initProEvents(): void {
 
   // Listen for checkbox changes
   if (tzCheckbox) {
-    tzCheckbox.addEventListener("change", updateAllEvents);
+    tzCheckbox.addEventListener('change', updateAllEvents);
   }
 }
 
 // Run when DOM is ready
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => {
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
     initProEvents();
     initTabMenuScrolling();
   });

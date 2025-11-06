@@ -1,2 +1,4 @@
 window.Webflow ||= [];
-window.Webflow.push(() => {});
+window.Webflow.push(() => {
+  console.warn('Webflow is ready');
+});

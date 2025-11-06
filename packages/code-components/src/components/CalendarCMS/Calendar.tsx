@@ -16,9 +16,9 @@
  * timezone conversions and DST corrections automatically.
  */
 
-import React, { useEffect, useMemo, useState } from "react";
-import { DateTime } from "luxon";
-import "./Calendar.css";
+import React, { useEffect, useMemo, useState } from 'react';
+import { DateTime } from 'luxon';
+import './Calendar.css';
 import {
   FREQ_TO_WEEKS,
   DEFAULT_EVENT_TIMEZONE,
@@ -26,10 +26,10 @@ import {
   DEFAULT_END_DATE_DAYS,
   GRID_WEEKS_COUNT,
   DEFAULT_DAYS_LIMIT,
-} from "./constants";
-import PrevIcon from "./PrevIcon";
-import NextIcon from "./NextIcon";
-import { useCMSCollectionItems } from "./useCMSCollectionItems";
+} from './constants';
+import PrevIcon from './PrevIcon';
+import NextIcon from './NextIcon';
+import { useCMSCollectionItems } from './useCMSCollectionItems';
 
 // Frequency handled by CMS IDs; no local enum needed
 
@@ -72,20 +72,20 @@ function formatRange(startUTC: Date, endUTC: Date, timeZone: string): string {
     const end = DateTime.fromJSDate(endUTC, { zone: timeZone });
 
     if (!start.isValid || !end.isValid) {
-      return "Invalid time";
+      return 'Invalid time';
     }
 
     const s = start.toLocaleString({
-      hour: "numeric",
-      minute: "2-digit",
+      hour: 'numeric',
+      minute: '2-digit',
     });
     const e = end.toLocaleString({
-      hour: "numeric",
-      minute: "2-digit",
+      hour: 'numeric',
+      minute: '2-digit',
     });
     return `${s} – ${e}`;
   } catch {
-    return "Invalid time";
+    return 'Invalid time';
   }
 }
 
@@ -102,14 +102,14 @@ function ymdInZone(
         y: now.year,
         m: now.month,
         d: now.day,
-        key: now.toFormat("yyyy-MM-dd"),
+        key: now.toFormat('yyyy-MM-dd'),
       };
     }
     return {
       y: dt.year,
       m: dt.month,
       d: dt.day,
-      key: dt.toFormat("yyyy-MM-dd"),
+      key: dt.toFormat('yyyy-MM-dd'),
     };
   } catch {
     // Return safe default
@@ -118,7 +118,7 @@ function ymdInZone(
       y: now.year,
       m: now.month,
       d: now.day,
-      key: now.toFormat("yyyy-MM-dd"),
+      key: now.toFormat('yyyy-MM-dd'),
     };
   }
 }
@@ -136,11 +136,7 @@ function addWeeksInZone(dateUTC: Date, weeks: number, timeZone: string): Date {
   }
 }
 
-function addMonthsInZone(
-  dateUTC: Date,
-  months: number,
-  timeZone: string
-): Date {
+function addMonthsInZone(dateUTC: Date, months: number, timeZone: string): Date {
   try {
     const dt = DateTime.fromJSDate(dateUTC, { zone: timeZone });
     if (!dt.isValid) {
@@ -165,10 +161,7 @@ function addMonthsInZone(
  * - End dates: "YYYY-MM-DD" (e.g., "2025-12-18")
  * All times are in America/New_York timezone.
  */
-function parseReadableDate(
-  dateString: string,
-  isStartDate: boolean = true
-): Date | null {
+function parseReadableDate(dateString: string, isStartDate: boolean = true): Date | null {
   if (!dateString || !dateString.trim()) {
     return null;
   }
@@ -176,9 +169,7 @@ function parseReadableDate(
   const trimmed = dateString.trim();
 
   // Try parsing new format: YYYY-MM-DD H:mm (e.g., "2025-12-11 11:00")
-  const dateTimeMatch = trimmed.match(
-    /^(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2})$/
-  );
+  const dateTimeMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2})$/);
   if (dateTimeMatch) {
     const year = parseInt(dateTimeMatch[1], 10);
     const month = parseInt(dateTimeMatch[2], 10);
@@ -231,29 +222,22 @@ function parseReadableDate(
 function parseBlackoutSet(input?: string): Set<string> {
   if (!input) return new Set();
   const parts = input
-    .split(",")
+    .split(',')
     .map((s) => s.trim())
     .filter(Boolean)
     .map((dateStr) => {
       // Normalize date format to MM/DD/YYYY (zero-padded)
-      const [month, day, year] = dateStr.split("/");
-      return `${month.padStart(2, "0")}/${day.padStart(2, "0")}/${year}`;
+      const [month, day, year] = dateStr.split('/');
+      return `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
     });
   return new Set(parts);
 }
 
-function blackoutMatches(
-  occUTC: Date,
-  timeZone: string,
-  blackoutRaw: Set<string>
-): boolean {
+function blackoutMatches(occUTC: Date, timeZone: string, blackoutRaw: Set<string>): boolean {
   if (blackoutRaw.size === 0) return false;
   // Build normalized keys to compare; input is MM/DD/YYYY
   const { y, m, d } = ymdInZone(occUTC, timeZone);
-  const mmddyyyy = `${String(m).padStart(2, "0")}/${String(d).padStart(
-    2,
-    "0"
-  )}/${y}`;
+  const mmddyyyy = `${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}/${y}`;
   return blackoutRaw.has(mmddyyyy);
 }
 
@@ -266,37 +250,35 @@ type CMSItem = { fieldData?: Record<string, unknown> };
  * - Data attributes on nested elements (data-wf-field)
  * - Text content of elements bound to fields
  */
-function extractFieldDataFromElement(
-  element: HTMLDivElement
-): Record<string, unknown> {
+function extractFieldDataFromElement(element: HTMLDivElement): Record<string, unknown> {
   const fieldData: Record<string, unknown> = {};
 
   // Method 1: Get all data attributes on the element itself (excluding internal Webflow attributes)
   for (const attr of Array.from(element.attributes)) {
     if (
-      attr.name.startsWith("data-") &&
-      !attr.name.startsWith("data-wf-") &&
-      attr.name !== "data-w-dyn-item"
+      attr.name.startsWith('data-') &&
+      !attr.name.startsWith('data-wf-') &&
+      attr.name !== 'data-w-dyn-item'
     ) {
       // Convert data-field-name to field-name
-      const fieldName = attr.name.replace(/^data-/, "");
+      const fieldName = attr.name.replace(/^data-/, '');
       fieldData[fieldName] = attr.value;
     }
   }
 
   // Method 2: Check for nested elements with data-wf-field attributes (Webflow field bindings)
-  const fieldElements = element.querySelectorAll("[data-wf-field]");
+  const fieldElements = element.querySelectorAll('[data-wf-field]');
   for (const fieldEl of fieldElements) {
-    const fieldName = fieldEl.getAttribute("data-wf-field");
+    const fieldName = fieldEl.getAttribute('data-wf-field');
     if (fieldName) {
       // Extract value from element - could be text, src, href, etc.
       const value =
         fieldEl.textContent?.trim() ||
-        fieldEl.getAttribute("src") ||
-        fieldEl.getAttribute("href") ||
-        fieldEl.getAttribute("value") ||
-        fieldEl.getAttribute("datetime") ||
-        "";
+        fieldEl.getAttribute('src') ||
+        fieldEl.getAttribute('href') ||
+        fieldEl.getAttribute('value') ||
+        fieldEl.getAttribute('datetime') ||
+        '';
       if (value) {
         fieldData[fieldName] = value;
       }
@@ -304,16 +286,16 @@ function extractFieldDataFromElement(
   }
 
   // Method 3: Check for elements with data-field attribute (alternative pattern)
-  const altFieldElements = element.querySelectorAll("[data-field]");
+  const altFieldElements = element.querySelectorAll('[data-field]');
   for (const fieldEl of altFieldElements) {
-    const fieldName = fieldEl.getAttribute("data-field");
+    const fieldName = fieldEl.getAttribute('data-field');
     if (fieldName && !fieldData[fieldName]) {
       const value =
         fieldEl.textContent?.trim() ||
-        fieldEl.getAttribute("src") ||
-        fieldEl.getAttribute("href") ||
-        fieldEl.getAttribute("value") ||
-        "";
+        fieldEl.getAttribute('src') ||
+        fieldEl.getAttribute('href') ||
+        fieldEl.getAttribute('value') ||
+        '';
       if (value) {
         fieldData[fieldName] = value;
       }
@@ -349,7 +331,7 @@ function buildRecurrenceRule(
   };
 
   const startValue = f[startField];
-  if (!startValue || String(startValue).trim() === "") {
+  if (!startValue || String(startValue).trim() === '') {
     return null;
   }
 
@@ -368,25 +350,21 @@ function buildRecurrenceRule(
   // isStartDate=false means we'll use 23:59 as default time for end dates
   let untilUTC: Date;
   const endValue = f[endField];
-  if (endValue && String(endValue).trim() !== "") {
+  if (endValue && String(endValue).trim() !== '') {
     const parsedEnd = parseReadableDate(String(endValue), false);
     if (parsedEnd) {
       untilUTC = parsedEnd;
     } else {
       // Fallback to default if parsing fails
-      untilUTC = new Date(
-        startUTC.getTime() + 1000 * 60 * 60 * 24 * DEFAULT_END_DATE_DAYS
-      );
+      untilUTC = new Date(startUTC.getTime() + 1000 * 60 * 60 * 24 * DEFAULT_END_DATE_DAYS);
     }
   } else {
     // No end date provided, use default
-    untilUTC = new Date(
-      startUTC.getTime() + 1000 * 60 * 60 * 24 * DEFAULT_END_DATE_DAYS
-    );
+    untilUTC = new Date(startUTC.getTime() + 1000 * 60 * 60 * 24 * DEFAULT_END_DATE_DAYS);
   }
 
   const durationMin =
-    typeof f[durationField] === "number"
+    typeof f[durationField] === 'number'
       ? (f[durationField] as number)
       : parseInt(String(f[durationField] || fallbackDuration), 10);
 
@@ -394,8 +372,8 @@ function buildRecurrenceRule(
     startUTC,
     untilUTC,
     durationMin,
-    frequencyWeeks: mapFreq(String(f[frequencyField] || "")),
-    blackoutDatesYMD: parseBlackoutSet(String(f["blackout-date-string"] || "")),
+    frequencyWeeks: mapFreq(String(f[frequencyField] || '')),
+    blackoutDatesYMD: parseBlackoutSet(String(f['blackout-date-string'] || '')),
   };
   return rule;
 }
@@ -405,24 +383,20 @@ function buildSessionsFromApiItems(items: CMSItem[]): Session[] {
 
   for (const item of items) {
     const f = (item.fieldData || {}) as Record<string, unknown>;
-    const slug = typeof f.slug === "string" ? (f.slug as string) : undefined;
+    const slug = typeof f.slug === 'string' ? (f.slug as string) : undefined;
     if (!slug) {
       continue;
     }
 
-    const name = typeof f.name === "string" ? (f.name as string) : slug;
+    const name = typeof f.name === 'string' ? (f.name as string) : slug;
     const rules: RecurrenceRule[] = [];
 
     // Build first occurrence rule (rule number "1")
-    const rule1 = buildRecurrenceRule(f, "1", DEFAULT_DURATION_MINUTES);
+    const rule1 = buildRecurrenceRule(f, '1', DEFAULT_DURATION_MINUTES);
     if (rule1) rules.push(rule1);
 
     // Build second occurrence rule (rule number "2")
-    const rule2 = buildRecurrenceRule(
-      f,
-      "2",
-      rule1?.durationMin || DEFAULT_DURATION_MINUTES
-    );
+    const rule2 = buildRecurrenceRule(f, '2', rule1?.durationMin || DEFAULT_DURATION_MINUTES);
     if (rule2) rules.push(rule2);
 
     if (rules.length > 0) {
@@ -440,15 +414,11 @@ function generateNextOccurrencesForSession(
   daysLimit: number
 ): Occurrence[] {
   const occs: Occurrence[] = [];
-  const limitUTC = new Date(
-    fromUTC.getTime() + daysLimit * 24 * 60 * 60 * 1000
-  );
+  const limitUTC = new Date(fromUTC.getTime() + daysLimit * 24 * 60 * 60 * 1000);
 
   for (const rule of session.rules) {
     // Calculate the effective end date (rule end or days limit, whichever comes first)
-    const effectiveEndUTC = new Date(
-      Math.min(rule.untilUTC.getTime(), limitUTC.getTime())
-    );
+    const effectiveEndUTC = new Date(Math.min(rule.untilUTC.getTime(), limitUTC.getTime()));
 
     // Start from the rule's start date
     let current = rule.startUTC;
@@ -467,15 +437,9 @@ function generateNextOccurrencesForSession(
     // Generate occurrences until we hit the effective end date
     while (current.getTime() <= effectiveEndUTC.getTime()) {
       // Check if this occurrence is blacked out
-      const isBlackedOut = blackoutMatches(
-        current,
-        eventTimeZone,
-        rule.blackoutDatesYMD
-      );
+      const isBlackedOut = blackoutMatches(current, eventTimeZone, rule.blackoutDatesYMD);
       if (!isBlackedOut) {
-        const endUTC = new Date(
-          current.getTime() + rule.durationMin * 60 * 1000
-        );
+        const endUTC = new Date(current.getTime() + rule.durationMin * 60 * 1000);
         occs.push({
           slug: session.slug,
           name: session.name,
@@ -513,17 +477,15 @@ function startOfWeekMonday(date: Date) {
 
 function addMonthsUTC(date: Date, diff: number) {
   // Keep the 12:00 UTC anchor to prevent TZ-induced day flips
-  return new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + diff, 1, 12)
-  );
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + diff, 1, 12));
 }
 
 function formatMonthTitle(date: Date, timeZone: string) {
   // Show title in selected tz for user friendliness
   return new Intl.DateTimeFormat(undefined, {
     timeZone,
-    month: "long",
-    year: "numeric",
+    month: 'long',
+    year: 'numeric',
   }).format(date);
 }
 
@@ -537,12 +499,12 @@ const CalendarCMS = (props: CalendarProps) => {
 
   // Dynamic day labels based on showWeekends prop
   const DAY_LABELS = showWeekends
-    ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    : ["Mon", "Tue", "Wed", "Thu", "Fri"];
+    ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
   // Extract CMS collection items from Webflow slot
   const { cmsCollectionComponentSlotRef, items } = useCMSCollectionItems(
-    "cmsCollectionComponentSlot"
+    'cmsCollectionComponentSlot'
   );
   const [sessions, setSessions] = useState<Session[]>([]);
   const loading = items === null && !debugNoData;
@@ -570,49 +532,42 @@ const CalendarCMS = (props: CalendarProps) => {
     // If items is null, still loading (handled by loading state)
   }, [items, debugNoData]);
 
-  const [tzMode, setTzMode] = useState<"event" | "local">("local");
-  const displayTZ =
-    tzMode === "event"
-      ? eventTZ
-      : Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const [tzMode, setTzMode] = useState<'event' | 'local'>('local');
+  const displayTZ = tzMode === 'event' ? eventTZ : Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const nowUTC = useMemo(() => new Date(), []);
 
   const perSessionNext4 = useMemo(() => {
-    return sessions.map((s) =>
-      generateNextOccurrencesForSession(s, nowUTC, eventTZ, daysLimit)
-    );
+    return sessions.map((s) => generateNextOccurrencesForSession(s, nowUTC, eventTZ, daysLimit));
   }, [sessions, nowUTC, eventTZ, daysLimit]);
 
   // Flatten events for plotting
   const allUpcoming = useMemo(() => perSessionNext4.flat(), [perSessionNext4]);
 
-  const [currentMonthUTC, setCurrentMonthUTC] = useState(() =>
-    monthStart(nowUTC)
-  );
+  const [currentMonthUTC, setCurrentMonthUTC] = useState(() => monthStart(nowUTC));
 
   // Keyboard navigation: arrow keys to navigate months
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Only handle if no input is focused
       if (
-        document.activeElement?.tagName === "INPUT" ||
-        document.activeElement?.tagName === "TEXTAREA" ||
-        document.activeElement?.tagName === "SELECT"
+        document.activeElement?.tagName === 'INPUT' ||
+        document.activeElement?.tagName === 'TEXTAREA' ||
+        document.activeElement?.tagName === 'SELECT'
       ) {
         return;
       }
 
       switch (e.key) {
-        case "ArrowLeft":
+        case 'ArrowLeft':
           e.preventDefault();
           setCurrentMonthUTC((d) => addMonthsUTC(d, -1));
           break;
-        case "ArrowRight":
+        case 'ArrowRight':
           e.preventDefault();
           setCurrentMonthUTC((d) => addMonthsUTC(d, 1));
           break;
-        case "Home":
+        case 'Home':
           e.preventDefault();
           setCurrentMonthUTC(() => monthStart(nowUTC));
           break;
@@ -621,14 +576,14 @@ const CalendarCMS = (props: CalendarProps) => {
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [nowUTC]);
 
   // Build month grid
   const gridColumnCount = useMemo(() => (showWeekends ? 7 : 5), [showWeekends]);
   const gridStyle = useMemo(
-    () => ({ "--calendar-columns": gridColumnCount }) as React.CSSProperties,
+    () => ({ '--calendar-columns': gridColumnCount }) as React.CSSProperties,
     [gridColumnCount]
   );
 
@@ -659,13 +614,11 @@ const CalendarCMS = (props: CalendarProps) => {
       map.get(key)!.push(occ);
     }
     // sort events within day by time
-    for (const arr of map.values())
-      arr.sort((a, b) => a.startUTC.getTime() - b.startUTC.getTime());
+    for (const arr of map.values()) arr.sort((a, b) => a.startUTC.getTime() - b.startUTC.getTime());
     return map;
   }, [allUpcoming, displayTZ]);
 
-  const isCurrentMonth = (d: Date) =>
-    d.getUTCMonth() === currentMonthUTC.getUTCMonth();
+  const isCurrentMonth = (d: Date) => d.getUTCMonth() === currentMonthUTC.getUTCMonth();
   const todayKey = ymdInZone(nowUTC, displayTZ).key;
 
   const friendlyEventTZLabel = useMemo(() => {
@@ -675,8 +628,8 @@ const CalendarCMS = (props: CalendarProps) => {
         of: (code: string) => string | undefined;
       };
       const IntlWithDN = Intl as unknown as { DisplayNames?: UnknownCtor };
-      if (IntlWithDN && typeof IntlWithDN.DisplayNames === "function") {
-        const dn = new IntlWithDN.DisplayNames(undefined, { type: "timeZone" });
+      if (IntlWithDN && typeof IntlWithDN.DisplayNames === 'function') {
+        const dn = new IntlWithDN.DisplayNames(undefined, { type: 'timeZone' });
         const label = dn.of(eventTZ);
         return label || eventTZ;
       }
@@ -691,7 +644,7 @@ const CalendarCMS = (props: CalendarProps) => {
       {/* Hidden container for CMS collection slot */}
       <div
         ref={cmsCollectionComponentSlotRef}
-        style={{ display: props.showCMSCollectionComponent ? "block" : "none" }}
+        style={{ display: props.showCMSCollectionComponent ? 'block' : 'none' }}
       >
         {props.cmsCollectionComponentSlot}
       </div>
@@ -713,9 +666,7 @@ const CalendarCMS = (props: CalendarProps) => {
           >
             <NextIcon />
           </button>
-          <div className="wf-cal-title">
-            {formatMonthTitle(currentMonthUTC, displayTZ)}
-          </div>
+          <div className="wf-cal-title">{formatMonthTitle(currentMonthUTC, displayTZ)}</div>
         </div>
 
         <div className="wf-cal-tzselect">
@@ -724,7 +675,7 @@ const CalendarCMS = (props: CalendarProps) => {
             <select
               value={tzMode}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                setTzMode(e.target.value as "event" | "local")
+                setTzMode(e.target.value as 'event' | 'local')
               }
             >
               <option value="local">My local time</option>
@@ -763,10 +714,7 @@ const CalendarCMS = (props: CalendarProps) => {
           className="wf-cal-grid"
           style={gridStyle}
           role="grid"
-          aria-label={`Calendar for ${formatMonthTitle(
-            currentMonthUTC,
-            displayTZ
-          )}`}
+          aria-label={`Calendar for ${formatMonthTitle(currentMonthUTC, displayTZ)}`}
         >
           {gridCells.map((day, idx) => {
             const { key, d } = ymdInZone(day, displayTZ);
@@ -775,23 +723,19 @@ const CalendarCMS = (props: CalendarProps) => {
             const outside = !isCurrentMonth(day);
             const dayLabel = new Intl.DateTimeFormat(undefined, {
               timeZone: displayTZ,
-              weekday: "long",
-              month: "long",
-              day: "numeric",
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
             }).format(day);
             return (
               <div
                 key={idx}
-                className={`wf-cal-cell ${outside ? "outside" : ""} ${
-                  isToday ? "today" : ""
-                }`}
+                className={`wf-cal-cell ${outside ? 'outside' : ''} ${isToday ? 'today' : ''}`}
                 role="gridcell"
-                aria-label={`${dayLabel}${isToday ? ", today" : ""}${
+                aria-label={`${dayLabel}${isToday ? ', today' : ''}${
                   events.length > 0
-                    ? `, ${events.length} session${
-                        events.length === 1 ? "" : "s"
-                      }`
-                    : ""
+                    ? `, ${events.length} session${events.length === 1 ? '' : 's'}`
+                    : ''
                 }`}
               >
                 <div className="wf-cal-cellheader">
@@ -803,19 +747,12 @@ const CalendarCMS = (props: CalendarProps) => {
                       href={getSessionUrl(ev.slug)}
                       className="wf-cal-event"
                       key={i}
-                      title={`${ev.name} - ${formatRange(
-                        ev.startUTC,
-                        ev.endUTC,
-                        displayTZ
-                      )}`}
-                      aria-label={`${ev.name} on ${new Intl.DateTimeFormat(
-                        undefined,
-                        {
-                          timeZone: displayTZ,
-                          month: "long",
-                          day: "numeric",
-                        }
-                      ).format(ev.startUTC)} from ${formatRange(
+                      title={`${ev.name} - ${formatRange(ev.startUTC, ev.endUTC, displayTZ)}`}
+                      aria-label={`${ev.name} on ${new Intl.DateTimeFormat(undefined, {
+                        timeZone: displayTZ,
+                        month: 'long',
+                        day: 'numeric',
+                      }).format(ev.startUTC)} from ${formatRange(
                         ev.startUTC,
                         ev.endUTC,
                         displayTZ
@@ -835,9 +772,7 @@ const CalendarCMS = (props: CalendarProps) => {
 
         {showLegend && (
           <div className="wf-cal-legend">
-            <div className="wf-cal-legend-title">
-              Upcoming (next {daysLimit} days)
-            </div>
+            <div className="wf-cal-legend-title">Upcoming (next {daysLimit} days)</div>
             {sessions.map((s, idx) => {
               const list = perSessionNext4[idx] || [];
               return (
@@ -856,10 +791,10 @@ const CalendarCMS = (props: CalendarProps) => {
                       <li key={i}>
                         {new Intl.DateTimeFormat(undefined, {
                           timeZone: displayTZ,
-                          month: "short",
-                          day: "numeric",
+                          month: 'short',
+                          day: 'numeric',
                         }).format(ev.startUTC)}
-                        {", "}
+                        {', '}
                         {formatRange(ev.startUTC, ev.endUTC, displayTZ)}
                       </li>
                     ))}

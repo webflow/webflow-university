@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import "./AutoplayTabs.css";
+import { useState, useEffect, useRef } from 'react';
+import './AutoplayTabs.css';
 
 interface TabContent {
   id: string;
@@ -34,26 +34,26 @@ interface AutoplayTabsProps {
 const AutoplayTabs = ({
   autoplay = false,
   autoplayDuration = 5000,
-  tabOneLabel = "Tab 1",
-  tabOneTitle = "Tab 1 Title",
-  tabOneDescription = "Tab 1 Description",
+  tabOneLabel = 'Tab 1',
+  tabOneTitle = 'Tab 1 Title',
+  tabOneDescription = 'Tab 1 Description',
   tabOneContent = {
-    src: "https://placehold.co/800x450/blue/white",
-    alt: "Tab 1 Content",
+    src: 'https://placehold.co/800x450/blue/white',
+    alt: 'Tab 1 Content',
   },
-  tabTwoLabel = "Tab 2",
-  tabTwoTitle = "Tab 2 Title",
-  tabTwoDescription = "Tab 2 Description",
+  tabTwoLabel = 'Tab 2',
+  tabTwoTitle = 'Tab 2 Title',
+  tabTwoDescription = 'Tab 2 Description',
   tabTwoContent = {
-    src: "https://placehold.co/800x450/orange/white",
-    alt: "Tab 2 Content",
+    src: 'https://placehold.co/800x450/orange/white',
+    alt: 'Tab 2 Content',
   },
-  tabThreeLabel = "Tab 3",
-  tabThreeTitle = "Tab 3 Title",
-  tabThreeDescription = "Tab 3 Description",
+  tabThreeLabel = 'Tab 3',
+  tabThreeTitle = 'Tab 3 Title',
+  tabThreeDescription = 'Tab 3 Description',
   tabThreeContent = {
-    src: "https://placehold.co/800x450/green/white",
-    alt: "Tab 3 Content",
+    src: 'https://placehold.co/800x450/green/white',
+    alt: 'Tab 3 Content',
   },
 }: AutoplayTabsProps) => {
   const [activeTab, setActiveTab] = useState(0);
@@ -61,21 +61,21 @@ const AutoplayTabs = ({
 
   const tabs: TabContent[] = [
     {
-      id: "tab1",
+      id: 'tab1',
       label: tabOneLabel,
       title: tabOneTitle,
       description: tabOneDescription,
       content: tabOneContent,
     },
     {
-      id: "tab2",
+      id: 'tab2',
       label: tabTwoLabel,
       title: tabTwoTitle,
       description: tabTwoDescription,
       content: tabTwoContent,
     },
     {
-      id: "tab3",
+      id: 'tab3',
       label: tabThreeLabel,
       title: tabThreeTitle,
       description: tabThreeDescription,
@@ -116,17 +116,8 @@ const AutoplayTabs = ({
         {/* Main Display Pane */}
         <div className="display-pane">
           {tabs.map((tab, index) => (
-            <div
-              key={tab.id}
-              className={`display-content ${
-                activeTab === index ? "active" : ""
-              }`}
-            >
-              <img
-                className="display-image"
-                src={tab.content.src}
-                alt={tab.content.alt}
-              />
+            <div key={tab.id} className={`display-content ${activeTab === index ? 'active' : ''}`}>
+              <img className="display-image" src={tab.content.src} alt={tab.content.alt} />
             </div>
           ))}
         </div>
@@ -136,7 +127,7 @@ const AutoplayTabs = ({
           {tabs.map((tab, index) => (
             <button
               key={tab.id}
-              className={`tab-button ${activeTab === index ? "active" : ""}`}
+              className={`tab-button ${activeTab === index ? 'active' : ''}`}
               onClick={() => handleTabClick(index)}
             >
               <div className="tab-content-wrapper">
@@ -144,9 +135,7 @@ const AutoplayTabs = ({
                 {/* Progress bar */}
                 <div className="progress-bar-container">
                   <div
-                    className={`progress-bar ${
-                      activeTab === index && autoplay ? "active" : ""
-                    }`}
+                    className={`progress-bar ${activeTab === index && autoplay ? 'active' : ''}`}
                     style={
                       activeTab === index && autoplay
                         ? { animationDuration: `${autoplayDuration}ms` }
@@ -166,11 +155,7 @@ const AutoplayTabs = ({
       <div className="mobile-sections">
         {tabs.map((tab) => (
           <div key={tab.id} className="mobile-section">
-            <img
-              className="mobile-image"
-              src={tab.content.src}
-              alt={tab.content.alt}
-            />
+            <img className="mobile-image" src={tab.content.src} alt={tab.content.alt} />
             <div className="mobile-info">
               <span className="tab-label">{tab.label}</span>
               <h3 className="tab-title">{tab.title}</h3>
