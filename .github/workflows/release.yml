@@ -48,7 +48,9 @@ jobs:
         id: changesets
         uses: changesets/action@v1
         with:
-          publish: pnpm changeset publish
+          # Don't publish to npm - we only use GitHub releases
+          # Using a no-op command since package is marked private
+          publish: echo "Package is private, skipping npm publish"
           version: pnpm changeset version
           commit: 'chore: version packages'
           title: 'chore: version packages'
