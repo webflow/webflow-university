@@ -1,0 +1,302 @@
+:root {
+  --bg: var(--theme--t_bg-primary, #080808);
+  --panel: var(--theme--t_bg-primary, #080808);
+  --border: var(--theme--t_border-primary, #363636);
+  --text: var(--theme--t_text-primary, white);
+  --muted: var(--theme--t_text-secondary, #ababab);
+  --chip: var(--theme--t_bg-secondary, #222);
+  --chip-border: var(--theme--t_border-primary, #363636);
+  --font-wf-sans: var(--sans, "WF Visual Sans", sans-serif);
+  --blue: var(--swatches--blue, #146ef5);
+}
+
+.autoplay-tabs {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Desktop View - Tabs Interface */
+.tabs-interface {
+  display: block;
+}
+
+.mobile-sections {
+  display: none;
+}
+
+/* Main Display Pane - 16:9 Aspect Ratio */
+.display-pane {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-color: var(--bg);
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.display-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+  pointer-events: none;
+}
+
+.display-content.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.content-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  font-size: 24px;
+}
+
+/* Tabs Container */
+.tabs-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+}
+
+.display-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mobile-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mobile-info {
+  padding: 24px;
+}
+
+/* Tab Button Styles */
+.tab-button {
+  background: transparent;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  /* color: rgba(255, 255, 255, 0.3); */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tab-button:last-child {
+  border-right: none;
+}
+
+.tab-content-wrapper {
+  padding: 32px 24px 24px;
+}
+
+/* Focus State */
+.tab-button:focus {
+  outline: none;
+  border-top: none;
+  border-bottom: none;
+  border-left: none;
+  box-shadow: inset 0 0 0 1px var(--text);
+}
+
+.tab-button:focus:not(:focus-visible) {
+  box-shadow: none;
+}
+
+.tab-button:focus-visible {
+  outline: none;
+  border-top: none;
+  border-bottom: none;
+  border-left: none;
+  box-shadow: inset 0 0 0 1px var(--text);
+}
+
+/* Active/Click State */
+.tab-button:active {
+  outline: none;
+  border-top: none;
+  border-bottom: none;
+  border-left: none;
+  box-shadow: none;
+}
+
+/* Active Tab */
+.tab-button.active {
+  color: var(--text);
+  background-color: var(--chip);
+}
+
+/* Hover State */
+.tab-button:hover {
+  color: var(--text);
+  background-color: var(--chip);
+  outline: none;
+  border-top: none;
+  border-bottom: none;
+  border-left: none;
+  box-shadow: none;
+}
+
+/* Tab Content */
+.tab-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 3.6px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  color: var(--muted);
+}
+
+.tab-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  line-height: 1.2;
+  color: var(--muted);
+}
+
+.tab-description {
+  font-size: 1rem;
+  line-height: 1.5;
+  margin: 0;
+  color: var(--muted);
+}
+
+/* Active tab gets full opacity on text */
+.tab-button.active .tab-label,
+.tab-button.active .tab-description,
+.tab-button.active .tab-title {
+  color: var(--text);
+}
+
+/* Hover also gets full opacity */
+.tab-button:hover .tab-label,
+.tab-button:hover .tab-description,
+.tab-button:hover .tab-title {
+  color: var(--text);
+}
+
+/* Progress Bar Styles */
+.progress-bar-container {
+  width: 100%;
+  height: 1px;
+  background-color: var(--border);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.progress-bar {
+  height: 100%;
+  width: 0;
+  background-color: var(--text);
+  transition: width 0.1s linear;
+}
+
+.progress-bar.active {
+  animation: fillProgress linear forwards;
+}
+
+@keyframes fillProgress {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+/* Mobile View - Below 768px */
+@media (max-width: 767px) {
+  .tabs-interface {
+    display: none;
+  }
+
+  .mobile-sections {
+    display: block;
+  }
+
+  .mobile-section {
+    margin-bottom: 40px;
+  }
+
+  .mobile-section:last-child {
+    margin-bottom: 0;
+  }
+
+  .mobile-content {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--bg);
+    border-radius: 8px 8px 0 0;
+    overflow: hidden;
+    margin-bottom: 0;
+  }
+
+  .mobile-info {
+    background-color: var(--bg);
+    padding: 1.5rem 0 1.5rem 0;
+    color: white;
+    border-radius: 0 0 8px 8px;
+  }
+
+  .mobile-info .tab-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    opacity: 1;
+  }
+
+  .mobile-info .tab-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+    line-height: 1.2;
+    color: var(--text);
+  }
+
+  .mobile-info .tab-description {
+    font-size: 15px;
+    line-height: 1.5;
+    margin: 0;
+    opacity: 1;
+  }
+}
+
+/* Tablet adjustments */
+@media (max-width: 1024px) and (min-width: 768px) {
+  .tab-button {
+    padding: 24px 16px;
+  }
+
+  .tab-title {
+    font-size: 20px;
+  }
+
+  .tab-description {
+    font-size: 14px;
+  }
+}

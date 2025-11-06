@@ -1,0 +1,3 @@
+# Note: dist/ folder is NOT ignored - it must be committed to git
+# for jsdelivr to serve the files from GitHub
+

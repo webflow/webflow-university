@@ -1,0 +1,36 @@
+{
+  "name": "webflow-university",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.20.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "build:scripts": "pnpm --filter scripts build",
+    "build:components": "pnpm --filter code-components build",
+    "dev:scripts": "pnpm --filter scripts dev",
+    "dev:components": "pnpm --filter code-components dev",
+    "lint": "pnpm -r lint",
+    "lint:fix": "pnpm -r lint:fix",
+    "check": "pnpm -r check",
+    "test": "pnpm -r test",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "changeset:release": "changeset publish",
+    "release": "pnpm changeset:version && pnpm install && pnpm build",
+    "clean": "pnpm -r exec rm -rf dist node_modules/.cache",
+    "clean:all": "pnpm clean && rm -rf node_modules packages/*/node_modules"
+  },
+  "devDependencies": {
+    "@changesets/changelog-git": "^0.2.0",
+    "@changesets/cli": "^2.27.10",
+    "@eslint/js": "^9.36.0",
+    "eslint": "^9.36.0",
+    "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "prettier": "^3.4.2",
+    "typescript": "5.9.3"
+  }
+}

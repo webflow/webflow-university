@@ -1,0 +1,106 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.20.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Commit dist folder (if changed)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add packages/scripts/dist/
+          if git diff --staged --quiet; then
+            echo "No changes to dist folder"
+          else
+            git commit -m "chore: build scripts package"
+            git push
+          fi
+
+      - name: Create Release Pull Request or Publish
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          publish: pnpm changeset publish
+          version: pnpm changeset version
+          commit: 'chore: version packages'
+          title: 'chore: version packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get Scripts Package Version
+        if: steps.changesets.outputs.published == 'true'
+        id: version
+        run: |
+          VERSION=$(grep -o '"version": "[^"]*"' packages/scripts/package.json | cut -d'"' -f4)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+          echo "Released version: $VERSION"
+
+      - name: Create Git Tag
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
+
+      - name: Create GitHub Release for Scripts
+        if: steps.changesets.outputs.published == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Scripts Release ${{ steps.version.outputs.tag }}
+          body: |
+            Automated release of scripts package.
+
+            **Version:** ${{ steps.version.outputs.version }}
+
+            **jsdelivr URLs:**
+            - Latest from this version: `https://cdn.jsdelivr.net/gh/${{ github.repository }}@${{ steps.version.outputs.tag }}/packages/scripts/dist/index.js`
+            - Latest from major version: `https://cdn.jsdelivr.net/gh/${{ github.repository }}@${{ steps.version.outputs.version }}.*/packages/scripts/dist/index.js`
+            - Specific commit: `https://cdn.jsdelivr.net/gh/${{ github.repository }}@${{ github.sha }}/packages/scripts/dist/index.js`
+
+            **Usage in HTML:**
+            ```html
+            <script defer src="https://cdn.jsdelivr.net/gh/${{ github.repository }}@${{ steps.version.outputs.tag }}/packages/scripts/dist/index.js"></script>
+            ```
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Scripts Artifacts
+        if: steps.changesets.outputs.published == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: scripts-dist
+          path: packages/scripts/dist/**
+          retention-days: 90

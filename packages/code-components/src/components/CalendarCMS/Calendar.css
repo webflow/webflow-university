@@ -1,0 +1,299 @@
+/* Minimal dark calendar styling inspired by the screenshot */
+.wf-calendar {
+  --bg: var(--theme--t_bg-primary, #080808);
+  --panel: var(--theme--t_bg-primary, #080808);
+  --border: var(--theme--t_border-primary, #363636);
+  --text: var(--theme--t_text-primary, white);
+  --muted: var(--theme--t_text-secondary, #ababab);
+  --chip: var(--theme--t_bg-secondary, #222);
+  --chip-border: var(--theme--t_border-primary, #363636);
+  --font-wf-sans: var(--sans, "WF Visual Sans", sans-serif);
+  --blue: var(--swatches--blue, #146ef5);
+  color: var(--text);
+  background: var(--bg);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  padding: 12px;
+}
+
+.wf-cal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+}
+
+.wf-cal-monthnav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wf-cal-title {
+  font-weight: 600;
+}
+
+.wf-cal-navbtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.wf-cal-navbtn:hover {
+  background: var(--border);
+  border-color: var(--blue);
+}
+
+.wf-cal-navbtn:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.wf-cal-navbtn:active {
+  transform: scale(0.95);
+}
+
+.wf-cal-navbtn svg {
+  flex-shrink: 0;
+}
+
+.wf-cal-navbtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.wf-cal-tzselect select {
+  appearance: none;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+
+.wf-cal-daylabels {
+  display: grid;
+  grid-template-columns: repeat(var(--calendar-columns, 5), 1fr);
+  margin-bottom: 6px;
+}
+
+.wf-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--calendar-columns, 5), 1fr);
+  gap: 6px;
+}
+
+.wf-cal-daylabel {
+  font-family: var(--font-wf-sans);
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 3.6px;
+  padding: 6px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.wf-cal-cell {
+  min-height: 120px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 4px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.wf-cal-cell.outside {
+  opacity: 0.4;
+}
+
+.wf-cal-cell.today {
+  box-shadow: 0 0 0 1px var(--blue) inset;
+}
+
+.wf-cal-cellheader {
+  display: flex;
+  justify-content: flex-start;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.wf-cal-date {
+  font-family: var(--font-wf-sans);
+  font-weight: 600;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 22px;
+  border-radius: 4px;
+}
+
+.wf-cal-events {
+  margin-top: 4px;
+  display: grid;
+  gap: 6px;
+}
+
+.wf-cal-event {
+  border: 1px solid var(--chip-border);
+  background: var(--chip);
+  border-radius: 4px;
+  padding: 6px 8px;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  transition: all 0.2s ease;
+}
+
+.wf-cal-event:hover {
+  background: var(--border);
+  border-color: var(--blue);
+  transform: translateY(-1px);
+}
+
+.wf-cal-event:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.wf-cal-event:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.wf-cal-eventtitle {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.wf-cal-eventtime {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.wf-cal-legend {
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+  padding: 12px 8px 4px;
+}
+
+.wf-cal-legend-title {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.wf-cal-legend-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.wf-cal-legend-slug {
+  min-width: 180px;
+  font-weight: 600;
+}
+
+.wf-cal-legend-link {
+  color: var(--text);
+  text-decoration: none;
+  transition: color 0.2s ease;
+  display: inline-block;
+}
+
+.wf-cal-legend-link:hover {
+  color: var(--blue);
+}
+
+.wf-cal-legend-link:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.wf-cal-legend-link:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.wf-cal-legend-row ul {
+  list-style: disc;
+  padding-left: 16px;
+  margin: 0;
+}
+
+/* Status overlay to prevent layout shift */
+.wf-cal-content {
+  position: relative;
+}
+
+.wf-cal-status-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  opacity: 0.95;
+}
+
+.wf-cal-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.wf-cal-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.wf-cal-status-text {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.wf-cal-status-text.wf-cal-error {
+  color: #ff9b9b;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
