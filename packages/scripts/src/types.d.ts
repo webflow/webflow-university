@@ -1,6 +1,6 @@
 declare global {
   interface Window {
-    Webflow: any[];
+    Webflow: (() => void)[];
   }
 }
 
