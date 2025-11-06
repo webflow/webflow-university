@@ -50,5 +50,6 @@ typings/
 Thumbs.db
 
 # Changeset
-.changeset/*.md
-!/.changeset/config.json
+# Note: Changeset .md files should be committed - they're used for versioning
+# Only ignore README.md if it exists
+.changeset/README.md
