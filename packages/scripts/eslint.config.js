@@ -1,11 +1,11 @@
 import js from '@eslint/js';
-import globals from 'globals';
-import tseslint from 'typescript-eslint';
+import { defineConfig, globalIgnores } from 'eslint/config';
 import prettier from 'eslint-plugin-prettier';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
-import { defineConfig, globalIgnores } from 'eslint/config';
-import { fileURLToPath } from 'url';
+import globals from 'globals';
 import { dirname } from 'path';
+import tseslint from 'typescript-eslint';
+import { fileURLToPath } from 'url';
 
 // Get current directory (needed to tell ESLint which tsconfig to use in monorepo)
 const __filename = fileURLToPath(import.meta.url);

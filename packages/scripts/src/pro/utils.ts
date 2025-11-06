@@ -5,6 +5,7 @@ export const DEBUG = false;
 
 export const debug = (...args: unknown[]) => {
   if (DEBUG) {
+    // eslint-disable-next-line no-console
     console.log(...args);
   }
 };
