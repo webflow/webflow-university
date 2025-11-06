@@ -57,17 +57,33 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Check if version was updated
+        id: check_version
+        run: |
+          # Get current version from package.json
+          CURRENT_VERSION=$(grep -o '"version": "[^"]*"' packages/scripts/package.json | cut -d'"' -f4)
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+
+          # Check if there's already a tag for this version
+          if git rev-parse "v$CURRENT_VERSION" >/dev/null 2>&1; then
+            echo "Tag v$CURRENT_VERSION already exists, skipping release"
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "New version detected: $CURRENT_VERSION"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Get Scripts Package Version
-        if: steps.changesets.outputs.published == 'true'
+        if: steps.check_version.outputs.should_release == 'true'
         id: version
         run: |
-          VERSION=$(grep -o '"version": "[^"]*"' packages/scripts/package.json | cut -d'"' -f4)
+          VERSION="${{ steps.check_version.outputs.current_version }}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
           echo "Released version: $VERSION"
 
       - name: Create Git Tag
-        if: steps.changesets.outputs.published == 'true'
+        if: steps.check_version.outputs.should_release == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -75,7 +91,7 @@ jobs:
           git push origin "${{ steps.version.outputs.tag }}"
 
       - name: Create GitHub Release for Scripts
-        if: steps.changesets.outputs.published == 'true'
+        if: steps.check_version.outputs.should_release == 'true'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.version.outputs.tag }}
@@ -100,7 +116,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Scripts Artifacts
-        if: steps.changesets.outputs.published == 'true'
+        if: steps.check_version.outputs.should_release == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: scripts-dist
