@@ -1,5 +1,12 @@
 # scripts
 
+## 1.1.1
+
+### Patch Changes
+
+- 809868a: autoplay tabs styling updates
+- bcadedb: Calendar styles and dev mode
+
 ## 1.1.0
 
 ### Minor Changes
