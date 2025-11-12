@@ -32,16 +32,18 @@ jobs:
       - name: Build packages
         run: pnpm build
 
-      - name: Commit dist folder (if changed)
+      - name: Stage dist folder (if changed)
+        id: stage_dist
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add packages/scripts/dist/
           if git diff --staged --quiet; then
             echo "No changes to dist folder"
+            echo "has_dist_changes=false" >> $GITHUB_OUTPUT
           else
-            git commit -m "chore: build scripts package"
-            git push
+            echo "Dist folder has changes"
+            echo "has_dist_changes=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Create Release Pull Request or Publish
@@ -54,6 +56,29 @@ jobs:
           version: pnpm changeset version
           commit: 'chore: version packages'
           title: 'chore: version packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create PR for dist changes (if no changesets PR was created)
+        if: steps.stage_dist.outputs.has_dist_changes == 'true' && steps.changesets.outputs.pullRequestNumber == ''
+        run: |
+          # Re-stage dist changes (in case changesets action reset staging)
+          git add packages/scripts/dist/
+          if ! git diff --staged --quiet; then
+            echo "Creating PR for dist changes"
+            BRANCH_NAME="chore/build-scripts-$(date +%s)"
+            git checkout -b "$BRANCH_NAME"
+            git commit -m "chore: build scripts package"
+            git push origin "$BRANCH_NAME"
+            
+            gh pr create \
+              --title "chore: build scripts package" \
+              --body "Automated build of scripts package dist folder." \
+              --base main \
+              --head "$BRANCH_NAME"
+          else
+            echo "Dist changes were already committed"
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

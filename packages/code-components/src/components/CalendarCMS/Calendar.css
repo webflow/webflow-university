@@ -7,7 +7,7 @@
   --muted: var(--theme--t_text-secondary, #ababab);
   --chip: var(--theme--t_bg-secondary, #222);
   --chip-border: var(--theme--t_border-primary, #363636);
-  --font-wf-sans: var(--sans, "WF Visual Sans", sans-serif);
+  --font-wf-sans: var(--sans, 'WF Visual Sans', sans-serif);
   --blue: var(--swatches--blue, #146ef5);
   color: var(--text);
   background: var(--bg);
@@ -71,13 +71,44 @@
   cursor: not-allowed;
 }
 
-.wf-cal-tzselect select {
-  appearance: none;
+.wf-cal-tzselect-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
   background: var(--panel);
   border: 1px solid var(--border);
-  color: var(--text);
-  padding: 6px 10px;
   border-radius: 4px;
+}
+
+.wf-cal-tzselect-clock-icon {
+  position: absolute;
+  left: 10px;
+  flex-shrink: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.wf-cal-tzselect select {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  padding: 6px 36px 6px 32px;
+  border-radius: 4px;
+  flex: 1;
+  cursor: pointer;
+  font-family: var(--font-wf-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.wf-cal-tzselect-chevron-icon {
+  position: absolute;
+  right: 10px;
+  flex-shrink: 0;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .wf-cal-daylabels {
