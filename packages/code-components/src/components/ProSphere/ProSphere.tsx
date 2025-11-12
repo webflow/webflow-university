@@ -224,12 +224,18 @@ function ProSphereInner({
   spotlightIntensity = 3.0,
   iridescenceStrength = 0.5,
   spotlightDepth = 0.0,
-}: ProSphereProps = {}) {
+}: ProSphereInnerProps = {}) {
   const groupRef = useRef<THREE.Group>(null);
   const radius = 2;
 
   // Track mouse position in 3D space
   const mousePos = useRef(new THREE.Vector3(0, 0, 0));
+  const raycaster = useMemo(() => new THREE.Raycaster(), []);
+  const interactionPlane = useMemo(() => new THREE.Plane(), []);
+  const cameraDirection = useMemo(() => new THREE.Vector3(), []);
+  const intersectionPoint = useMemo(() => new THREE.Vector3(), []);
+  const sphereCenter = useMemo(() => new THREE.Vector3(), []);
+  const shaderMaterialsRef = useRef<THREE.ShaderMaterial[]>([]);
 
   // Create meridian lines with neon glow effect
   const meridianLines = useMemo(() => {
@@ -259,6 +265,8 @@ function ProSphereInner({
       spotlightIntensity,
       iridescenceStrength
     ); // Core bright line
+
+    shaderMaterialsRef.current = [glowMaterial, coreMaterial];
 
     for (let i = 0; i < meridianCount; i++) {
       const points: THREE.Vector3[] = [];
@@ -309,33 +317,26 @@ function ProSphereInner({
       groupRef.current.rotation.x = state.clock.elapsedTime * rotationSpeed;
     }
 
-    // Update mouse position in 3D space using raycaster
-    const raycaster = new THREE.Raycaster();
+    // Update mouse position in 3D space using cached raycaster
     raycaster.setFromCamera(state.mouse, state.camera);
 
     // Calculate sphere's center position in world space with adjustable depth offset
     const sphereCenterY = -radius * scale + verticalOffset;
-    const sphereCenter = new THREE.Vector3(0, sphereCenterY, spotlightDepth);
+    sphereCenter.set(0, sphereCenterY, spotlightDepth);
 
     // Create a plane at the sphere's center depth (with offset), perpendicular to camera view
-    const cameraDirection = new THREE.Vector3();
     state.camera.getWorldDirection(cameraDirection);
-    const plane = new THREE.Plane();
-    plane.setFromNormalAndCoplanarPoint(cameraDirection, sphereCenter);
+    interactionPlane.setFromNormalAndCoplanarPoint(cameraDirection, sphereCenter);
 
     // Intersect mouse ray with the plane at sphere's center
-    const intersection = new THREE.Vector3();
-    raycaster.ray.intersectPlane(plane, intersection);
-
-    if (intersection) {
-      mousePos.current.copy(intersection);
+    const hit = raycaster.ray.intersectPlane(interactionPlane, intersectionPoint);
+    if (hit && !mousePos.current.equals(hit)) {
+      mousePos.current.copy(hit);
     }
 
     // Update material uniforms
-    meridianLines.forEach((line) => {
-      if (line.material instanceof THREE.ShaderMaterial) {
-        line.material.uniforms.uMousePos.value.copy(mousePos.current);
-      }
+    shaderMaterialsRef.current.forEach((material) => {
+      material.uniforms.uMousePos.value.copy(mousePos.current);
     });
   });
 
@@ -354,6 +355,7 @@ interface ProSphereProps extends ProSphereInnerProps {
   bloomThreshold?: number;
   bloomSmoothing?: number;
   bloomRadius?: number;
+  bloomMipmapBlur?: boolean;
   vignetteOffset?: number;
   vignetteDarkness?: number;
 }
@@ -381,21 +383,24 @@ function ProSphere({
   bloomThreshold = 0.0,
   bloomSmoothing = 0.3,
   bloomRadius = 0.8,
+  bloomMipmapBlur = true,
   vignetteOffset = 0.75,
   vignetteDarkness = 0.75,
 }: ProSphereProps = {}) {
   return (
     <div style={{ width: '100%', height: '100%', margin: 0, padding: 0, position: 'relative' }}>
       <Canvas
+        dpr={[1, 1.5]}
         camera={{ position: [0, 5, 6], fov: 50 }}
         gl={{
-          antialias: true,
+          antialias: false,
           toneMapping: THREE.ACESFilmicToneMapping,
           alpha: true,
+          powerPreference: 'high-performance',
         }}
         onCreated={({ scene, gl }) => {
-          scene.background = null;
-          gl.setClearColor(0x000000, 0); // Transparent clear color
+          scene.background = new THREE.Color('#080808');
+          gl.setClearColor(new THREE.Color('#080808'), 0);
         }}
       >
         <ambientLight intensity={0.3} />
@@ -422,10 +427,11 @@ function ProSphere({
             intensity={bloomIntensity}
             luminanceThreshold={bloomThreshold}
             luminanceSmoothing={bloomSmoothing}
-            height={1024}
-            mipmapBlur={true}
+            height={512}
+            mipmapBlur={bloomMipmapBlur}
             radius={bloomRadius}
           />
+
           <Vignette offset={vignetteOffset} darkness={vignetteDarkness} eskil={false} />
         </EffectComposer>
       </Canvas>

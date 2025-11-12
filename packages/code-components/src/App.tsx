@@ -1,95 +1,69 @@
 import './App.css';
-import { Canvas } from '@react-three/fiber';
-import * as THREE from 'three';
-import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
-import { useControls } from 'leva';
-// import AutoplayTabs from './components/AutoplayTabs/AutoplayTabs';
-import { ProSphereInner } from './components/ProSphere/ProSphere';
+// import { useControls } from 'leva';
+// import ProSphere from './components/ProSphere/ProSphere';
+// import UnrealBloomExample from './components/UnrealBloomExample/UnrealBloomExample';
+import AutoplayTabs from './components/AutoplayTabs/AutoplayTabs';
 // import Calendar from "./components/Calendar/Calendar";
 
 function App() {
   // Bloom controls
-  const bloomControls = useControls('Bloom', {
-    bloomIntensity: { value: 3.5, min: 0, max: 10, step: 0.1 },
-    bloomThreshold: { value: 0.0, min: 0, max: 1, step: 0.05 },
-    bloomSmoothing: { value: 0.3, min: 0, max: 1, step: 0.05 },
-    bloomRadius: { value: 0.8, min: 0, max: 1, step: 0.05 },
-  });
+  // const bloomControls = useControls('Bloom', {
+  //   bloomIntensity: { value: 3.5, min: 0, max: 10, step: 0.1 },
+  //   bloomThreshold: { value: 0.0, min: 0, max: 1, step: 0.05 },
+  //   bloomSmoothing: { value: 0.3, min: 0, max: 1, step: 0.05 },
+  //   bloomRadius: { value: 0.8, min: 0, max: 1, step: 0.05 },
+  // });
 
-  // Vignette controls
-  const vignetteControls = useControls('Vignette', {
-    vignetteOffset: { value: 0.75, min: 0, max: 1, step: 0.05 },
-    vignetteDarkness: { value: 0.75, min: 0, max: 1, step: 0.05 },
-  });
+  // // Vignette controls
+  // const vignetteControls = useControls('Vignette', {
+  //   vignetteOffset: { value: 0.75, min: 0, max: 1, step: 0.05 },
+  //   vignetteDarkness: { value: 0.75, min: 0, max: 1, step: 0.05 },
+  // });
 
-  // Sphere controls
-  const sphereControls = useControls('Sphere', {
-    scale: { value: 3, min: 1, max: 10, step: 0.1 },
-    horizontalStretch: { value: 1.2, min: 0.5, max: 3, step: 0.1 },
-    meridianCount: { value: 16, min: 4, max: 64, step: 1 },
-    verticalOffset: { value: -2, min: -10, max: 10, step: 0.5 },
-    rotationSpeed: { value: 0.1, min: 0, max: 2, step: 0.05 },
-  });
+  // // Sphere controls
+  // const sphereControls = useControls('Sphere', {
+  //   scale: { value: 3, min: 1, max: 10, step: 0.1 },
+  //   horizontalStretch: { value: 1.2, min: 0.5, max: 3, step: 0.1 },
+  //   meridianCount: { value: 16, min: 4, max: 64, step: 1 },
+  //   verticalOffset: { value: -2, min: -10, max: 10, step: 0.5 },
+  //   rotationSpeed: { value: 0.1, min: 0, max: 2, step: 0.05 },
+  // });
 
-  // Material controls
-  const materialControls = useControls('Material', {
-    glowIntensity: { value: 4.0, min: 0, max: 20, step: 0.5 },
-    coreIntensity: { value: 8.0, min: 0, max: 20, step: 0.5 },
-    focusHeight: { value: 4.0, min: -5, max: 10, step: 0.5 },
-  });
+  // // Material controls
+  // const materialControls = useControls('Material', {
+  //   glowIntensity: { value: 4.0, min: 0, max: 20, step: 0.5 },
+  //   coreIntensity: { value: 8.0, min: 0, max: 20, step: 0.5 },
+  //   focusHeight: { value: 4.0, min: -5, max: 10, step: 0.5 },
+  // });
 
-  // Fog controls
-  const fogControls = useControls('Fog', {
-    fogNear: { value: 5.0, min: 0, max: 20, step: 0.5, label: 'Fog Near' },
-    fogFar: { value: 19.5, min: 5, max: 30, step: 0.5, label: 'Fog Far' },
-    fogDensity: { value: 3.0, min: 0.1, max: 5, step: 0.1, label: 'Fog Density' },
-  });
+  // // Fog controls
+  // const fogControls = useControls('Fog', {
+  //   fogNear: { value: 5.0, min: 0, max: 20, step: 0.5, label: 'Fog Near' },
+  //   fogFar: { value: 19.5, min: 5, max: 30, step: 0.5, label: 'Fog Far' },
+  //   fogDensity: { value: 3.0, min: 0.1, max: 5, step: 0.1, label: 'Fog Density' },
+  // });
 
-  // Cursor Spotlight controls
-  const spotlightControls = useControls('Cursor Spotlight', {
-    spotlightRadius: { value: 2.0, min: 0.5, max: 5, step: 0.1, label: 'Radius' },
-    spotlightIntensity: { value: 3.0, min: 0, max: 10, step: 0.5, label: 'Intensity' },
-    iridescenceStrength: { value: 0.5, min: 0, max: 1, step: 0.05, label: 'Iridescence' },
-    spotlightDepth: { value: 0.0, min: -10, max: 10, step: 0.5, label: 'Depth Offset' },
-  });
+  // // Cursor Spotlight controls
+  // const spotlightControls = useControls('Cursor Spotlight', {
+  //   spotlightRadius: { value: 2.0, min: 0.5, max: 5, step: 0.1, label: 'Radius' },
+  //   spotlightIntensity: { value: 3.0, min: 0, max: 10, step: 0.5, label: 'Intensity' },
+  //   iridescenceStrength: { value: 0.5, min: 0, max: 1, step: 0.05, label: 'Iridescence' },
+  //   spotlightDepth: { value: 0.0, min: -10, max: 10, step: 0.5, label: 'Depth Offset' },
+  // });
 
   return (
     <>
-      {/* <Calendar /> */}
-      <div style={{ width: '100%', height: '100vh', margin: 0, padding: 0, overflow: 'hidden' }}>
-        <Canvas
-          camera={{ position: [0, 5, 6], fov: 50 }}
-          gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
-          onCreated={({ scene }) => {
-            scene.background = new THREE.Color(0x080808);
-          }}
-        >
-          <ambientLight intensity={0.3} />
-          <pointLight position={[10, 10, 10]} intensity={0.5} />
-          <ProSphereInner
-            {...sphereControls}
-            {...materialControls}
-            {...fogControls}
-            {...spotlightControls}
-          />
-          <EffectComposer>
-            <Bloom
-              intensity={bloomControls.bloomIntensity}
-              luminanceThreshold={bloomControls.bloomThreshold}
-              luminanceSmoothing={bloomControls.bloomSmoothing}
-              height={1024}
-              mipmapBlur={true}
-              radius={bloomControls.bloomRadius}
-            />
-            <Vignette
-              offset={vignetteControls.vignetteOffset}
-              darkness={vignetteControls.vignetteDarkness}
-              eskil={false}
-            />
-          </EffectComposer>
-        </Canvas>
-      </div>
-      {/* <AutoplayTabs
+      {/* <div style={{ width: '100%', height: '100vh', margin: 0, padding: 0, overflow: 'hidden' }}>
+        <ProSphere
+          {...sphereControls}
+          {...materialControls}
+          {...fogControls}
+          {...spotlightControls}
+          {...bloomControls}
+          {...vignetteControls}
+        />
+      </div> */}
+      <AutoplayTabs
         autoplay={true}
         autoplayDuration={5000}
         tabOneLabel="LEARN IN REAL TIME"
@@ -101,7 +75,7 @@ function App() {
         tabThreeLabel="LEARN ON YOUR OWN TIME"
         tabThreeTitle="On-demand library"
         tabThreeDescription="Need a primer or refresher? You'll still have full access to our Webflow University self-paced courses — available anytime, anywhere."
-      /> */}
+      />
     </>
   );
 }

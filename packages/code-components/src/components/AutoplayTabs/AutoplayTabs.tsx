@@ -110,7 +110,10 @@ const AutoplayTabs = ({
   };
 
   return (
-    <div className="autoplay-tabs">
+    <div
+      className="autoplay-tabs"
+      style={{ backgroundColor: 'var(--theme--t_bg-primary, #080808)' }}
+    >
       {/* Desktop View - Tabs Interface */}
       <div className="tabs-interface">
         {/* Main Display Pane */}
