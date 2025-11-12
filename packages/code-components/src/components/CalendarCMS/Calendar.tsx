@@ -621,24 +621,6 @@ const CalendarCMS = (props: CalendarProps) => {
   const isCurrentMonth = (d: Date) => d.getUTCMonth() === currentMonthUTC.getUTCMonth();
   const todayKey = ymdInZone(nowUTC, displayTZ).key;
 
-  const friendlyEventTZLabel = useMemo(() => {
-    try {
-      // Attempt Intl.DisplayNames for nicer label when supported
-      type UnknownCtor = new (...args: unknown[]) => {
-        of: (code: string) => string | undefined;
-      };
-      const IntlWithDN = Intl as unknown as { DisplayNames?: UnknownCtor };
-      if (IntlWithDN && typeof IntlWithDN.DisplayNames === 'function') {
-        const dn = new IntlWithDN.DisplayNames(undefined, { type: 'timeZone' });
-        const label = dn.of(eventTZ);
-        return label || eventTZ;
-      }
-      return eventTZ;
-    } catch {
-      return eventTZ;
-    }
-  }, [eventTZ]);
-
   return (
     <div className="wf-calendar">
       {/* Hidden container for CMS collection slot */}
@@ -672,15 +654,56 @@ const CalendarCMS = (props: CalendarProps) => {
         <div className="wf-cal-tzselect">
           <label>
             <span className="sr-only">Timezone</span>
-            <select
-              value={tzMode}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                setTzMode(e.target.value as 'event' | 'local')
-              }
-            >
-              <option value="local">My local time</option>
-              <option value="event">{friendlyEventTZLabel} (event time)</option>
-            </select>
+            <div className="wf-cal-tzselect-wrapper">
+              <svg
+                className="wf-cal-tzselect-clock-icon"
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M7.99992 14.6663C11.6818 14.6663 14.6666 11.6816 14.6666 7.99967C14.6666 4.31778 11.6818 1.33301 7.99992 1.33301C4.31802 1.33301 1.33325 4.31778 1.33325 7.99967C1.33325 11.6816 4.31802 14.6663 7.99992 14.6663Z"
+                  stroke="var(--theme--t_text-primary, white)"
+                  strokeWidth="1.33333"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M8 4V8L10.6667 9.33333"
+                  stroke="var(--theme--t_text-primary, white)"
+                  strokeWidth="1.33333"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <select
+                className="wf-cal-tzselect-select"
+                value={tzMode}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  setTzMode(e.target.value as 'event' | 'local')
+                }
+              >
+                <option value="local">My local time</option>
+                <option value="event">Eastern Time</option>
+              </select>
+              <svg
+                className="wf-cal-tzselect-chevron-icon"
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  fillRule="evenodd"
+                  clipRule="evenodd"
+                  d="M5.26047 5.79352C5.07301 5.98097 5.07301 6.28489 5.26047 6.47234C5.44792 6.65979 5.75184 6.65979 5.93929 6.47234L7.99988 4.41175L10.0605 6.47234C10.2479 6.65979 10.5518 6.65979 10.7393 6.47234C10.9267 6.28489 10.9267 5.98097 10.7393 5.79352L8.33929 3.39352C8.24927 3.3035 8.12717 3.25293 7.99988 3.25293C7.87257 3.25293 7.75048 3.3035 7.66047 3.39352L5.26047 5.79352ZM10.7393 10.2057C10.9267 10.0182 10.9267 9.71431 10.7393 9.52685C10.5518 9.33941 10.2479 9.33941 10.0605 9.52685L7.99988 11.5874L5.93929 9.52685C5.75184 9.33941 5.44792 9.33941 5.26047 9.52685C5.07301 9.71431 5.07301 10.0182 5.26047 10.2057L7.66047 12.6057C7.84792 12.7931 8.15184 12.7931 8.33929 12.6057L10.7393 10.2057Z"
+                  fill="var(--theme--t_text-secondary, #ababab)"
+                />
+              </svg>
+            </div>
           </label>
         </div>
       </div>

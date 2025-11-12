@@ -7,9 +7,7 @@
     }
   },
   "library": {
-    "components": [
-      "**/*.webflow.@(js|jsx|mjs|ts|tsx)"
-    ],
+    "components": ["**/*.webflow.@(js|jsx|mjs|ts|tsx)"],
     "name": "Webflow University Code Components",
     "description": "Code Components library from the wfu monorepo",
     "id": "webflow-university-code-components"
