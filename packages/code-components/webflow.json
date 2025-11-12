@@ -1,0 +1,17 @@
+{
+  "telemetry": {
+    "global": {
+      "allowTelemetry": true,
+      "lastPrompted": 1762812814040,
+      "version": "1.8.48"
+    }
+  },
+  "library": {
+    "components": [
+      "**/*.webflow.@(js|jsx|mjs|ts|tsx)"
+    ],
+    "name": "Webflow University Code Components",
+    "description": "Code Components library from the wfu monorepo",
+    "id": "webflow-university-code-components"
+  }
+}

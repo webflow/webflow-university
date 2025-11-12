@@ -9,6 +9,7 @@
     "build:components": "pnpm --filter code-components build",
     "dev:scripts": "pnpm --filter scripts dev",
     "dev:components": "pnpm --filter code-components dev",
+    "share:components": "pnpm --filter code-components share",
     "lint": "pnpm -r lint",
     "lint:fix": "pnpm -r lint:fix",
     "check": "pnpm -r check",

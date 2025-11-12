@@ -6,7 +6,7 @@
   --muted: var(--theme--t_text-secondary, #ababab);
   --chip: var(--theme--t_bg-secondary, #222);
   --chip-border: var(--theme--t_border-primary, #363636);
-  --font-wf-sans: var(--sans, "WF Visual Sans", sans-serif);
+  --font-wf-sans: var(--sans, 'WF Visual Sans', sans-serif);
   --blue: var(--swatches--blue, #146ef5);
 }
 
@@ -28,11 +28,12 @@
 /* Main Display Pane - 16:9 Aspect Ratio */
 .display-pane {
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 3 / 1;
   background-color: var(--bg);
-  border-radius: 8px 8px 0 0;
+  border-radius: var(--radius--r_lg, 6px);
   overflow: hidden;
   position: relative;
+  margin-bottom: var(--space--gap--g_main, 24px);
 }
 
 .display-content {
@@ -89,10 +90,12 @@
 .tab-button {
   background: transparent;
   border: none;
-  padding: 0;
+  padding: 0px;
   text-align: left;
   cursor: pointer;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
   /* color: rgba(255, 255, 255, 0.3); */
   position: relative;
   display: flex;
@@ -106,7 +109,15 @@
 }
 
 .tab-content-wrapper {
-  padding: 32px 24px 24px;
+  padding: 32px;
+}
+
+.tab-button:first-child .tab-content-wrapper {
+  padding-left: 0px;
+}
+
+.tab-button:last-child .tab-content-wrapper {
+  padding-right: 0px;
 }
 
 /* Focus State */
@@ -142,7 +153,6 @@
 /* Active Tab */
 .tab-button.active {
   color: var(--text);
-  background-color: var(--chip);
 }
 
 /* Hover State */
@@ -288,10 +298,6 @@
 
 /* Tablet adjustments */
 @media (max-width: 1024px) and (min-width: 768px) {
-  .tab-button {
-    padding: 24px 16px;
-  }
-
   .tab-title {
     font-size: 20px;
   }
