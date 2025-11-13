@@ -86,7 +86,7 @@ function App() {
                   className="w-dyn-item"
                   data-start-1="2025-12-16 15:00"
                   data-start-2="2025-12-11 11:00"
-                  data-name="Build & style your site"
+                  data-name="Build &amp; style your site"
                   data-slug="build-style-your-site"
                   data-blackout-date-string="12/18/2025, 12/23/2025, 12/25/2025, 12/30/2025, 01/01/2026, 01/08/2026, 01/13/2026, 01/22/2026, 01/27/2026"
                   role="listitem"
@@ -94,9 +94,10 @@ function App() {
                   data-duration-2="60"
                   data-end-1="2026-01-21"
                   data-frequency-1="weekly"
+                  data-type="Live Training"
                   data-end-2="2026-01-30"
                   data-frequency-2="weekly"
-                />
+                ></div>
                 <div
                   className="w-dyn-item"
                   data-start-1="2025-12-16 11:00"
@@ -109,9 +110,10 @@ function App() {
                   data-duration-2="60"
                   data-end-1="2026-01-21"
                   data-frequency-1="weekly"
+                  data-type="Live Training"
                   data-end-2="2026-01-30"
                   data-frequency-2="weekly"
-                />
+                ></div>
                 <div
                   className="w-dyn-item"
                   data-start-1="2025-12-17 11:00"
@@ -124,9 +126,10 @@ function App() {
                   data-duration-2="60"
                   data-end-1="2026-01-03"
                   data-frequency-1="monthly"
+                  data-type="Workshop"
                   data-end-2="2026-01-08"
                   data-frequency-2="monthly"
-                />
+                ></div>
                 <div
                   className="w-dyn-item"
                   data-start-1="2025-12-09 15:00"
@@ -139,9 +142,10 @@ function App() {
                   data-duration-2="60"
                   data-end-1="2026-01-28"
                   data-frequency-1="weekly"
+                  data-type="Live Training"
                   data-end-2="2026-01-23"
                   data-frequency-2="weekly"
-                />
+                ></div>
                 <div
                   className="w-dyn-item"
                   data-start-1="2025-12-09 11:00"
@@ -154,9 +158,10 @@ function App() {
                   data-duration-2="60"
                   data-end-1="2026-01-28"
                   data-frequency-1="weekly"
+                  data-type="Live Training"
                   data-end-2="2026-01-23"
                   data-frequency-2="weekly"
-                />
+                ></div>
               </div>
             </div>
           </div>
