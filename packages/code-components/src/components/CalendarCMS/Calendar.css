@@ -183,7 +183,7 @@
   border-radius: 4px;
   padding: 6px 8px;
   text-decoration: none;
-  color: inherit;
+  color: var(--theme--t_text-on-light, #171717);
   display: block;
   transition: all 0.2s ease;
 }
@@ -192,6 +192,24 @@
   background: var(--border);
   border-color: var(--blue);
   transform: translateY(-1px);
+}
+
+/* Live Training - Purple */
+.wf-cal-event[data-type='Live Training'] {
+  background: var(--theme--t_bg-accent-purple, #cab1ff);
+}
+
+.wf-cal-event[data-type='Live Training']:hover {
+  background: var(--theme--t_bg-accent-purple-hover, #e4d8ff);
+}
+
+/* Workshop - Yellow */
+.wf-cal-event[data-type='Workshop'] {
+  background: var(--theme--t_bg-accent-yellow, #ffbe42);
+}
+
+.wf-cal-event[data-type='Workshop']:hover {
+  background: var(--theme--t_bg-accent-yellow-hover, #ffdea1);
 }
 
 .wf-cal-event:focus {
@@ -211,7 +229,7 @@
 
 .wf-cal-eventtime {
   font-size: 12px;
-  color: var(--muted);
+  color: var(--theme--t_text-on-light, #171717);
 }
 
 .wf-cal-legend {

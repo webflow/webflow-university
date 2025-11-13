@@ -54,12 +54,14 @@ interface RecurrenceRule {
 interface Session {
   slug: string;
   name: string;
+  type?: string;
   rules: RecurrenceRule[];
 }
 
 interface Occurrence {
   slug: string;
   name: string;
+  type?: string;
   startUTC: Date;
   endUTC: Date;
 }
@@ -389,6 +391,7 @@ function buildSessionsFromApiItems(items: CMSItem[]): Session[] {
     }
 
     const name = typeof f.name === 'string' ? (f.name as string) : slug;
+    const type = typeof f.type === 'string' ? (f.type as string) : undefined;
     const rules: RecurrenceRule[] = [];
 
     // Build first occurrence rule (rule number "1")
@@ -400,7 +403,7 @@ function buildSessionsFromApiItems(items: CMSItem[]): Session[] {
     if (rule2) rules.push(rule2);
 
     if (rules.length > 0) {
-      sessions.push({ slug, name, rules });
+      sessions.push({ slug, name, type, rules });
     }
   }
 
@@ -443,6 +446,7 @@ function generateNextOccurrencesForSession(
         occs.push({
           slug: session.slug,
           name: session.name,
+          type: session.type,
           startUTC: current,
           endUTC,
         });
@@ -770,6 +774,7 @@ const CalendarCMS = (props: CalendarProps) => {
                       href={getSessionUrl(ev.slug)}
                       className="wf-cal-event"
                       key={i}
+                      data-type={ev.type}
                       title={`${ev.name} - ${formatRange(ev.startUTC, ev.endUTC, displayTZ)}`}
                       aria-label={`${ev.name} on ${new Intl.DateTimeFormat(undefined, {
                         timeZone: displayTZ,
