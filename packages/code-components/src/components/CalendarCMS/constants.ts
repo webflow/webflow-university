@@ -1,3 +1,5 @@
+// these are the constants.
+
 export const ABSOLUTE_SESSIONS_LIST_URL =
   'https://university.webflow.com/app/api/pro/sessions/list';
 
