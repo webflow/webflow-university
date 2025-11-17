@@ -155,16 +155,6 @@
   color: var(--text);
 }
 
-/* Hover State */
-.tab-button:hover {
-  color: var(--text);
-  outline: none;
-  border-top: none;
-  border-bottom: none;
-  border-left: none;
-  box-shadow: none;
-}
-
 /* Tab Content */
 .tab-label {
   display: block;
