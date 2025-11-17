@@ -2,8 +2,8 @@ import './App.css';
 // import { useControls } from 'leva';
 // import ProSphere from './components/ProSphere/ProSphere';
 // import UnrealBloomExample from './components/UnrealBloomExample/UnrealBloomExample';
-import AutoplayTabs from './components/AutoplayTabs/AutoplayTabs';
-// import CalendarCMS from './components/CalendarCMS/Calendar';
+// import AutoplayTabs from './components/AutoplayTabs/AutoplayTabs';
+import CalendarCMS from './components/CalendarCMS/Calendar';
 // import Calendar from "./components/Calendar/Calendar";
 
 function App() {
@@ -64,7 +64,7 @@ function App() {
           {...vignetteControls}
         />
       </div> */}
-      <AutoplayTabs
+      {/* <AutoplayTabs
         autoplay={true}
         autoplayDuration={5000}
         tabOneLabel="LEARN IN REAL TIME"
@@ -76,8 +76,8 @@ function App() {
         tabThreeLabel="LEARN ON YOUR OWN TIME"
         tabThreeTitle="On-demand library"
         tabThreeDescription="Need a primer or refresher? You'll still have full access to our Webflow University self-paced courses — available anytime, anywhere."
-      />
-      {/* <CalendarCMS
+      /> */}
+      <CalendarCMS
         cmsCollectionComponentSlot={
           <div slot="cmsCollectionComponentSlot">
             <div className="w-dyn-list">
@@ -166,7 +166,7 @@ function App() {
             </div>
           </div>
         }
-      /> */}
+      />
     </>
   );
 }
