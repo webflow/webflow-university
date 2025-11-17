@@ -190,7 +190,7 @@
 
 .wf-cal-event:hover {
   background: var(--border);
-  border-color: var(--blue);
+  color: var(--theme--t_text-on-light, #171717);
   transform: translateY(-1px);
 }
 
