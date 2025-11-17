@@ -155,20 +155,10 @@
   color: var(--text);
 }
 
-/* Hover State */
-.tab-button:hover {
-  color: var(--text);
-  outline: none;
-  border-top: none;
-  border-bottom: none;
-  border-left: none;
-  box-shadow: none;
-}
-
 /* Tab Content */
 .tab-label {
   display: block;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 3.6px;
   text-transform: uppercase;
@@ -177,7 +167,7 @@
 }
 
 .tab-title {
-  font-size: 24px;
+  font-size: 1.5rem;
   font-weight: 600;
   margin: 0 0 12px 0;
   line-height: 1.2;
@@ -271,7 +261,7 @@
 
   .mobile-info .tab-label {
     display: block;
-    font-size: 11px;
+    font-size: 0.6875rem;
     font-weight: 600;
     letter-spacing: 1.5px;
     text-transform: uppercase;
@@ -288,7 +278,7 @@
   }
 
   .mobile-info .tab-description {
-    font-size: 15px;
+    font-size: 0.9375rem;
     line-height: 1.5;
     margin: 0;
     opacity: 1;
@@ -298,10 +288,10 @@
 /* Tablet adjustments */
 @media (max-width: 1024px) and (min-width: 768px) {
   .tab-title {
-    font-size: 20px;
+    font-size: 1.25rem;
   }
 
   .tab-description {
-    font-size: 14px;
+    font-size: 0.875rem;
   }
 }
