@@ -2,6 +2,7 @@ import { useRef, useMemo, useEffect, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
+import { useWebflowContext } from '@webflow/react';
 
 const NEON_BLUE = '#146EF5';
 
@@ -239,6 +240,7 @@ interface ProSphereInnerProps {
   spotlightEasing?: number;
   spotlightSpeed?: number;
   blending?: BlendingMode | string;
+  staticSpotlightPosition?: { x: number; y: number; z: number };
 }
 
 function ProSphereInner({
@@ -260,6 +262,7 @@ function ProSphereInner({
   spotlightEasing = 0.15,
   spotlightSpeed = 1.0,
   blending = 'Additive',
+  staticSpotlightPosition,
 }: ProSphereInnerProps = {}) {
   const groupRef = useRef<THREE.Group>(null);
   const radius = 2;
@@ -278,18 +281,36 @@ function ProSphereInner({
 
   // Update spotlight based on device type
   useEffect(() => {
-    if (shaderMaterialsRef.current.length === 0) return;
+    if (shaderMaterialsRef.current.length === 0) {
+      return;
+    }
 
     isInitialized.current = false;
     shaderMaterialsRef.current.forEach((material) => {
       if (hasPointerDevice) {
         material.uniforms.uSpotlightIntensity.value = spotlightIntensity;
       } else {
-        material.uniforms.uSpotlightIntensity.value = 0;
-        material.uniforms.uMousePos.value.set(0, 0, -1000);
+        // For touch devices, use static position if provided, otherwise disable
+        if (staticSpotlightPosition) {
+          material.uniforms.uSpotlightIntensity.value = spotlightIntensity;
+          material.uniforms.uMousePos.value.set(
+            staticSpotlightPosition.x,
+            staticSpotlightPosition.y,
+            staticSpotlightPosition.z
+          );
+          // Initialize smoothed position for touch devices
+          smoothedMousePos.current.set(
+            staticSpotlightPosition.x,
+            staticSpotlightPosition.y,
+            staticSpotlightPosition.z
+          );
+        } else {
+          material.uniforms.uSpotlightIntensity.value = 0;
+          material.uniforms.uMousePos.value.set(0, 0, -1000);
+        }
       }
     });
-  }, [hasPointerDevice, spotlightIntensity]);
+  }, [hasPointerDevice, spotlightIntensity, staticSpotlightPosition]);
 
   const [isReady, setIsReady] = useState(false);
 
@@ -298,6 +319,35 @@ function ProSphereInner({
     const timeoutId = setTimeout(() => setIsReady(true), 0);
     return () => clearTimeout(timeoutId);
   }, []);
+
+  // Update spotlight when materials become ready
+  useEffect(() => {
+    if (!isReady || shaderMaterialsRef.current.length === 0) return;
+
+    isInitialized.current = false;
+    shaderMaterialsRef.current.forEach((material) => {
+      if (hasPointerDevice) {
+        material.uniforms.uSpotlightIntensity.value = spotlightIntensity;
+      } else {
+        if (staticSpotlightPosition) {
+          material.uniforms.uSpotlightIntensity.value = spotlightIntensity;
+          material.uniforms.uMousePos.value.set(
+            staticSpotlightPosition.x,
+            staticSpotlightPosition.y,
+            staticSpotlightPosition.z
+          );
+          smoothedMousePos.current.set(
+            staticSpotlightPosition.x,
+            staticSpotlightPosition.y,
+            staticSpotlightPosition.z
+          );
+        } else {
+          material.uniforms.uSpotlightIntensity.value = 0;
+          material.uniforms.uMousePos.value.set(0, 0, -1000);
+        }
+      }
+    });
+  }, [isReady, hasPointerDevice, spotlightIntensity, staticSpotlightPosition]);
 
   const meridianLines = useMemo(() => {
     if (!isReady) return [];
@@ -308,6 +358,15 @@ function ProSphereInner({
         : THREE.AdditiveBlending;
     const lines: THREE.Line[] = [];
     const segments = 64;
+    // Initialize mouse position for materials
+    if (!hasPointerDevice && staticSpotlightPosition) {
+      smoothedMousePos.current.set(
+        staticSpotlightPosition.x,
+        staticSpotlightPosition.y,
+        staticSpotlightPosition.z
+      );
+    }
+
     const glowMaterial = createNeonLineMaterial(
       glowIntensity,
       focusHeight,
@@ -334,6 +393,22 @@ function ProSphereInner({
     );
 
     shaderMaterialsRef.current = [glowMaterial, coreMaterial];
+
+    // Immediately set spotlight for touch devices with static position
+    if (!hasPointerDevice && staticSpotlightPosition) {
+      glowMaterial.uniforms.uSpotlightIntensity.value = spotlightIntensity;
+      coreMaterial.uniforms.uSpotlightIntensity.value = spotlightIntensity;
+      glowMaterial.uniforms.uMousePos.value.set(
+        staticSpotlightPosition.x,
+        staticSpotlightPosition.y,
+        staticSpotlightPosition.z
+      );
+      coreMaterial.uniforms.uMousePos.value.set(
+        staticSpotlightPosition.x,
+        staticSpotlightPosition.y,
+        staticSpotlightPosition.z
+      );
+    }
 
     for (let i = 0; i < meridianCount; i++) {
       const points: THREE.Vector3[] = [];
@@ -367,6 +442,8 @@ function ProSphereInner({
     spotlightIntensity,
     iridescenceStrength,
     blending,
+    hasPointerDevice,
+    staticSpotlightPosition,
   ]);
 
   useFrame((state, delta) => {
@@ -399,6 +476,21 @@ function ProSphereInner({
       shaderMaterialsRef.current.forEach((material) => {
         material.uniforms.uMousePos.value.set(pos.x, pos.y, pos.z);
       });
+    } else if (!hasPointerDevice && staticSpotlightPosition) {
+      // For touch devices with static position, behave exactly like mouse hover but static
+      // Update every frame to ensure spotlight is always active
+      if (shaderMaterialsRef.current.length > 0) {
+        shaderMaterialsRef.current.forEach((material) => {
+          // Always set intensity (same as mouse hover behavior)
+          material.uniforms.uSpotlightIntensity.value = spotlightIntensity;
+          // Always set position (same as mouse hover behavior)
+          material.uniforms.uMousePos.value.set(
+            staticSpotlightPosition.x,
+            staticSpotlightPosition.y,
+            staticSpotlightPosition.z
+          );
+        });
+      }
     }
   });
 
@@ -419,6 +511,10 @@ interface ProSphereProps extends ProSphereInnerProps {
   bloomMipmapBlur?: boolean;
   vignetteOffset?: number;
   vignetteDarkness?: number;
+  staticSpotlightX?: number;
+  staticSpotlightY?: number;
+  staticSpotlightZ?: number;
+  disableInDesigner?: boolean;
 }
 
 function ProSphere({
@@ -440,6 +536,10 @@ function ProSphere({
   spotlightEasing = 0.15,
   spotlightSpeed = 1.0,
   blending = 'Additive',
+  staticSpotlightPosition,
+  staticSpotlightX,
+  staticSpotlightY,
+  staticSpotlightZ,
   bloomIntensity = 3.5,
   bloomThreshold = 0.0,
   bloomSmoothing = 0.3,
@@ -447,7 +547,21 @@ function ProSphere({
   bloomMipmapBlur = true,
   vignetteOffset = 0.75,
   vignetteDarkness = 0.75,
+  disableInDesigner = true,
 }: ProSphereProps = {}) {
+  // Detect if we're in Webflow designer mode using the official hook
+  const { mode, interactive } = useWebflowContext();
+  const isDesignerMode = mode === 'design' || !interactive;
+  const shouldDisable = disableInDesigner && isDesignerMode;
+
+  // Construct staticSpotlightPosition from individual props if not provided directly
+  const finalStaticSpotlightPosition =
+    staticSpotlightPosition ||
+    (staticSpotlightX !== undefined &&
+    staticSpotlightY !== undefined &&
+    staticSpotlightZ !== undefined
+      ? { x: staticSpotlightX, y: staticSpotlightY, z: staticSpotlightZ }
+      : undefined);
   const [postProcessingReady, setPostProcessingReady] = useState(false);
 
   // Defer post-processing effects until after initial render
@@ -455,6 +569,39 @@ function ProSphere({
     const timeoutId = setTimeout(() => setPostProcessingReady(true), 100);
     return () => clearTimeout(timeoutId);
   }, []);
+
+  // Render placeholder in designer mode for better performance
+  if (shouldDisable) {
+    return (
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          margin: 0,
+          padding: 0,
+          position: 'relative',
+          backgroundColor: '#080808',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#146EF5',
+          fontSize: '14px',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+        }}
+      >
+        <div
+          style={{
+            textAlign: 'center',
+            opacity: 0.6,
+            padding: '20px',
+          }}
+        >
+          <div style={{ fontSize: '18px', marginBottom: '8px' }}>ProSphere</div>
+          <div style={{ fontSize: '12px' }}>Rendering disabled in designer mode</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ width: '100%', height: '100%', margin: 0, padding: 0, position: 'relative' }}>
@@ -493,6 +640,7 @@ function ProSphere({
           spotlightEasing={spotlightEasing}
           spotlightSpeed={spotlightSpeed}
           blending={blending}
+          staticSpotlightPosition={finalStaticSpotlightPosition}
         />
         {postProcessingReady && (
           <EffectComposer>

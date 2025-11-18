@@ -87,6 +87,19 @@ function ProSpherePage() {
     spotlightDepth: { value: 0.0, min: -10, max: 10, step: 0.5, label: 'Depth Offset' },
   });
 
+  // Static Spotlight Position (for touch devices)
+  const staticSpotlightControls = useControls('Static Spotlight (Touch)', {
+    staticX: { value: -1.5, min: -10, max: 10, step: 0.1, label: 'X Position' },
+    staticY: { value: -2.5, min: -10, max: 10, step: 0.1, label: 'Y Position' },
+    staticZ: { value: -0.5, min: -10, max: 10, step: 0.1, label: 'Z Position' },
+  });
+
+  const staticSpotlightPosition = {
+    x: staticSpotlightControls.staticX,
+    y: staticSpotlightControls.staticY,
+    z: staticSpotlightControls.staticZ,
+  };
+
   // Blending controls
   const blendingControls = useControls('Blending', {
     blending: {
@@ -114,6 +127,7 @@ function ProSpherePage() {
           {...bloomControls}
           {...vignetteControls}
           {...blendingControls}
+          staticSpotlightPosition={staticSpotlightPosition}
         />
       </Suspense>
     </div>

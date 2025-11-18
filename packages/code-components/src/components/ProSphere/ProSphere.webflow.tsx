@@ -156,6 +156,31 @@ const ProSphereWebflow = declareComponent(ProSphere, {
       group: 'Post Processing',
       tooltip: 'Darkness intensity of the vignette effect',
     }),
+    staticSpotlightX: props.Number({
+      name: 'Static Spotlight X',
+      defaultValue: -1.5,
+      group: 'Spotlight',
+      tooltip: 'X position for static spotlight on touch devices',
+    }),
+    staticSpotlightY: props.Number({
+      name: 'Static Spotlight Y',
+      defaultValue: -2.5,
+      group: 'Spotlight',
+      tooltip: 'Y position for static spotlight on touch devices',
+    }),
+    staticSpotlightZ: props.Number({
+      name: 'Static Spotlight Z',
+      defaultValue: -0.5,
+      group: 'Spotlight',
+      tooltip: 'Z position for static spotlight on touch devices',
+    }),
+    disableInDesigner: props.Boolean({
+      name: 'Disable in Designer',
+      defaultValue: true,
+      group: 'Performance',
+      tooltip:
+        'When enabled, renders a lightweight placeholder in Webflow designer mode to improve performance. The full 3D scene will still render on the published site.',
+    }),
   },
 });
 
