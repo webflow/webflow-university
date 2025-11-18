@@ -10,6 +10,20 @@ const ProSphereWebflow = declareComponent(ProSphere, {
     applyTagSelectors: true,
   },
   props: {
+    disableInDesigner: props.Boolean({
+      name: 'Disable in Designer',
+      defaultValue: false,
+      group: 'Performance',
+      tooltip:
+        'When enabled, renders a lightweight placeholder in Webflow designer mode to improve performance. The full 3D scene will still render on the published site.',
+    }),
+    simulateTouchDevice: props.Boolean({
+      name: 'Simulate Touch Device',
+      defaultValue: false,
+      group: 'Performance',
+      tooltip:
+        'When enabled, simulates touch device behavior regardless of the actual device type. Useful for testing and previewing how the component appears on touch devices.',
+    }),
     scale: props.Number({
       name: 'Scale',
       defaultValue: 3,
@@ -173,20 +187,6 @@ const ProSphereWebflow = declareComponent(ProSphere, {
       defaultValue: -0.5,
       group: 'Spotlight',
       tooltip: 'Z position for static spotlight on touch devices',
-    }),
-    disableInDesigner: props.Boolean({
-      name: 'Disable in Designer',
-      defaultValue: true,
-      group: 'Performance',
-      tooltip:
-        'When enabled, renders a lightweight placeholder in Webflow designer mode to improve performance. The full 3D scene will still render on the published site.',
-    }),
-    simulateTouchDevice: props.Boolean({
-      name: 'Simulate Touch Device',
-      defaultValue: false,
-      group: 'Performance',
-      tooltip:
-        'When enabled, simulates touch device behavior regardless of the actual device type. Useful for testing and previewing how the component appears on touch devices.',
     }),
   },
 });
