@@ -1,9 +1,35 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useEffect, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 
 const NEON_BLUE = '#146EF5';
+
+// Hook to check for reduced motion preference
+function useReducedMotion() {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReducedMotion(mediaQuery.matches);
+
+    const handleChange = (event: MediaQueryListEvent) => {
+      setPrefersReducedMotion(event.matches);
+    };
+
+    // Modern browsers
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    } else {
+      // Fallback for older browsers
+      mediaQuery.addListener(handleChange);
+      return () => mediaQuery.removeListener(handleChange);
+    }
+  }, []);
+
+  return prefersReducedMotion;
+}
 
 // Accent colors for spotlight gradient (from design system)
 const ACCENT_COLORS = {
@@ -227,6 +253,7 @@ function ProSphereInner({
 }: ProSphereInnerProps = {}) {
   const groupRef = useRef<THREE.Group>(null);
   const radius = 2;
+  const prefersReducedMotion = useReducedMotion();
 
   // Track mouse position in 3D space
   const mousePos = useRef(new THREE.Vector3(0, 0, 0));
@@ -313,31 +340,35 @@ function ProSphereInner({
 
   // Track mouse position and handle rotation animation
   useFrame((state) => {
-    if (groupRef.current) {
+    // Only rotate if reduced motion is not preferred
+    if (groupRef.current && !prefersReducedMotion) {
       groupRef.current.rotation.x = state.clock.elapsedTime * rotationSpeed;
     }
 
-    // Update mouse position in 3D space using cached raycaster
-    raycaster.setFromCamera(state.mouse, state.camera);
+    // Only update mouse position and shader uniforms if reduced motion is not preferred
+    if (!prefersReducedMotion) {
+      // Update mouse position in 3D space using cached raycaster
+      raycaster.setFromCamera(state.mouse, state.camera);
 
-    // Calculate sphere's center position in world space with adjustable depth offset
-    const sphereCenterY = -radius * scale + verticalOffset;
-    sphereCenter.set(0, sphereCenterY, spotlightDepth);
+      // Calculate sphere's center position in world space with adjustable depth offset
+      const sphereCenterY = -radius * scale + verticalOffset;
+      sphereCenter.set(0, sphereCenterY, spotlightDepth);
 
-    // Create a plane at the sphere's center depth (with offset), perpendicular to camera view
-    state.camera.getWorldDirection(cameraDirection);
-    interactionPlane.setFromNormalAndCoplanarPoint(cameraDirection, sphereCenter);
+      // Create a plane at the sphere's center depth (with offset), perpendicular to camera view
+      state.camera.getWorldDirection(cameraDirection);
+      interactionPlane.setFromNormalAndCoplanarPoint(cameraDirection, sphereCenter);
 
-    // Intersect mouse ray with the plane at sphere's center
-    const hit = raycaster.ray.intersectPlane(interactionPlane, intersectionPoint);
-    if (hit && !mousePos.current.equals(hit)) {
-      mousePos.current.copy(hit);
+      // Intersect mouse ray with the plane at sphere's center
+      const hit = raycaster.ray.intersectPlane(interactionPlane, intersectionPoint);
+      if (hit && !mousePos.current.equals(hit)) {
+        mousePos.current.copy(hit);
+      }
+
+      // Update material uniforms
+      shaderMaterialsRef.current.forEach((material) => {
+        material.uniforms.uMousePos.value.copy(mousePos.current);
+      });
     }
-
-    // Update material uniforms
-    shaderMaterialsRef.current.forEach((material) => {
-      material.uniforms.uMousePos.value.copy(mousePos.current);
-    });
   });
 
   return (
