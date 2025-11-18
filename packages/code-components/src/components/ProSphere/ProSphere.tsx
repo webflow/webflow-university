@@ -1,9 +1,37 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useEffect, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
+import { useWebflowContext } from '@webflow/react';
 
 const NEON_BLUE = '#146EF5';
+
+// Helper to create media query hook
+function useMediaQuery(query: string, defaultValue: boolean) {
+  const [matches, setMatches] = useState(defaultValue);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(query);
+    setMatches(mediaQuery.matches);
+
+    const handleChange = (event: MediaQueryListEvent) => {
+      setMatches(event.matches);
+    };
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    } else {
+      mediaQuery.addListener(handleChange);
+      return () => mediaQuery.removeListener(handleChange);
+    }
+  }, [query]);
+
+  return matches;
+}
+
+const useReducedMotion = () => useMediaQuery('(prefers-reduced-motion: reduce)', false);
+const useHasPointerDevice = () => useMediaQuery('(pointer: fine)', true);
 
 // Accent colors for spotlight gradient (from design system)
 const ACCENT_COLORS = {
@@ -15,6 +43,17 @@ const ACCENT_COLORS = {
   pink: new THREE.Color('#ff8ce6'), // pink-300
 };
 
+// Blending mode mapping
+const BLENDING_MODES = {
+  'No Blending': THREE.NoBlending,
+  Normal: THREE.NormalBlending,
+  Additive: THREE.AdditiveBlending,
+  Subtractive: THREE.SubtractiveBlending,
+  Multiply: THREE.MultiplyBlending,
+} as const;
+
+type BlendingMode = keyof typeof BLENDING_MODES;
+
 // Create neon line material with shader-based glow effect, vignette, fog, and cursor spotlight
 function createNeonLineMaterial(
   intensity: number,
@@ -25,7 +64,8 @@ function createNeonLineMaterial(
   mousePos: THREE.Vector3,
   spotlightRadius: number,
   spotlightIntensity: number,
-  iridescenceStrength: number
+  iridescenceStrength: number,
+  blending: THREE.Blending = THREE.AdditiveBlending
 ) {
   return new THREE.ShaderMaterial({
     uniforms: {
@@ -49,7 +89,6 @@ function createNeonLineMaterial(
     },
     vertexShader: `
       varying vec3 vWorldPosition;
-      varying vec2 vScreenPos;
       varying float vDistanceFromCamera;
       
       void main() {
@@ -57,7 +96,6 @@ function createNeonLineMaterial(
         vWorldPosition = worldPosition.xyz;
         
         vec4 clipPosition = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        vScreenPos = (clipPosition.xy / clipPosition.w) * 0.5 + 0.5;
         
         // Calculate distance from camera for fog effect
         vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
@@ -86,7 +124,6 @@ function createNeonLineMaterial(
       uniform vec3 uAccentPink;
       
       varying vec3 vWorldPosition;
-      varying vec2 vScreenPos;
       varying float vDistanceFromCamera;
       
       // Function to create smooth gradient through accent colors
@@ -138,16 +175,10 @@ function createNeonLineMaterial(
         float gradientPosition = (iridescenceAngle + 1.0) * 0.5;
         vec3 iridescenceColor = getAccentGradient(gradientPosition);
         
-        float iridescence = spotlightFalloff * uIridescenceStrength;
-        
         // Fog effect based on distance from camera
         float fogAmount = smoothstep(uFogNear, uFogFar, vDistanceFromCamera);
         fogAmount = pow(fogAmount, uFogDensity); // Control fog density/falloff
         float fogFade = 1.0 - fogAmount; // 1.0 = no fog, 0.0 = full fog
-        
-        // Vignette effect - darker at bottom of screen
-        // vScreenPos.y: 0 = bottom, 1 = top
-        float vignette = smoothstep(0.0, 0.7, vScreenPos.y);
         
         // Vertical fade - fade out bottom parts based on world Y position
         float verticalFade = smoothstep(-2.0, 4.0, yPos);
@@ -157,8 +188,8 @@ function createNeonLineMaterial(
         float focusBrightness = 1.0 - smoothstep(0.0, 5.0, focusDistance);
         
         // Combine effects - fog can reduce visibility to zero
-        // Only ensure minimum visibility for vignette/vertical effects, not fog
-        float baseVisibility = max(0.15, vignette * verticalFade);
+        // Only ensure minimum visibility for vertical fade, not fog
+        float baseVisibility = max(0.15, verticalFade);
         float visibility = baseVisibility * fogFade; // Fog can override minimum visibility
         float brightness = mix(0.4, 1.0, focusBrightness) + spotlightBoost;
         
@@ -185,7 +216,7 @@ function createNeonLineMaterial(
       }
     `,
     transparent: true,
-    blending: THREE.AdditiveBlending,
+    blending,
     depthWrite: false,
   });
 }
@@ -206,6 +237,11 @@ interface ProSphereInnerProps {
   spotlightIntensity?: number;
   iridescenceStrength?: number;
   spotlightDepth?: number;
+  spotlightEasing?: number;
+  spotlightSpeed?: number;
+  blending?: BlendingMode | string;
+  staticSpotlightPosition?: { x: number; y: number; z: number };
+  simulateTouchDevice?: boolean;
 }
 
 function ProSphereInner({
@@ -224,12 +260,22 @@ function ProSphereInner({
   spotlightIntensity = 3.0,
   iridescenceStrength = 0.5,
   spotlightDepth = 0.0,
+  spotlightEasing = 0.15,
+  spotlightSpeed = 1.0,
+  blending = 'Additive',
+  staticSpotlightPosition,
+  simulateTouchDevice = false,
 }: ProSphereInnerProps = {}) {
   const groupRef = useRef<THREE.Group>(null);
   const radius = 2;
+  const prefersReducedMotion = useReducedMotion();
+  const detectedHasPointerDevice = useHasPointerDevice();
+  // Override device detection when simulating touch device
+  const hasPointerDevice = simulateTouchDevice ? false : detectedHasPointerDevice;
 
-  // Track mouse position in 3D space
-  const mousePos = useRef(new THREE.Vector3(0, 0, 0));
+  const targetMousePos = useRef(new THREE.Vector3(0, 0, 0));
+  const smoothedMousePos = useRef(new THREE.Vector3(0, 0, 0));
+  const isInitialized = useRef(false);
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const interactionPlane = useMemo(() => new THREE.Plane(), []);
   const cameraDirection = useMemo(() => new THREE.Vector3(), []);
@@ -237,67 +283,157 @@ function ProSphereInner({
   const sphereCenter = useMemo(() => new THREE.Vector3(), []);
   const shaderMaterialsRef = useRef<THREE.ShaderMaterial[]>([]);
 
-  // Create meridian lines with neon glow effect
-  const meridianLines = useMemo(() => {
-    const lines: THREE.Line[] = [];
-    const segments = 64; // Number of segments per meridian line
+  // Update spotlight based on device type
+  useEffect(() => {
+    if (shaderMaterialsRef.current.length === 0) {
+      return;
+    }
 
-    // Create materials with different intensities for layered glow effect
+    isInitialized.current = false;
+    shaderMaterialsRef.current.forEach((material) => {
+      if (hasPointerDevice) {
+        material.uniforms.uSpotlightIntensity.value = spotlightIntensity;
+      } else {
+        // For touch devices, use static position if provided, otherwise disable
+        if (staticSpotlightPosition) {
+          material.uniforms.uSpotlightIntensity.value = spotlightIntensity;
+          material.uniforms.uMousePos.value.set(
+            staticSpotlightPosition.x,
+            staticSpotlightPosition.y,
+            staticSpotlightPosition.z
+          );
+          // Initialize smoothed position for touch devices
+          smoothedMousePos.current.set(
+            staticSpotlightPosition.x,
+            staticSpotlightPosition.y,
+            staticSpotlightPosition.z
+          );
+        } else {
+          material.uniforms.uSpotlightIntensity.value = 0;
+          material.uniforms.uMousePos.value.set(0, 0, -1000);
+        }
+      }
+    });
+  }, [hasPointerDevice, spotlightIntensity, staticSpotlightPosition, simulateTouchDevice]);
+
+  const [isReady, setIsReady] = useState(false);
+
+  // Defer heavy geometry creation until after initial render
+  useEffect(() => {
+    const timeoutId = setTimeout(() => setIsReady(true), 0);
+    return () => clearTimeout(timeoutId);
+  }, []);
+
+  // Update spotlight when materials become ready
+  useEffect(() => {
+    if (!isReady || shaderMaterialsRef.current.length === 0) return;
+
+    isInitialized.current = false;
+    shaderMaterialsRef.current.forEach((material) => {
+      if (hasPointerDevice) {
+        material.uniforms.uSpotlightIntensity.value = spotlightIntensity;
+      } else {
+        if (staticSpotlightPosition) {
+          material.uniforms.uSpotlightIntensity.value = spotlightIntensity;
+          material.uniforms.uMousePos.value.set(
+            staticSpotlightPosition.x,
+            staticSpotlightPosition.y,
+            staticSpotlightPosition.z
+          );
+          smoothedMousePos.current.set(
+            staticSpotlightPosition.x,
+            staticSpotlightPosition.y,
+            staticSpotlightPosition.z
+          );
+        } else {
+          material.uniforms.uSpotlightIntensity.value = 0;
+          material.uniforms.uMousePos.value.set(0, 0, -1000);
+        }
+      }
+    });
+  }, [isReady, hasPointerDevice, spotlightIntensity, staticSpotlightPosition, simulateTouchDevice]);
+
+  const meridianLines = useMemo(() => {
+    if (!isReady) return [];
+
+    const blendingMode =
+      blending && blending in BLENDING_MODES
+        ? BLENDING_MODES[blending as BlendingMode]
+        : THREE.AdditiveBlending;
+    const lines: THREE.Line[] = [];
+    const segments = 64;
+    // Initialize mouse position for materials
+    if (!hasPointerDevice && staticSpotlightPosition) {
+      smoothedMousePos.current.set(
+        staticSpotlightPosition.x,
+        staticSpotlightPosition.y,
+        staticSpotlightPosition.z
+      );
+    }
+
     const glowMaterial = createNeonLineMaterial(
       glowIntensity,
       focusHeight,
       fogNear,
       fogFar,
       fogDensity,
-      mousePos.current,
+      smoothedMousePos.current,
       spotlightRadius,
       spotlightIntensity,
-      iridescenceStrength
-    ); // Outer glow
+      iridescenceStrength,
+      blendingMode
+    );
     const coreMaterial = createNeonLineMaterial(
       coreIntensity,
       focusHeight,
       fogNear,
       fogFar,
       fogDensity,
-      mousePos.current,
+      smoothedMousePos.current,
       spotlightRadius,
       spotlightIntensity,
-      iridescenceStrength
-    ); // Core bright line
+      iridescenceStrength,
+      blendingMode
+    );
 
     shaderMaterialsRef.current = [glowMaterial, coreMaterial];
 
+    // Immediately set spotlight for touch devices with static position
+    if (!hasPointerDevice && staticSpotlightPosition) {
+      glowMaterial.uniforms.uSpotlightIntensity.value = spotlightIntensity;
+      coreMaterial.uniforms.uSpotlightIntensity.value = spotlightIntensity;
+      glowMaterial.uniforms.uMousePos.value.set(
+        staticSpotlightPosition.x,
+        staticSpotlightPosition.y,
+        staticSpotlightPosition.z
+      );
+      coreMaterial.uniforms.uMousePos.value.set(
+        staticSpotlightPosition.x,
+        staticSpotlightPosition.y,
+        staticSpotlightPosition.z
+      );
+    }
+
     for (let i = 0; i < meridianCount; i++) {
       const points: THREE.Vector3[] = [];
-      const phi = (i / meridianCount) * Math.PI * 2; // Longitude angle
+      const phi = (i / meridianCount) * Math.PI * 2;
 
-      // Create points along the meridian from left pole to right pole
       for (let j = 0; j <= segments; j++) {
-        const theta = (j / segments) * Math.PI; // Angle from left pole to right pole (0 to PI)
-
-        // Spherical to Cartesian coordinates (poles on x-axis: left/right)
-        // Elongate along x-axis for football shape
-        const x = radius * Math.cos(theta) * horizontalStretch; // Pole axis: stretched left/right
+        const theta = (j / segments) * Math.PI;
+        const x = radius * Math.cos(theta) * horizontalStretch;
         const y = radius * Math.sin(theta) * Math.cos(phi);
         const z = radius * Math.sin(theta) * Math.sin(phi);
-
         points.push(new THREE.Vector3(x, y, z));
       }
 
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
-
-      // Add glow layer (rendered first, appears behind)
-      const glowLine = new THREE.Line(geometry, glowMaterial);
-      lines.push(glowLine);
-
-      // Add core layer (rendered second, appears on top)
-      const coreLine = new THREE.Line(geometry.clone(), coreMaterial);
-      lines.push(coreLine);
+      lines.push(new THREE.Line(geometry, glowMaterial));
+      lines.push(new THREE.Line(geometry.clone(), coreMaterial));
     }
 
     return lines;
   }, [
+    isReady,
     glowIntensity,
     coreIntensity,
     focusHeight,
@@ -309,35 +445,57 @@ function ProSphereInner({
     spotlightRadius,
     spotlightIntensity,
     iridescenceStrength,
+    blending,
+    hasPointerDevice,
+    staticSpotlightPosition,
   ]);
 
-  // Track mouse position and handle rotation animation
-  useFrame((state) => {
-    if (groupRef.current) {
+  useFrame((state, delta) => {
+    if (!prefersReducedMotion && groupRef.current) {
       groupRef.current.rotation.x = state.clock.elapsedTime * rotationSpeed;
     }
 
-    // Update mouse position in 3D space using cached raycaster
-    raycaster.setFromCamera(state.mouse, state.camera);
+    if (hasPointerDevice && !prefersReducedMotion) {
+      const sphereCenterY = -radius * scale + verticalOffset;
+      sphereCenter.set(0, sphereCenterY, spotlightDepth);
 
-    // Calculate sphere's center position in world space with adjustable depth offset
-    const sphereCenterY = -radius * scale + verticalOffset;
-    sphereCenter.set(0, sphereCenterY, spotlightDepth);
+      raycaster.setFromCamera(state.mouse, state.camera);
+      state.camera.getWorldDirection(cameraDirection);
+      interactionPlane.setFromNormalAndCoplanarPoint(cameraDirection, sphereCenter);
 
-    // Create a plane at the sphere's center depth (with offset), perpendicular to camera view
-    state.camera.getWorldDirection(cameraDirection);
-    interactionPlane.setFromNormalAndCoplanarPoint(cameraDirection, sphereCenter);
+      const hit = raycaster.ray.intersectPlane(interactionPlane, intersectionPoint);
+      if (hit && !targetMousePos.current.equals(hit)) {
+        targetMousePos.current.copy(hit);
+      }
 
-    // Intersect mouse ray with the plane at sphere's center
-    const hit = raycaster.ray.intersectPlane(interactionPlane, intersectionPoint);
-    if (hit && !mousePos.current.equals(hit)) {
-      mousePos.current.copy(hit);
+      if (!isInitialized.current && hit) {
+        smoothedMousePos.current.copy(hit);
+        isInitialized.current = true;
+      } else if (isInitialized.current) {
+        const lerpFactor = 1 - Math.pow(1 - spotlightEasing, delta * 60 * spotlightSpeed);
+        smoothedMousePos.current.lerp(targetMousePos.current, lerpFactor);
+      }
+
+      const pos = smoothedMousePos.current;
+      shaderMaterialsRef.current.forEach((material) => {
+        material.uniforms.uMousePos.value.set(pos.x, pos.y, pos.z);
+      });
+    } else if (!hasPointerDevice && staticSpotlightPosition) {
+      // For touch devices with static position, behave exactly like mouse hover but static
+      // Update every frame to ensure spotlight is always active
+      if (shaderMaterialsRef.current.length > 0) {
+        shaderMaterialsRef.current.forEach((material) => {
+          // Always set intensity (same as mouse hover behavior)
+          material.uniforms.uSpotlightIntensity.value = spotlightIntensity;
+          // Always set position (same as mouse hover behavior)
+          material.uniforms.uMousePos.value.set(
+            staticSpotlightPosition.x,
+            staticSpotlightPosition.y,
+            staticSpotlightPosition.z
+          );
+        });
+      }
     }
-
-    // Update material uniforms
-    shaderMaterialsRef.current.forEach((material) => {
-      material.uniforms.uMousePos.value.copy(mousePos.current);
-    });
   });
 
   return (
@@ -349,7 +507,6 @@ function ProSphereInner({
   );
 }
 
-// Wrapper component props
 interface ProSphereProps extends ProSphereInnerProps {
   bloomIntensity?: number;
   bloomThreshold?: number;
@@ -358,11 +515,13 @@ interface ProSphereProps extends ProSphereInnerProps {
   bloomMipmapBlur?: boolean;
   vignetteOffset?: number;
   vignetteDarkness?: number;
+  staticSpotlightX?: number;
+  staticSpotlightY?: number;
+  staticSpotlightZ?: number;
+  disableInDesigner?: boolean;
 }
 
-// Main ProSphere component with Canvas wrapper
 function ProSphere({
-  // Sphere props (pass through to inner component)
   scale = 3,
   horizontalStretch = 1.2,
   meridianCount = 16,
@@ -378,7 +537,13 @@ function ProSphere({
   spotlightIntensity = 3.0,
   iridescenceStrength = 0.5,
   spotlightDepth = 0.0,
-  // Post-processing props
+  spotlightEasing = 0.15,
+  spotlightSpeed = 1.0,
+  blending = 'Additive',
+  staticSpotlightPosition,
+  staticSpotlightX,
+  staticSpotlightY,
+  staticSpotlightZ,
   bloomIntensity = 3.5,
   bloomThreshold = 0.0,
   bloomSmoothing = 0.3,
@@ -386,7 +551,63 @@ function ProSphere({
   bloomMipmapBlur = true,
   vignetteOffset = 0.75,
   vignetteDarkness = 0.75,
+  disableInDesigner = true,
+  simulateTouchDevice = false,
 }: ProSphereProps = {}) {
+  // Detect if we're in Webflow designer mode using the official hook
+  const { mode, interactive } = useWebflowContext();
+  const isDesignerMode = mode === 'design' || !interactive;
+  const shouldDisable = disableInDesigner && isDesignerMode;
+
+  // Construct staticSpotlightPosition from individual props if not provided directly
+  const finalStaticSpotlightPosition =
+    staticSpotlightPosition ||
+    (staticSpotlightX !== undefined &&
+    staticSpotlightY !== undefined &&
+    staticSpotlightZ !== undefined
+      ? { x: staticSpotlightX, y: staticSpotlightY, z: staticSpotlightZ }
+      : undefined);
+  const [postProcessingReady, setPostProcessingReady] = useState(false);
+
+  // Defer post-processing effects until after initial render
+  useEffect(() => {
+    const timeoutId = setTimeout(() => setPostProcessingReady(true), 100);
+    return () => clearTimeout(timeoutId);
+  }, []);
+
+  // Render placeholder in designer mode for better performance
+  if (shouldDisable) {
+    return (
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          margin: 0,
+          padding: 0,
+          position: 'relative',
+          backgroundColor: '#080808',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#146EF5',
+          fontSize: '14px',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+        }}
+      >
+        <div
+          style={{
+            textAlign: 'center',
+            opacity: 0.6,
+            padding: '20px',
+          }}
+        >
+          <div style={{ fontSize: '18px', marginBottom: '8px' }}>ProSphere</div>
+          <div style={{ fontSize: '12px' }}>Rendering disabled in designer mode</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ width: '100%', height: '100%', margin: 0, padding: 0, position: 'relative' }}>
       <Canvas
@@ -421,19 +642,25 @@ function ProSphere({
           spotlightIntensity={spotlightIntensity}
           iridescenceStrength={iridescenceStrength}
           spotlightDepth={spotlightDepth}
+          spotlightEasing={spotlightEasing}
+          spotlightSpeed={spotlightSpeed}
+          blending={blending}
+          staticSpotlightPosition={finalStaticSpotlightPosition}
+          simulateTouchDevice={simulateTouchDevice}
         />
-        <EffectComposer>
-          <Bloom
-            intensity={bloomIntensity}
-            luminanceThreshold={bloomThreshold}
-            luminanceSmoothing={bloomSmoothing}
-            height={512}
-            mipmapBlur={bloomMipmapBlur}
-            radius={bloomRadius}
-          />
-
-          <Vignette offset={vignetteOffset} darkness={vignetteDarkness} eskil={false} />
-        </EffectComposer>
+        {postProcessingReady && (
+          <EffectComposer>
+            <Bloom
+              intensity={bloomIntensity}
+              luminanceThreshold={bloomThreshold}
+              luminanceSmoothing={bloomSmoothing}
+              height={512}
+              mipmapBlur={bloomMipmapBlur}
+              radius={bloomRadius}
+            />
+            <Vignette offset={vignetteOffset} darkness={vignetteDarkness} eskil={false} />
+          </EffectComposer>
+        )}
       </Canvas>
     </div>
   );

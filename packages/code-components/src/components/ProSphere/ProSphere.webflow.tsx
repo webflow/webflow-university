@@ -10,6 +10,20 @@ const ProSphereWebflow = declareComponent(ProSphere, {
     applyTagSelectors: true,
   },
   props: {
+    disableInDesigner: props.Boolean({
+      name: 'Disable in Designer',
+      defaultValue: false,
+      group: 'Performance',
+      tooltip:
+        'When enabled, renders a lightweight placeholder in Webflow designer mode to improve performance. The full 3D scene will still render on the published site.',
+    }),
+    simulateTouchDevice: props.Boolean({
+      name: 'Simulate Touch Device',
+      defaultValue: false,
+      group: 'Performance',
+      tooltip:
+        'When enabled, simulates touch device behavior regardless of the actual device type. Useful for testing and previewing how the component appears on touch devices.',
+    }),
     scale: props.Number({
       name: 'Scale',
       defaultValue: 3,
@@ -100,6 +114,26 @@ const ProSphereWebflow = declareComponent(ProSphere, {
       group: 'Spotlight',
       tooltip: 'Depth offset for spotlight intersection plane',
     }),
+    spotlightEasing: props.Number({
+      name: 'Spotlight Easing',
+      defaultValue: 0.15,
+      group: 'Spotlight',
+      tooltip:
+        'Easing factor for spotlight movement (0-1). Lower values = smoother/slower, higher values = faster/more responsive',
+    }),
+    spotlightSpeed: props.Number({
+      name: 'Spotlight Speed',
+      defaultValue: 1.0,
+      group: 'Spotlight',
+      tooltip: 'Speed multiplier for spotlight animation. Higher values = faster movement',
+    }),
+    blending: props.Text({
+      name: 'Blending Mode',
+      defaultValue: 'Additive',
+      group: 'Material',
+      tooltip:
+        'ShaderMaterial blending mode: "No Blending", "Normal", "Additive", "Subtractive", or "Multiply"',
+    }),
     bloomIntensity: props.Number({
       name: 'Bloom Intensity',
       defaultValue: 3.5,
@@ -136,11 +170,23 @@ const ProSphereWebflow = declareComponent(ProSphere, {
       group: 'Post Processing',
       tooltip: 'Darkness intensity of the vignette effect',
     }),
-    vignetteColor: props.Text({
-      name: 'Vignette Color',
-      defaultValue: '#000000',
-      group: 'Post Processing',
-      tooltip: 'Color of the vignette effect (hex color like #000000)',
+    staticSpotlightX: props.Number({
+      name: 'Static Spotlight X',
+      defaultValue: -1.5,
+      group: 'Spotlight',
+      tooltip: 'X position for static spotlight on touch devices',
+    }),
+    staticSpotlightY: props.Number({
+      name: 'Static Spotlight Y',
+      defaultValue: -2.5,
+      group: 'Spotlight',
+      tooltip: 'Y position for static spotlight on touch devices',
+    }),
+    staticSpotlightZ: props.Number({
+      name: 'Static Spotlight Z',
+      defaultValue: -0.5,
+      group: 'Spotlight',
+      tooltip: 'Z position for static spotlight on touch devices',
     }),
   },
 });
