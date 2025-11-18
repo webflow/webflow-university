@@ -181,6 +181,13 @@ const ProSphereWebflow = declareComponent(ProSphere, {
       tooltip:
         'When enabled, renders a lightweight placeholder in Webflow designer mode to improve performance. The full 3D scene will still render on the published site.',
     }),
+    simulateTouchDevice: props.Boolean({
+      name: 'Simulate Touch Device',
+      defaultValue: false,
+      group: 'Performance',
+      tooltip:
+        'When enabled, simulates touch device behavior regardless of the actual device type. Useful for testing and previewing how the component appears on touch devices.',
+    }),
   },
 });
 

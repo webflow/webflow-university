@@ -241,6 +241,7 @@ interface ProSphereInnerProps {
   spotlightSpeed?: number;
   blending?: BlendingMode | string;
   staticSpotlightPosition?: { x: number; y: number; z: number };
+  simulateTouchDevice?: boolean;
 }
 
 function ProSphereInner({
@@ -263,11 +264,14 @@ function ProSphereInner({
   spotlightSpeed = 1.0,
   blending = 'Additive',
   staticSpotlightPosition,
+  simulateTouchDevice = false,
 }: ProSphereInnerProps = {}) {
   const groupRef = useRef<THREE.Group>(null);
   const radius = 2;
   const prefersReducedMotion = useReducedMotion();
-  const hasPointerDevice = useHasPointerDevice();
+  const detectedHasPointerDevice = useHasPointerDevice();
+  // Override device detection when simulating touch device
+  const hasPointerDevice = simulateTouchDevice ? false : detectedHasPointerDevice;
 
   const targetMousePos = useRef(new THREE.Vector3(0, 0, 0));
   const smoothedMousePos = useRef(new THREE.Vector3(0, 0, 0));
@@ -310,7 +314,7 @@ function ProSphereInner({
         }
       }
     });
-  }, [hasPointerDevice, spotlightIntensity, staticSpotlightPosition]);
+  }, [hasPointerDevice, spotlightIntensity, staticSpotlightPosition, simulateTouchDevice]);
 
   const [isReady, setIsReady] = useState(false);
 
@@ -347,7 +351,7 @@ function ProSphereInner({
         }
       }
     });
-  }, [isReady, hasPointerDevice, spotlightIntensity, staticSpotlightPosition]);
+  }, [isReady, hasPointerDevice, spotlightIntensity, staticSpotlightPosition, simulateTouchDevice]);
 
   const meridianLines = useMemo(() => {
     if (!isReady) return [];
@@ -548,6 +552,7 @@ function ProSphere({
   vignetteOffset = 0.75,
   vignetteDarkness = 0.75,
   disableInDesigner = true,
+  simulateTouchDevice = false,
 }: ProSphereProps = {}) {
   // Detect if we're in Webflow designer mode using the official hook
   const { mode, interactive } = useWebflowContext();
@@ -641,6 +646,7 @@ function ProSphere({
           spotlightSpeed={spotlightSpeed}
           blending={blending}
           staticSpotlightPosition={finalStaticSpotlightPosition}
+          simulateTouchDevice={simulateTouchDevice}
         />
         {postProcessingReady && (
           <EffectComposer>
