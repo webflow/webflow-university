@@ -100,6 +100,26 @@ const ProSphereWebflow = declareComponent(ProSphere, {
       group: 'Spotlight',
       tooltip: 'Depth offset for spotlight intersection plane',
     }),
+    spotlightEasing: props.Number({
+      name: 'Spotlight Easing',
+      defaultValue: 0.15,
+      group: 'Spotlight',
+      tooltip:
+        'Easing factor for spotlight movement (0-1). Lower values = smoother/slower, higher values = faster/more responsive',
+    }),
+    spotlightSpeed: props.Number({
+      name: 'Spotlight Speed',
+      defaultValue: 1.0,
+      group: 'Spotlight',
+      tooltip: 'Speed multiplier for spotlight animation. Higher values = faster movement',
+    }),
+    blending: props.Text({
+      name: 'Blending Mode',
+      defaultValue: 'Additive',
+      group: 'Material',
+      tooltip:
+        'ShaderMaterial blending mode: "No Blending", "Normal", "Additive", "Subtractive", or "Multiply"',
+    }),
     bloomIntensity: props.Number({
       name: 'Bloom Intensity',
       defaultValue: 3.5,
@@ -135,12 +155,6 @@ const ProSphereWebflow = declareComponent(ProSphere, {
       defaultValue: 0.75,
       group: 'Post Processing',
       tooltip: 'Darkness intensity of the vignette effect',
-    }),
-    vignetteColor: props.Text({
-      name: 'Vignette Color',
-      defaultValue: '#000000',
-      group: 'Post Processing',
-      tooltip: 'Color of the vignette effect (hex color like #000000)',
     }),
   },
 });

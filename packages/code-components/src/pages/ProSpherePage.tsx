@@ -1,5 +1,45 @@
 import { useControls } from 'leva';
-import ProSphere from '../components/ProSphere/ProSphere';
+import { lazy, Suspense } from 'react';
+
+const ProSphere = lazy(() => import('../components/ProSphere/ProSphere'));
+
+function LoadingSpinner() {
+  return (
+    <>
+      <style>
+        {`
+          @keyframes prosphere-spin {
+            to {
+              transform: rotate(360deg);
+            }
+          }
+        `}
+      </style>
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#080808',
+        }}
+      >
+        <div
+          style={{
+            width: '48px',
+            height: '48px',
+            border: '3px solid rgba(20, 110, 245, 0.2)',
+            borderTopColor: '#146EF5',
+            borderRadius: '50%',
+            animation: 'prosphere-spin 1s linear infinite',
+            boxShadow: '0 0 20px rgba(20, 110, 245, 0.5)',
+          }}
+        />
+      </div>
+    </>
+  );
+}
 
 function ProSpherePage() {
   // Bloom controls
@@ -47,19 +87,37 @@ function ProSpherePage() {
     spotlightDepth: { value: 0.0, min: -10, max: 10, step: 0.5, label: 'Depth Offset' },
   });
 
+  // Blending controls
+  const blendingControls = useControls('Blending', {
+    blending: {
+      value: 'Additive',
+      options: ['No Blending', 'Normal', 'Additive', 'Subtractive', 'Multiply'],
+    },
+  });
+
   return (
-    <div style={{ width: '100%', height: 'calc(100vh - 60px)', margin: 0, padding: 0, overflow: 'hidden' }}>
-      <ProSphere
-        {...sphereControls}
-        {...materialControls}
-        {...fogControls}
-        {...spotlightControls}
-        {...bloomControls}
-        {...vignetteControls}
-      />
+    <div
+      style={{
+        width: '100%',
+        height: 'calc(100vh - 60px)',
+        margin: 0,
+        padding: 0,
+        overflow: 'hidden',
+      }}
+    >
+      <Suspense fallback={<LoadingSpinner />}>
+        <ProSphere
+          {...sphereControls}
+          {...materialControls}
+          {...fogControls}
+          {...spotlightControls}
+          {...bloomControls}
+          {...vignetteControls}
+          {...blendingControls}
+        />
+      </Suspense>
     </div>
   );
 }
 
 export default ProSpherePage;
-
