@@ -4,6 +4,7 @@ import HomePage from './pages/HomePage';
 import CalendarPage from './pages/CalendarPage';
 import AutoplayTabsPage from './pages/AutoplayTabsPage';
 import ProSpherePage from './pages/ProSpherePage';
+import ConcentricShapePage from './pages/ConcentricShapePage';
 
 function Navigation() {
   const location = useLocation();
@@ -57,6 +58,12 @@ function Navigation() {
       >
         ProSphere
       </Link>
+      <Link
+        to="/concentric-shape"
+        style={location.pathname === '/concentric-shape' ? activeLinkStyle : linkStyle}
+      >
+        ConcentricShape
+      </Link>
     </nav>
   );
 }
@@ -71,6 +78,7 @@ function App() {
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/autoplay-tabs" element={<AutoplayTabsPage />} />
           <Route path="/prosphere" element={<ProSpherePage />} />
+          <Route path="/concentric-shape" element={<ConcentricShapePage />} />
         </Routes>
       </div>
     </>
