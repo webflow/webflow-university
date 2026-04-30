@@ -14,6 +14,7 @@ node_modules/
 
 # Build outputs
 # Note: packages/scripts/dist/ is NOT ignored - needed for jsdelivr CDN
+packages/scripts/dist/**/*.map
 packages/code-components/dist/
 build/
 *.tsbuildinfo

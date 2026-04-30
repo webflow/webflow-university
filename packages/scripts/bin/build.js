@@ -1,7 +1,7 @@
 import process from 'node:process';
 
 import * as esbuild from 'esbuild';
-import { readdirSync } from 'fs';
+import { readdirSync, rmSync } from 'fs';
 import { join, sep } from 'path';
 
 // Config output
@@ -38,6 +38,7 @@ const context = await esbuild.context(buildOptions);
 
 // Build files in prod
 if (PRODUCTION) {
+  removeSourceMaps(BUILD_DIRECTORY);
   await context.rebuild();
   context.dispose();
 }
@@ -96,4 +97,28 @@ function logServedFiles() {
     .filter(Boolean);
 
   globalThis.console.table(filesInfo);
+}
+
+/**
+ * Removes dev-only source maps before production builds.
+ * @param {string} dirPath
+ */
+function removeSourceMaps(dirPath) {
+  try {
+    const files = readdirSync(dirPath, { withFileTypes: true });
+
+    for (const file of files) {
+      const path = join(dirPath, file.name);
+
+      if (file.isDirectory()) {
+        removeSourceMaps(path);
+      } else if (path.endsWith('.map')) {
+        rmSync(path);
+      }
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      throw error;
+    }
+  }
 }
