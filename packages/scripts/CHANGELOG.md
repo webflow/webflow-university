@@ -1,5 +1,11 @@
 # scripts
 
+## 1.2.1
+
+### Patch Changes
+
+- 610b904: Validate production build cleanup paths before deleting source maps.
+
 ## 1.2.0
 
 ### Minor Changes
