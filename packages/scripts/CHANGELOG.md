@@ -1,5 +1,11 @@
 # scripts
 
+## 1.2.2
+
+### Patch Changes
+
+- b845fae: Migrate Swiftype search result icon theming into the bundled global search script.
+
 ## 1.2.1
 
 ### Patch Changes
