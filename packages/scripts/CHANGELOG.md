@@ -1,5 +1,11 @@
 # scripts
 
+## 1.2.0
+
+### Minor Changes
+
+- 3eed439: Add global search modal support to the main scripts bundle and clean up production source map output.
+
 ## 1.1.2
 
 ### Patch Changes
