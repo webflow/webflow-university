@@ -1,8 +1,32 @@
-import { act, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { act } from 'react';
+import type React from 'react';
+import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import AutoplayTabs from './AutoplayTabs';
+
+function renderComponent(component: React.ReactNode): { container: HTMLDivElement; root: Root } {
+  const container = document.createElement('div');
+  const root = createRoot(container);
+  document.body.appendChild(container);
+
+  act(() => {
+    root.render(component);
+  });
+
+  return { container, root };
+}
+
+function getTabButton(container: HTMLElement, label: string): HTMLButtonElement {
+  const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>('.tab-button'));
+  const button = buttons.find((candidate) => candidate.textContent?.includes(label));
+
+  if (!button) {
+    throw new Error(`Tab button "${label}" not found`);
+  }
+
+  return button;
+}
 
 describe('AutoplayTabs', () => {
   afterEach(() => {
@@ -10,43 +34,46 @@ describe('AutoplayTabs', () => {
   });
 
   it('renders the default tabs and images', () => {
-    render(<AutoplayTabs />);
+    const { container } = renderComponent(<AutoplayTabs />);
 
-    expect(screen.getByRole('button', { name: /tab 1/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /tab 2/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /tab 3/i })).toBeInTheDocument();
-    expect(screen.getAllByAltText(/tab \d content/i)).toHaveLength(6);
+    expect(getTabButton(container, 'Tab 1')).toBeTruthy();
+    expect(getTabButton(container, 'Tab 2')).toBeTruthy();
+    expect(getTabButton(container, 'Tab 3')).toBeTruthy();
+    expect(container.querySelectorAll('img[alt*="Tab"]').length).toBe(6);
   });
 
-  it('switches active tab when clicked', async () => {
-    const user = userEvent.setup();
-    render(<AutoplayTabs />);
+  it('switches active tab when clicked', () => {
+    const { container } = renderComponent(<AutoplayTabs />);
 
-    await user.click(screen.getByRole('button', { name: /tab 2/i }));
+    act(() => {
+      getTabButton(container, 'Tab 2').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
 
-    expect(screen.getByRole('button', { name: /tab 2/i })).toHaveClass('active');
-    expect(screen.getByRole('button', { name: /tab 1/i })).not.toHaveClass('active');
+    expect(getTabButton(container, 'Tab 2').classList.contains('active')).toBe(true);
+    expect(getTabButton(container, 'Tab 1').classList.contains('active')).toBe(false);
   });
 
   it('advances tabs on an autoplay timer', () => {
     vi.useFakeTimers();
-    render(<AutoplayTabs autoplay autoplayDuration={1000} />);
+    const { container } = renderComponent(<AutoplayTabs autoplay autoplayDuration={1000} />);
 
-    expect(screen.getByRole('button', { name: /tab 1/i })).toHaveClass('active');
+    expect(getTabButton(container, 'Tab 1').classList.contains('active')).toBe(true);
 
     act(() => {
       vi.advanceTimersByTime(1000);
     });
 
-    expect(screen.getByRole('button', { name: /tab 2/i })).toHaveClass('active');
+    expect(getTabButton(container, 'Tab 2').classList.contains('active')).toBe(true);
   });
 
   it('cleans up the autoplay timer on unmount', () => {
     vi.useFakeTimers();
     const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
-    const { unmount } = render(<AutoplayTabs autoplay autoplayDuration={1000} />);
+    const { root } = renderComponent(<AutoplayTabs autoplay autoplayDuration={1000} />);
 
-    unmount();
+    act(() => {
+      root.unmount();
+    });
 
     expect(clearTimeoutSpy).toHaveBeenCalled();
   });

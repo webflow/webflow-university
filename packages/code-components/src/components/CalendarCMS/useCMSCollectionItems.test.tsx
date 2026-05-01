@@ -1,5 +1,6 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act } from 'react';
 import type React from 'react';
+import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { useCMSCollectionItems } from './useCMSCollectionItems';
@@ -30,29 +31,37 @@ describe('useCMSCollectionItems', () => {
     vi.restoreAllMocks();
   });
 
+  async function renderHarness(children: React.ReactNode): Promise<HTMLDivElement> {
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    document.body.appendChild(container);
+
+    await act(async () => {
+      root.render(<Harness>{children}</Harness>);
+    });
+
+    return container;
+  }
+
   it('extracts cloned CMS items from an assigned slot', async () => {
     const collection = createCollection();
     vi.spyOn(HTMLSlotElement.prototype, 'assignedElements').mockReturnValue([collection]);
 
-    render(
-      <Harness>
-        <slot name="cmsCollectionComponentSlot" />
-      </Harness>
-    );
+    const container = await renderHarness(<slot name="cmsCollectionComponentSlot" />);
 
-    await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('1'));
-    expect(screen.getByTestId('first-slug')).toHaveTextContent('seo-aeo');
+    expect(container.querySelector('[data-testid="count"]')?.textContent).toBe('1');
+    expect(container.querySelector('[data-testid="first-slug"]')?.textContent).toBe('seo-aeo');
   });
 
   it('falls back to direct DOM items when no slot is present', async () => {
-    render(
-      <Harness>
+    const container = await renderHarness(
+      <>
         <div className="w-dyn-item" role="listitem" data-slug="direct-item" />
         <div className="w-dyn-item" role="listitem" />
-      </Harness>
+      </>
     );
 
-    await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('1'));
-    expect(screen.getByTestId('first-slug')).toHaveTextContent('direct-item');
+    expect(container.querySelector('[data-testid="count"]')?.textContent).toBe('1');
+    expect(container.querySelector('[data-testid="first-slug"]')?.textContent).toBe('direct-item');
   });
 });
