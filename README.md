@@ -87,9 +87,6 @@ pnpm format
 # Run all package test suites
 pnpm test
 
-# Run all package tests with coverage reports
-pnpm test:coverage
-
 # Run a single package test suite
 pnpm --filter scripts test
 pnpm --filter code-components test
@@ -237,7 +234,6 @@ webflow-university/
 - `pnpm lint:fix` - Fix linting issues
 - `pnpm check` - Type check all packages
 - `pnpm test` - Run all package test suites
-- `pnpm test:coverage` - Run all package test suites with coverage reports
 - `pnpm format` - Format all code
 - `pnpm changeset` - Create a new changeset
 - `pnpm changeset:version` - Version packages based on changesets
