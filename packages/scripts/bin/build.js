@@ -10,7 +10,7 @@ const BUILD_DIRECTORY_PATH = resolve(BUILD_DIRECTORY);
 const PRODUCTION = process.env.NODE_ENV === 'production';
 
 // Config entrypoint files
-const ENTRY_POINTS = ['src/index.ts', 'src/pro/*.ts'];
+const ENTRY_POINTS = ['src/index.ts', 'src/pro/index.ts', 'src/pro/template-page.ts'];
 
 // Config dev serving
 const LIVE_RELOAD = !PRODUCTION;

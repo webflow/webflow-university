@@ -274,9 +274,6 @@ export function parseBlackoutDates(blackoutDateString: string, timezone: string)
 
   dateStrings.forEach((dateStr, index) => {
     if (!dateStr) {
-      console.error(
-        `[Blackout Dates] Empty date at position ${index + 1} in: "${blackoutDateString}"`
-      );
       return;
     }
 

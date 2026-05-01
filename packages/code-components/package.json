@@ -8,7 +8,10 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "share": "webflow library share"
+    "share": "webflow library share",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.6",
@@ -25,12 +28,16 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/luxon": "^3.7.1",
     "@types/node": "^24.6.0",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
     "@types/three": "^0.181.0",
     "@vitejs/plugin-react": "^5.0.4",
+    "@vitest/coverage-v8": "^4.1.5",
     "@webflow/data-types": "^1.0.2",
     "@webflow/react": "^1.0.2",
     "@webflow/webflow-cli": "^1.8.49",
@@ -38,8 +45,10 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.22",
     "globals": "^16.4.0",
+    "jsdom": "^29.1.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.45.0",
-    "vite": "^7.1.7"
+    "vite": "^7.1.7",
+    "vitest": "^4.1.5"
   }
 }
