@@ -1,5 +1,11 @@
 # scripts
 
+## 1.3.0
+
+### Minor Changes
+
+- f5a9471: Add courses page behavior for toggling and persisting the grid view, plus list-view card edge styling.
+
 ## 1.2.3
 
 ### Patch Changes
