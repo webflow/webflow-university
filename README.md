@@ -82,6 +82,7 @@ Then follow the prompts to choose the changed package and version bump type. Com
 3. Merge the PR.
 4. If the PR included a changeset, GitHub Actions opens a version PR.
 5. Merge the version PR to create the GitHub release and make the scripts available from jsdelivr.
+6. Update the script URL inside Webflow if the release includes a major or minor version change. Patch changes are picked up automatically; to force a patch update sooner, purge the jsDelivr cache at [jsdelivr.com/tools/purge](https://www.jsdelivr.com/tools/purge).
 
 ## QA: How To Test Your Changes
 
