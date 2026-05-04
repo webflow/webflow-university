@@ -1,396 +1,131 @@
-# Webflow University Monorepo
+# Webflow University
 
-A pnpm monorepo containing client-side scripts and React components for Webflow University.
+`webflow-university` is a pnpm monorepo with 2 packages:
 
-## 📦 Packages
+- `packages/scripts`: TypeScript that builds to browser JavaScript files loaded on Webflow University pages through jsdelivr or a local dev redirect.
+- `packages/code-components`: React-based Webflow Code Components that are developed locally with Vite and shared into Webflow with the Webflow CLI.
+
+> Critical code that depends on user auth state or backend features, such as course progress, is managed in the private [`webflow/webflow`](https://github.com/webflow/webflow/) monorepo.
+
+## Package Scripts
 
 ### `packages/scripts`
 
-TypeScript code that compiles to JavaScript and is served via jsdelivr from GitHub. These scripts power UI functionality on the website.
+The scripts package builds 3 browser bundles into `packages/scripts/dist`.
 
-**Usage:**
+- `dist/index.js` is the main Webflow University script. It initializes sidebar behavior, sidebar active-link highlighting, theme switching, contrast switching, global search behavior, and the `/courses` grid/list UI.
+- `dist/pro/index.js` is used on Pro event listing pages. It reads recurrence data from CMS-rendered data attributes, calculates the next event occurrence, updates date/time text, supports a user-timezone toggle, and enables horizontal session-tab scrolling.
+- `dist/pro/template-page.js` is used on Pro template/detail pages. It reads session recurrence data from `#data-saver`, renders upcoming session dates and registration links, and enables horizontal session-tab scrolling.
+
+Use these files from jsdelivr in Webflow, for example:
 
 ```html
-<!-- Use major version (e.g., @2) for auto-updates within same major version -->
 <script
   defer
-  src="https://cdn.jsdelivr.net/gh/webflow/webflow-university@2/packages/scripts/dist/index.js"
-></script>
-
-<!-- Or pin to specific version (e.g., @2.1.0) -->
-<script
-  defer
-  src="https://cdn.jsdelivr.net/gh/webflow/webflow-university@2.1.0/packages/scripts/dist/index.js"
+  src="https://cdn.jsdelivr.net/gh/webflow/webflow-university@1.3/packages/scripts/dist/index.js"
 ></script>
 ```
 
 ### `packages/code-components`
 
-A Vite React project for Webflow code components. These components are imported into Webflow using their CLI tool.
+The code-components package contains Webflow Code Components for richer UI that is easier to build in React than directly in Webflow. Current components include Autoplay Tabs, WFU CMS Calendar, and ProSphere.
 
-**Usage:**
+Share components to Webflow with:
 
 ```bash
-npx webflow library share
+pnpm share:components
 ```
 
-## 🚀 Getting Started
+## Common Commands
 
-### Prerequisites
-
-- Node.js 20+
-- pnpm 10.20.0+
-
-### Installation
+### Install
 
 ```bash
-# Install dependencies for all packages
 pnpm install
 ```
 
-### Development
+### Dev
 
 ```bash
-# Run scripts package in dev mode (with live reload)
+# Serve the scripts package from http://localhost:3000 with live reload
 pnpm dev:scripts
 
-# Run code-components in dev mode
+# Run the code-components Vite dev server
 pnpm dev:components
+```
 
+### Build
+
+```bash
 # Build all packages
 pnpm build
 
-# Build specific package
+# Build one package
 pnpm build:scripts
 pnpm build:components
 ```
 
-### Linting & Type Checking
+### Changeset
 
-```bash
-# Lint all packages
-pnpm lint
-
-# Fix linting issues
-pnpm lint:fix
-
-# Type check all packages
-pnpm check
-
-# Format code
-pnpm format
-```
-
-### Testing
-
-```bash
-# Run all package test suites
-pnpm test
-
-# Run a single package test suite
-pnpm --filter scripts test
-pnpm --filter code-components test
-```
-
-## 📝 Version Management & Releases
-
-This monorepo uses [Changesets](https://github.com/changesets/changesets) for semantic versioning (e.g., 1.0.0, 1.1.0, 2.0.0).
-
-**Why semantic versioning?**
-
-- Clear versioning scheme (major.minor.patch)
-- jsdelivr supports version tags (`@2`, `@2.1.0`, `@v2.1.0`)
-- Easy to pin to specific versions or allow minor/patch updates
-- Industry standard
-
-### Creating a Changeset
-
-When you make changes that should trigger a version bump:
+Create a changeset when your change should be released:
 
 ```bash
 pnpm changeset
 ```
 
-This will:
+Then follow the prompts to choose the changed package and version bump type. Commit the generated `.changeset/*.md` file with your PR.
 
-1. Ask which packages should be bumped
-2. Ask what kind of change (major, minor, patch)
-3. Create a changeset file in `.changeset/`
+### Deploy To Main
 
-### Versioning Packages
+1. Open a PR into `main`.
+2. Make sure CI passes: tests, lint, type check, and build.
+3. Merge the PR.
+4. If the PR included a changeset, GitHub Actions opens a version PR.
+5. Merge the version PR to create the GitHub release and make the scripts available from jsdelivr.
 
-After creating changesets, version the packages:
+## QA: How To Test Your Changes
 
-```bash
-pnpm changeset:version
-```
+### Scripts
 
-This will:
+The main way to QA scripts is to run the local dev bundle and redirect the jsdelivr URL to localhost with a redirect service like [Requestly](https://requestly.com/).
 
-- Update package versions based on changesets
-- Update changelogs
-- Remove used changeset files
-
-### Releasing
-
-The release process is automated via GitHub Actions. When you merge to `main`:
-
-1. If there are changesets, a PR will be created to version packages
-2. Once merged, a GitHub release will be created
-3. The scripts package will be built and artifacts uploaded
-
-**Manual release (if needed):**
-
-```bash
-pnpm release
-```
-
-## 🔄 Workflow
-
-### Daily Development
-
-1. Create a feature branch
-2. Make your changes
-3. Run `pnpm lint` and `pnpm check` before committing
-4. Create a changeset if version bump is needed: `pnpm changeset`
-5. Push and create a PR
-
-### Releasing Scripts Package
-
-The scripts package is automatically deployed via jsdelivr when:
-
-- Code is pushed to `main` branch
-- A GitHub release is created
-
-**To deploy a specific version:**
-
-1. Create a changeset for the scripts package
-2. Merge the version PR
-3. The GitHub Action will create a release
-4. Use the jsdelivr URL with the commit hash or tag
-
-**Get deployment info:**
-
-```bash
-node scripts/deploy-info.js
-```
-
-### Working with Code Components
-
-1. Make changes in `packages/code-components`
-2. Build: `pnpm build:components`
-3. Share with Webflow: `npx webflow library share`
-4. The built components will be available in Webflow
-
-## 🏗️ Project Structure
-
-```
-webflow-university/
-├── packages/
-│   ├── scripts/          # Client-side scripts (TypeScript → JavaScript)
-│   │   ├── src/          # Source TypeScript files
-│   │   ├── dist/         # Compiled JavaScript (git-ignored)
-│   │   └── bin/          # Build scripts
-│   └── code-components/  # React components for Webflow
-│       ├── src/          # React component source
-│       └── dist/         # Built components (git-ignored)
-├── .github/
-│   └── workflows/        # GitHub Actions workflows
-├── .changeset/          # Changeset files
-└── scripts/              # Utility scripts
-```
-
-## 🤖 GitHub Actions
-
-### CI Workflow (`.github/workflows/ci.yml`)
-
-- Runs on every PR and push to main
-- Lints and type-checks all packages
-- Builds all packages to ensure they compile
-
-### Release Workflow (`.github/workflows/release.yml`)
-
-- Runs on push to main
-- Creates version PRs if changesets exist
-- Publishes packages
-- Creates GitHub releases
-- Uploads build artifacts
-
-### Build Scripts Workflow (`.github/workflows/build-scripts.yml`)
-
-- Runs on changes to scripts package
-- Builds and uploads scripts artifacts
-
-## 📋 Available Scripts
-
-### Root Level
-
-- `pnpm build` - Build all packages
-- `pnpm build:scripts` - Build scripts package only
-- `pnpm build:components` - Build code-components only
-- `pnpm dev:scripts` - Dev mode for scripts (with live reload)
-- `pnpm dev:components` - Dev mode for code-components
-- `pnpm lint` - Lint all packages
-- `pnpm lint:fix` - Fix linting issues
-- `pnpm check` - Type check all packages
-- `pnpm test` - Run all package test suites
-- `pnpm format` - Format all code
-- `pnpm changeset` - Create a new changeset
-- `pnpm changeset:version` - Version packages based on changesets
-- `pnpm release` - Version and build packages
-- `pnpm clean` - Clean build artifacts
-- `pnpm clean:all` - Clean everything including node_modules
-
-### Scripts Package
-
-- `pnpm --filter scripts dev` - Development mode
-- `pnpm --filter scripts build` - Production build
-- `pnpm --filter scripts lint` - Lint scripts
-- `pnpm --filter scripts test` - Run scripts tests
-
-### Code Components Package
-
-- `pnpm --filter code-components dev` - Development server
-- `pnpm --filter code-components build` - Production build
-- `pnpm --filter code-components test` - Run code-components tests
-- `pnpm --filter code-components preview` - Preview production build
-
-## 🔗 jsdelivr URLs
-
-The scripts package is served via jsdelivr. **The `dist/` folder is committed to git** so jsdelivr can serve the files directly from GitHub.
-
-**Recommended URL patterns:**
-
-**By semantic version (recommended):**
-
-```html
-<!-- Major version - auto-updates for minor/patch releases -->
-<script
-  defer
-  src="https://cdn.jsdelivr.net/gh/OWNER/REPO@2/packages/scripts/dist/index.js"
-></script>
-
-<!-- Specific version - pinned -->
-<script
-  defer
-  src="https://cdn.jsdelivr.net/gh/OWNER/REPO@2.1.0/packages/scripts/dist/index.js"
-></script>
-
-<!-- With 'v' prefix (also works) -->
-<script
-  defer
-  src="https://cdn.jsdelivr.net/gh/OWNER/REPO@v2.1.0/packages/scripts/dist/index.js"
-></script>
-```
-
-**Other options:**
-
-```html
-<!-- From branch (for development/testing) -->
-<script
-  defer
-  src="https://cdn.jsdelivr.net/gh/OWNER/REPO@main/packages/scripts/dist/index.js"
-></script>
-
-<!-- Specific commit (for debugging) -->
-<script
-  defer
-  src="https://cdn.jsdelivr.net/gh/OWNER/REPO@abc1234/packages/scripts/dist/index.js"
-></script>
-```
-
-Run `node scripts/deploy-info.js` to get the exact URLs for your current setup.
-
-## 🚀 Quick Deployment Guide
-
-For a complete step-by-step walkthrough, see [DEPLOYMENT_WALKTHROUGH.md](./DEPLOYMENT_WALKTHROUGH.md).
-
-**TL;DR:**
-
-1. Make changes → `pnpm build:scripts` → `pnpm changeset` → commit → PR → merge
-2. Version PR created automatically → merge it
-3. Release created automatically → use jsdelivr URL with new version
-
-## 👥 Team Workflow
-
-### Making Changes
-
-1. **Create a branch:**
+1. Start the local scripts server:
 
    ```bash
-   git checkout -b feature/my-feature
+   pnpm dev:scripts
    ```
 
-2. **Make your changes** in the appropriate package(s)
+2. In Requestly, create a redirect rule from the jsdelivr script URL to the matching localhost bundle.
 
-3. **Test locally:**
+   Example for the main script:
+   - From: `https://cdn.jsdelivr.net/gh/webflow/webflow-university@1.3/packages/scripts/dist/index.js`
+   - To: `http://localhost:3000/index.js`
 
-   ```bash
-   pnpm build
-   pnpm lint
-   pnpm check
-   ```
+   ![Requestly redirect rule from jsdelivr to localhost](./docs/requestly-jsdelivr-redirect.png)
 
-4. **Create a changeset** if needed:
+3. Open the relevant Webflow University page and verify the behavior in the browser.
 
-   ```bash
-   pnpm changeset
-   ```
+For Pro bundles, redirect to the matching local file:
 
-5. **Commit and push:**
+- `packages/scripts/dist/pro/index.js` -> `http://localhost:3000/pro/index.js`
+- `packages/scripts/dist/pro/template-page.js` -> `http://localhost:3000/pro/template-page.js`
 
-   ```bash
-   git add .
-   git commit -m "feat: add new feature"
-   git push origin feature/my-feature
-   ```
+You can also QA scripts with Chrome local overrides instead of Requestly.
 
-6. **Create a PR** on GitHub
+### Code Components
 
-### Reviewing PRs
-
-- CI will automatically run linting, type checking, and builds
-- Review the changes
-- If changesets are included, review the version bump
-- Merge when ready
-
-### After Merging
-
-- If changesets exist, a version PR will be created automatically
-- Review and merge the version PR
-- GitHub Actions will create a release
-- Scripts will be available via jsdelivr
-
-## 🛠️ Troubleshooting
-
-### Build Issues
+Run the component dev server, test the component locally, then share it to Webflow when ready:
 
 ```bash
-# Clean and rebuild
-pnpm clean
-pnpm install
+pnpm dev:components
+pnpm share:components
+```
+
+## Checks Before Opening A PR
+
+```bash
+pnpm test
+pnpm lint
+pnpm check
 pnpm build
 ```
-
-### Dependency Issues
-
-```bash
-# Clean everything and reinstall
-pnpm clean:all
-pnpm install
-```
-
-### Changeset Issues
-
-If changesets aren't working:
-
-1. Check `.changeset/config.json` exists
-2. Ensure you're on the `main` branch when versioning
-3. Check that changeset files are in `.changeset/` directory
-
-## 📚 Additional Resources
-
-- [pnpm Workspaces](https://pnpm.io/workspaces)
-- [Changesets](https://github.com/changesets/changesets)
-- [jsdelivr](https://www.jsdelivr.com/)
-- [Webflow Code Components](https://developers.webflow.com/docs/code-components)
