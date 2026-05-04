@@ -81,6 +81,17 @@ pnpm check
 pnpm format
 ```
 
+### Testing
+
+```bash
+# Run all package test suites
+pnpm test
+
+# Run a single package test suite
+pnpm --filter scripts test
+pnpm --filter code-components test
+```
+
 ## 📝 Version Management & Releases
 
 This monorepo uses [Changesets](https://github.com/changesets/changesets) for semantic versioning (e.g., 1.0.0, 1.1.0, 2.0.0).
@@ -222,6 +233,7 @@ webflow-university/
 - `pnpm lint` - Lint all packages
 - `pnpm lint:fix` - Fix linting issues
 - `pnpm check` - Type check all packages
+- `pnpm test` - Run all package test suites
 - `pnpm format` - Format all code
 - `pnpm changeset` - Create a new changeset
 - `pnpm changeset:version` - Version packages based on changesets
@@ -234,11 +246,13 @@ webflow-university/
 - `pnpm --filter scripts dev` - Development mode
 - `pnpm --filter scripts build` - Production build
 - `pnpm --filter scripts lint` - Lint scripts
+- `pnpm --filter scripts test` - Run scripts tests
 
 ### Code Components Package
 
 - `pnpm --filter code-components dev` - Development server
 - `pnpm --filter code-components build` - Production build
+- `pnpm --filter code-components test` - Run code-components tests
 - `pnpm --filter code-components preview` - Preview production build
 
 ## 🔗 jsdelivr URLs

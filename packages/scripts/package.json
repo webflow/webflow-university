@@ -11,7 +11,8 @@
     "lint": "eslint ./src && prettier --check ./src",
     "lint:fix": "eslint ./src --fix",
     "check": "tsc --noEmit",
-    "format": "prettier --write ./src"
+    "format": "prettier --write ./src",
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",
@@ -31,7 +32,9 @@
     "eslint-plugin-prettier": "^5.5.4",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "globals": "^16.4.0",
+    "happy-dom": "20.9.0",
     "typescript": "5.9.3",
-    "typescript-eslint": "^8.45.0"
+    "typescript-eslint": "^8.45.0",
+    "vitest": "3.2.4"
   }
 }

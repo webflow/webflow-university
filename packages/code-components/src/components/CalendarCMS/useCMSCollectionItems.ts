@@ -48,9 +48,9 @@ export function useCMSCollectionItems(slotName: string) {
       items?.filter((item) => {
         if (!item) return false;
         // Check if item has data attributes (which is what we need)
-        const hasDataAttrs = item.hasAttributes && item.hasAttributes();
         const attrs = Array.from(item.attributes || []);
         const hasDataSlug = attrs.some((attr) => attr.name === 'data-slug');
+        const hasDataAttrs = attrs.some((attr) => attr.name.startsWith('data-'));
         // Keep item if it has data-slug (required field) or has any data attributes
         return hasDataSlug || (hasDataAttrs && attrs.length > 0);
       }) ?? []

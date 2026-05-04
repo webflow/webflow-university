@@ -13,7 +13,7 @@ const __dirname = dirname(__filename);
 
 export default defineConfig([
   // Ignore these folders
-  globalIgnores(['dist', 'node_modules']),
+  globalIgnores(['coverage', 'dist', 'node_modules']),
 
   {
     // Apply to all TypeScript and JavaScript files
