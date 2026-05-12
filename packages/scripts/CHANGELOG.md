@@ -1,5 +1,11 @@
 # scripts
 
+## 1.3.1
+
+### Patch Changes
+
+- a8e8f36: Patch dependency resolutions for security advisories: add workspace `pnpm` overrides for `fast-uri` and `@babel/plugin-transform-modules-systemjs`, update tooling deps (including `vite` in code-components), and refresh the lockfile.
+
 ## 1.3.0
 
 ### Minor Changes
