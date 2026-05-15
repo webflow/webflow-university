@@ -115,7 +115,7 @@ describe('initDateTimeFlatlist', () => {
     expect(items).toHaveLength(3);
     expect(items[0].children[0].textContent).toBe('Thu, May 21');
     expect(items[0].children[1].className).toBe('dotted-line');
-    expect(items[0].children[2].textContent).toMatch(/10AM - 11AM|7AM - 8AM/);
+    expect(items[0].children[2].textContent).toMatch(/10AM - 11AM EDT|7AM - 8AM PDT|2PM - 3PM UTC/);
   });
 
   it('uses the optional duration data attribute', () => {
@@ -133,7 +133,7 @@ describe('initDateTimeFlatlist', () => {
     initDateTimeFlatlist();
 
     const timeText = document.querySelector('.pro-session_list-item')?.children[2].textContent;
-    expect(timeText).toMatch(/10AM - 11:30AM|7AM - 8:30AM/);
+    expect(timeText).toMatch(/10AM - 11:30AM EDT|7AM - 8:30AM PDT|2PM - 3:30PM UTC/);
   });
 
   it('only targets the #datetimes-flatlist component', () => {
