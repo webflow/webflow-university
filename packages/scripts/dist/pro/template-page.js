@@ -3,85 +3,6 @@
   // bin/live-reload.js
   new EventSource(`${"http://localhost:3000"}/esbuild`).addEventListener("change", () => location.reload());
 
-  // src/pro/session-tabs.ts
-  function initTabMenuScrolling() {
-    const tabMenu = document.querySelector(".cc_pro_session-tab-menu");
-    const tabsContainer = document.querySelector(".cc_pro_session-tabs");
-    if (!tabMenu) {
-      return;
-    }
-    if (!tabsContainer) {
-      return;
-    }
-    const maxWidthPx = 1200;
-    const checkAndSetupScrolling = () => {
-      const containerWidth = tabMenu.offsetWidth;
-      if (containerWidth < maxWidthPx) {
-        const prevButton = document.querySelector(".cc_pro_tabs_button.prev");
-        const nextButton = document.querySelector(".cc_pro_tabs_button.next");
-        if (prevButton && nextButton) {
-          if (!tabsContainer.contains(prevButton)) {
-            tabsContainer.appendChild(prevButton);
-          }
-          if (!tabsContainer.contains(nextButton)) {
-            tabsContainer.appendChild(nextButton);
-          }
-          const tabLink = tabMenu.querySelector(".cc_pro_session-tab");
-          const scrollAmount = tabLink ? tabLink.offsetWidth : 200;
-          const { overflowX } = getComputedStyle(tabMenu);
-          if (overflowX !== "auto" && overflowX !== "scroll") {
-            tabMenu.style.overflowX = "auto";
-          }
-          const updateScrollState = () => {
-            const { scrollLeft } = tabMenu;
-            const { scrollWidth } = tabMenu;
-            const { clientWidth } = tabMenu;
-            const isAtLeft = scrollLeft <= 1;
-            const isAtRight = scrollLeft + clientWidth >= scrollWidth - 1;
-            if (isAtLeft && isAtRight) {
-              prevButton.style.display = "none";
-              nextButton.style.display = "none";
-            } else if (isAtLeft) {
-              prevButton.style.display = "none";
-              nextButton.style.display = "";
-            } else if (isAtRight) {
-              prevButton.style.display = "";
-              nextButton.style.display = "none";
-            } else {
-              prevButton.style.display = "";
-              nextButton.style.display = "";
-            }
-          };
-          if (!tabMenu.dataset.scrollListenerAttached) {
-            tabMenu.addEventListener("scroll", updateScrollState);
-            tabMenu.dataset.scrollListenerAttached = "true";
-          }
-          updateScrollState();
-          if (!prevButton.dataset.scrollHandlerAttached) {
-            prevButton.addEventListener("click", () => {
-              tabMenu.scrollBy({ left: -scrollAmount, behavior: "smooth" });
-              setTimeout(() => {
-                updateScrollState();
-              }, 300);
-            });
-            prevButton.dataset.scrollHandlerAttached = "true";
-          }
-          if (!nextButton.dataset.scrollHandlerAttached) {
-            nextButton.addEventListener("click", () => {
-              tabMenu.scrollBy({ left: scrollAmount, behavior: "smooth" });
-              setTimeout(() => {
-                updateScrollState();
-              }, 300);
-            });
-            nextButton.dataset.scrollHandlerAttached = "true";
-          }
-        }
-      }
-    };
-    checkAndSetupScrolling();
-    window.addEventListener("resize", checkAndSetupScrolling);
-  }
-
   // ../../node_modules/.pnpm/luxon@3.7.2/node_modules/luxon/build/es6/luxon.mjs
   var LuxonError = class extends Error {
   };
@@ -6734,6 +6655,142 @@
     return minute === 0 ? `${h}${period}` : `${h}:${minute.toString().padStart(2, "0")}${period}`;
   }
 
+  // src/pro/session-tabs.ts
+  var DEFAULT_EVENT_TIMEZONE = "America/New_York";
+  var DEFAULT_DURATION_MINUTES = 60;
+  function parseDateTimeFlatlist(dateTimeFlatlist) {
+    return dateTimeFlatlist.split(",").map((dateString) => dateString.trim()).filter(Boolean).map((dateString) => {
+      const date = DateTime.fromISO(dateString, { setZone: true });
+      if (!date.isValid) {
+        console.error(`Invalid datetime in data-datetime-flatlist: ${dateString}`);
+        return null;
+      }
+      return date.setZone(DEFAULT_EVENT_TIMEZONE);
+    }).filter((date) => date !== null).sort((a, b) => a.toMillis() - b.toMillis());
+  }
+  function formatTimeRange(startDate, duration) {
+    const endDate = startDate.plus({ minutes: duration });
+    const startTime = formatTime(startDate.hour, startDate.minute);
+    const endTime = formatTime(endDate.hour, endDate.minute);
+    const timezoneAbbr = startDate.toFormat("ZZZZ");
+    return `${startTime} - ${endTime} ${timezoneAbbr}`;
+  }
+  function initDateTimeFlatlist() {
+    const container = document.querySelector("#datetimes-flatlist");
+    if (!container) {
+      return;
+    }
+    const dateTimeFlatlist = container.getAttribute("data-datetime-flatlist") || "";
+    const duration = parseInt(
+      container.getAttribute("data-duration") || container.getAttribute("data-duration-minutes") || String(DEFAULT_DURATION_MINUTES),
+      10
+    );
+    const safeDuration = Number.isFinite(duration) ? duration : DEFAULT_DURATION_MINUTES;
+    const occurrences = parseDateTimeFlatlist(dateTimeFlatlist).filter((date) => date > DateTime.now()).map((date) => date.setZone("local"));
+    const listElement = container.querySelector("ul.cc_pro-session_tab-list");
+    if (!listElement) {
+      console.error("[initDateTimeFlatlist] List element not found in #datetimes-flatlist");
+      return;
+    }
+    listElement.innerHTML = "";
+    if (occurrences.length === 0) {
+      container.style.display = "none";
+      return;
+    }
+    container.style.display = "";
+    occurrences.forEach((occurrence) => {
+      const li = document.createElement("li");
+      li.className = "pro-session_list-item";
+      const dateDiv = document.createElement("div");
+      dateDiv.textContent = occurrence.toFormat("EEE, MMM d");
+      const separatorDiv = document.createElement("div");
+      separatorDiv.className = "dotted-line";
+      const timeDiv = document.createElement("div");
+      timeDiv.textContent = formatTimeRange(occurrence, safeDuration);
+      li.appendChild(dateDiv);
+      li.appendChild(separatorDiv);
+      li.appendChild(timeDiv);
+      listElement.appendChild(li);
+    });
+  }
+  function initTabMenuScrolling() {
+    const tabMenu = document.querySelector(".cc_pro_session-tab-menu");
+    const tabsContainer = document.querySelector(".cc_pro_session-tabs");
+    if (!tabMenu) {
+      return;
+    }
+    if (!tabsContainer) {
+      return;
+    }
+    const maxWidthPx = 1200;
+    const checkAndSetupScrolling = () => {
+      const containerWidth = tabMenu.offsetWidth;
+      if (containerWidth < maxWidthPx) {
+        const prevButton = document.querySelector(".cc_pro_tabs_button.prev");
+        const nextButton = document.querySelector(".cc_pro_tabs_button.next");
+        if (prevButton && nextButton) {
+          if (!tabsContainer.contains(prevButton)) {
+            tabsContainer.appendChild(prevButton);
+          }
+          if (!tabsContainer.contains(nextButton)) {
+            tabsContainer.appendChild(nextButton);
+          }
+          const tabLink = tabMenu.querySelector(".cc_pro_session-tab");
+          const scrollAmount = tabLink ? tabLink.offsetWidth : 200;
+          const { overflowX } = getComputedStyle(tabMenu);
+          if (overflowX !== "auto" && overflowX !== "scroll") {
+            tabMenu.style.overflowX = "auto";
+          }
+          const updateScrollState = () => {
+            const { scrollLeft } = tabMenu;
+            const { scrollWidth } = tabMenu;
+            const { clientWidth } = tabMenu;
+            const isAtLeft = scrollLeft <= 1;
+            const isAtRight = scrollLeft + clientWidth >= scrollWidth - 1;
+            if (isAtLeft && isAtRight) {
+              prevButton.style.display = "none";
+              nextButton.style.display = "none";
+            } else if (isAtLeft) {
+              prevButton.style.display = "none";
+              nextButton.style.display = "";
+            } else if (isAtRight) {
+              prevButton.style.display = "";
+              nextButton.style.display = "none";
+            } else {
+              prevButton.style.display = "";
+              nextButton.style.display = "";
+            }
+          };
+          if (!tabMenu.dataset.scrollListenerAttached) {
+            tabMenu.addEventListener("scroll", updateScrollState);
+            tabMenu.dataset.scrollListenerAttached = "true";
+          }
+          updateScrollState();
+          if (!prevButton.dataset.scrollHandlerAttached) {
+            prevButton.addEventListener("click", () => {
+              tabMenu.scrollBy({ left: -scrollAmount, behavior: "smooth" });
+              setTimeout(() => {
+                updateScrollState();
+              }, 300);
+            });
+            prevButton.dataset.scrollHandlerAttached = "true";
+          }
+          if (!nextButton.dataset.scrollHandlerAttached) {
+            nextButton.addEventListener("click", () => {
+              tabMenu.scrollBy({ left: scrollAmount, behavior: "smooth" });
+              setTimeout(() => {
+                updateScrollState();
+              }, 300);
+            });
+            nextButton.dataset.scrollHandlerAttached = "true";
+          }
+        }
+      }
+    };
+    checkAndSetupScrolling();
+    window.addEventListener("resize", checkAndSetupScrolling);
+  }
+
   // src/pro/template-page.ts
   var NUM_OCCURRENCES_TO_SHOW = 3;
   function parseSessionData(element) {
@@ -6912,10 +6969,12 @@
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
       initTemplatePage();
+      initDateTimeFlatlist();
       initTabMenuScrolling();
     });
   } else {
     initTemplatePage();
+    initDateTimeFlatlist();
     initTabMenuScrolling();
   }
 })();

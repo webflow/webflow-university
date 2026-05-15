@@ -6509,6 +6509,13 @@
     }
   }
 
+  // src/pro/utils.ts
+  function formatTime(hour, minute) {
+    const h = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+    const period = hour >= 12 ? "PM" : "AM";
+    return minute === 0 ? `${h}${period}` : `${h}:${minute.toString().padStart(2, "0")}${period}`;
+  }
+
   // src/pro/session-tabs.ts
   function initTabMenuScrolling() {
     const tabMenu = document.querySelector(".cc_pro_session-tab-menu");
@@ -6586,13 +6593,6 @@
     };
     checkAndSetupScrolling();
     window.addEventListener("resize", checkAndSetupScrolling);
-  }
-
-  // src/pro/utils.ts
-  function formatTime(hour, minute) {
-    const h = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-    const period = hour >= 12 ? "PM" : "AM";
-    return minute === 0 ? `${h}${period}` : `${h}:${minute.toString().padStart(2, "0")}${period}`;
   }
 
   // src/pro/index.ts
