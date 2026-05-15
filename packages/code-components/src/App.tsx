@@ -5,6 +5,7 @@ import CalendarPage from './pages/CalendarPage';
 import AutoplayTabsPage from './pages/AutoplayTabsPage';
 import ProSpherePage from './pages/ProSpherePage';
 import CalendarCMSFromFlatlist from './components/CalendarCMS/CalendarCMSFromFlatlist';
+import TimeSlotsAndRegistration from './components/TimeSlotsAndRegistration/TimeSlotsAndRegistration';
 
 const flatlistCalendarSessions = [
   {
@@ -122,6 +123,12 @@ function Navigation() {
         Calendar Flatlist
       </Link>
       <Link
+        to="/time-slots"
+        style={location.pathname === '/time-slots' ? activeLinkStyle : linkStyle}
+      >
+        Time Slots
+      </Link>
+      <Link
         to="/autoplay-tabs"
         style={location.pathname === '/autoplay-tabs' ? activeLinkStyle : linkStyle}
       >
@@ -168,6 +175,26 @@ function CalendarFlatlistExample() {
   );
 }
 
+function TimeSlotsExample() {
+  return (
+    <div style={{ maxWidth: '720px', padding: '2rem' }}>
+      <TimeSlotsAndRegistration
+        dateTimeFlatlist={[
+          '2026-05-20T14:00:00-04:00',
+          '2026-06-02T10:00:00-04:00',
+          '2026-06-11T14:00:00-04:00',
+          '2026-06-16T10:00:00-04:00',
+          '2026-06-25T14:00:00-04:00',
+          '2026-06-30T10:00:00-04:00',
+        ].join(', ')}
+        duration={60}
+        buttonLinkText="Register now ->"
+        buttonLinkUrl="https://webflow.zoom.us/meeting/register/example"
+      />
+    </div>
+  );
+}
+
 function App() {
   return (
     <>
@@ -177,6 +204,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/calendar-flatlist" element={<CalendarFlatlistExample />} />
+          <Route path="/time-slots" element={<TimeSlotsExample />} />
           <Route path="/autoplay-tabs" element={<AutoplayTabsPage />} />
           <Route path="/prosphere" element={<ProSpherePage />} />
         </Routes>
