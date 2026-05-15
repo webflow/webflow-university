@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 
-import { initTabMenuScrolling } from './session-tabs';
+import { initDateTimeFlatlist, initTabMenuScrolling } from './session-tabs';
 import {
   formatTime,
   getNextOccurrences,
@@ -304,9 +304,11 @@ function initTemplatePage(): void {
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     initTemplatePage();
+    initDateTimeFlatlist();
     initTabMenuScrolling();
   });
 } else {
   initTemplatePage();
+  initDateTimeFlatlist();
   initTabMenuScrolling();
 }
