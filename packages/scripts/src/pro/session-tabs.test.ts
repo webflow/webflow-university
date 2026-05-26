@@ -100,7 +100,7 @@ describe('initDateTimeFlatlist', () => {
     document.body.innerHTML = `
       <div
         id="datetimes-flatlist"
-        data-datetime-flatlist="2026-05-21T10:00:00-04:00, 2026-06-16T14:00:00-04:00, 2026-06-25T10:00:00-04:00"
+        data-datetime-flatlist="2026-05-21T10:00:00-04:00, 2026-06-16T14:00:00-04:00, 2026-06-25T10:00:00-04:00, 2026-06-30T14:00:00-04:00"
         class="cc_pro-session_tab-pane with-top"
       >
         <ul role="list" class="cc_pro-session_tab-list">
@@ -112,8 +112,13 @@ describe('initDateTimeFlatlist', () => {
     initDateTimeFlatlist();
 
     const items = Array.from(document.querySelectorAll('.pro-session_list-item'));
-    expect(items).toHaveLength(3);
-    expect(items[0].children[0].textContent).toBe('Thu, May 21');
+    expect(items).toHaveLength(4);
+    expect(items.map((item) => item.children[0].textContent)).toEqual([
+      'May 21 (Thu)',
+      'Jun 16 (Tue)',
+      'Jun 25 (Thu)',
+      'Jun 30 (Tue)',
+    ]);
     expect(items[0].children[1].className).toBe('dotted-line');
     expect(items[0].children[2].textContent).toMatch(/10AM - 11AM EDT|7AM - 8AM PDT|2PM - 3PM UTC/);
   });

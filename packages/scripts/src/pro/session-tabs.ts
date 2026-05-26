@@ -74,7 +74,7 @@ export function initDateTimeFlatlist(): void {
     li.className = 'pro-session_list-item';
 
     const dateDiv = document.createElement('div');
-    dateDiv.textContent = occurrence.toFormat('EEE, MMM d');
+    dateDiv.textContent = occurrence.toFormat('MMM d (EEE)');
 
     const separatorDiv = document.createElement('div');
     separatorDiv.className = 'dotted-line';
