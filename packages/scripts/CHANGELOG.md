@@ -1,5 +1,11 @@
 # scripts
 
+## 1.3.2
+
+### Patch Changes
+
+- 375280e: Display an empty-state message on Pro session template pages when a selected time slot has no upcoming sessions.
+
 ## 1.3.1
 
 ### Patch Changes
