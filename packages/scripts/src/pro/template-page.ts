@@ -17,8 +17,6 @@ interface SessionData {
   sessionType: 'live-training' | 'workshop' | null;
 }
 
-console.log('template-page.ts');
-
 const NUM_OCCURRENCES_TO_SHOW = 3;
 const EMPTY_STATE_ID = 'pro-session-empty-state';
 const EMPTY_STATE_MESSAGE = 'No upcoming sessions are scheduled right now. Check back soon.';
