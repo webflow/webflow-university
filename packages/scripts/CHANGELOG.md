@@ -1,5 +1,11 @@
 # scripts
 
+## 1.3.3
+
+### Patch Changes
+
+- 20ecd15: Remove a debug console log from the Pro session template page script.
+
 ## 1.3.2
 
 ### Patch Changes
