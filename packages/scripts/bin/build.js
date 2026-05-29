@@ -5,9 +5,9 @@ import { readdirSync, rmSync } from 'fs';
 import { isAbsolute, join, relative, resolve, sep } from 'path';
 
 // Config output
-const BUILD_DIRECTORY = 'dist';
-const BUILD_DIRECTORY_PATH = resolve(BUILD_DIRECTORY);
 const PRODUCTION = process.env.NODE_ENV === 'production';
+const BUILD_DIRECTORY = PRODUCTION ? 'dist' : '.dev-dist';
+const BUILD_DIRECTORY_PATH = resolve(BUILD_DIRECTORY);
 
 // Config entrypoint files
 const ENTRY_POINTS = ['src/index.ts', 'src/pro/index.ts', 'src/pro/template-page.ts'];
