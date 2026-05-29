@@ -17,6 +17,17 @@ export interface RecurrencePattern {
   until?: DateTime;
 }
 
+export const DEFAULT_DURATION_MINUTES = 60;
+
+export function parseDurationMinutes(
+  durationStr: string | null | undefined,
+  fallback = DEFAULT_DURATION_MINUTES
+): number {
+  const duration = parseInt(durationStr || '', 10);
+
+  return Number.isFinite(duration) && duration > 0 ? duration : fallback;
+}
+
 /**
  * Check if a date matches any blackout dates (ignoring time)
  */

@@ -10,6 +10,7 @@ import {
   isBlackoutDate,
   parseBlackoutDates,
   parseDate,
+  parseDurationMinutes,
 } from './utils';
 
 const timezone = 'America/New_York';
@@ -68,6 +69,19 @@ describe('parseDate', () => {
 
   it('returns null for invalid dates', () => {
     expect(parseDate('not-a-date', timezone)).toBeNull();
+  });
+});
+
+describe('parseDurationMinutes', () => {
+  it('parses valid minute values', () => {
+    expect(parseDurationMinutes('75')).toBe(75);
+  });
+
+  it('falls back to 60 minutes when the value is missing or invalid', () => {
+    expect(parseDurationMinutes(null)).toBe(60);
+    expect(parseDurationMinutes('')).toBe(60);
+    expect(parseDurationMinutes('not-a-number')).toBe(60);
+    expect(parseDurationMinutes('0')).toBe(60);
   });
 });
 

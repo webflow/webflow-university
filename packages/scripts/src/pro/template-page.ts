@@ -6,6 +6,7 @@ import {
   getNextOccurrences,
   parseBlackoutDates,
   parseDate,
+  parseDurationMinutes,
   type RecurrencePattern,
 } from './utils';
 
@@ -68,7 +69,7 @@ function renderEmptyRecurrenceMessage(listElement: Element): void {
  * - data-start-1, data-start-2: Date strings in format "YYYY-MM-DD H:mm" (Eastern Time, 24-hour format)
  *   If time is missing (parsed as midnight), defaults to 11:00 AM ET for recurrence 1, 3:00 PM ET for recurrence 2
  * - data-frequency-1, data-frequency-2: "weekly", "daily", "biweekly", "monthly"
- * - data-duration-1, data-duration-2: Duration in minutes
+ * - data-duration: Optional duration in minutes (defaults to 60)
  * - data-end-1, data-end-2: Optional end date in format "YYYY-MM-DD"
  * - data-link-1, data-link-2: Registration links
  * - data-blackout-date-string: Comma-separated dates in MM/DD/YYYY format
@@ -89,7 +90,6 @@ function parseSessionData(element: HTMLElement): SessionData | null {
     // Access data attributes with hyphens using bracket notation
     const startDateStr = element.getAttribute(`data-start-${i}`);
     const frequency = element.getAttribute(`data-frequency-${i}`);
-    const durationStr = element.getAttribute(`data-duration-${i}`);
     const endDateStr = element.getAttribute(`data-end-${i}`);
     const link = element.getAttribute(`data-link-${i}`);
 
@@ -98,8 +98,8 @@ function parseSessionData(element: HTMLElement): SessionData | null {
       continue;
     }
 
-    if (!frequency || !durationStr) {
-      console.error(`Missing frequency or duration for recurrence ${i}`, element);
+    if (!frequency) {
+      console.error(`Missing frequency for recurrence ${i}`, element);
       continue;
     }
 
@@ -140,7 +140,7 @@ function parseSessionData(element: HTMLElement): SessionData | null {
       }
     }
 
-    const duration = parseInt(durationStr, 10);
+    const duration = parseDurationMinutes(element.getAttribute('data-duration'));
     let until: DateTime | undefined;
 
     if (endDateStr && endDateStr.trim()) {
