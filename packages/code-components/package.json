@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "share": "webflow library share",
+    "share": "webflow devlink import",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -36,6 +36,7 @@
     "@webflow/data-types": "^2.0.0",
     "@webflow/react": "^2.0.0",
     "@webflow/webflow-cli": "^2.0.0",
+    "baseline-browser-mapping": "^2.10.32",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.22",
