@@ -18,6 +18,47 @@ interface SessionData {
 }
 
 const NUM_OCCURRENCES_TO_SHOW = 3;
+const EMPTY_STATE_ID = 'pro-session-empty-state';
+const EMPTY_STATE_MESSAGE = 'No upcoming sessions are scheduled right now. Check back soon.';
+
+function showNoUpcomingSessionsMessage(): void {
+  const tabsContainer = document.querySelector('.cc_pro_session-tabs') as HTMLElement | null;
+  if (!tabsContainer || document.getElementById(EMPTY_STATE_ID)) {
+    return;
+  }
+
+  const tabMenu = document.querySelector('.cc_pro_session-tab-menu') as HTMLElement | null;
+  const tabButtons = document.querySelectorAll<HTMLElement>('.cc_pro_tabs_button');
+  tabMenu?.style.setProperty('display', 'none');
+  tabButtons.forEach((button) => {
+    button.style.display = 'none';
+  });
+
+  const emptyState = document.createElement('p');
+  emptyState.id = EMPTY_STATE_ID;
+  emptyState.className = 'cc_pro-session_empty-state';
+  emptyState.textContent = EMPTY_STATE_MESSAGE;
+  emptyState.setAttribute('role', 'status');
+  emptyState.style.margin = '1.5rem 0 0';
+  emptyState.style.color = 'rgba(255, 255, 255, 0.7)';
+  emptyState.style.fontSize = '1rem';
+  emptyState.style.lineHeight = '1.5';
+
+  tabsContainer.appendChild(emptyState);
+}
+
+function renderEmptyRecurrenceMessage(listElement: Element): void {
+  const emptyItem = document.createElement('li');
+  emptyItem.className = 'cc_pro-session_empty-state';
+  emptyItem.textContent = EMPTY_STATE_MESSAGE;
+  emptyItem.setAttribute('role', 'status');
+  emptyItem.style.listStyle = 'none';
+  emptyItem.style.color = 'rgba(255, 255, 255, 0.7)';
+  emptyItem.style.fontSize = '1rem';
+  emptyItem.style.lineHeight = '1.5';
+
+  listElement.appendChild(emptyItem);
+}
 
 /**
  * Parse session data from the #data-saver element
@@ -160,11 +201,11 @@ function updateRecurrenceUI(
   blackoutDates: DateTime[],
   registrationLink: string,
   sessionType: 'live-training' | 'workshop' | null
-): void {
+): boolean {
   const container = document.querySelector(`#datetimes-${index}`);
   if (!container) {
     console.error(`[updateRecurrenceUI] Container #datetimes-${index} not found`);
-    return;
+    return false;
   }
 
   // Get next NUM_OCCURRENCES_TO_SHOW occurrences
@@ -175,12 +216,6 @@ function updateRecurrenceUI(
     NUM_OCCURRENCES_TO_SHOW,
     recurrence.until
   );
-
-  if (occurrences.length === 0) {
-    // Hide the container if no occurrences
-    (container as HTMLElement).style.display = 'none';
-    return;
-  }
 
   // Show the container
   (container as HTMLElement).style.display = '';
@@ -214,11 +249,22 @@ function updateRecurrenceUI(
   const listElement = container.querySelector('ul.cc_pro-session_tab-list');
   if (!listElement) {
     console.error(`[updateRecurrenceUI] List element not found in container ${index}`);
-    return;
+    return false;
   }
 
   // Clear existing items
   listElement.innerHTML = '';
+
+  if (occurrences.length === 0) {
+    renderEmptyRecurrenceMessage(listElement);
+
+    const linkElement = container.querySelector('a.button');
+    if (linkElement) {
+      (linkElement as HTMLElement).style.display = 'none';
+    }
+
+    return false;
+  }
 
   // Add new items with the new structure
   occurrences.forEach((occurrence) => {
@@ -269,46 +315,60 @@ function updateRecurrenceUI(
   } else if (linkElement) {
     (linkElement as HTMLElement).style.display = 'none';
   }
+
+  return true;
 }
 
 /**
  * Initialize the template page
  * Times are always displayed in the user's local timezone
  */
-function initTemplatePage(): void {
+function initTemplatePage(): boolean {
   const dataSaver = document.querySelector('#data-saver') as HTMLElement;
   if (!dataSaver) {
     console.error('[initTemplatePage] #data-saver element not found');
-    return;
+    return false;
   }
 
   const sessionData = parseSessionData(dataSaver);
   if (!sessionData) {
     console.error('[initTemplatePage] Failed to parse session data');
-    return;
+    showNoUpcomingSessionsMessage();
+    return false;
   }
 
   // Update all recurrences (always show in user's local timezone)
+  let hasUpcomingSessions = false;
   sessionData.recurrences.forEach((recurrence, index) => {
-    updateRecurrenceUI(
+    const recurrenceHasUpcomingSessions = updateRecurrenceUI(
       index + 1,
       recurrence,
       sessionData.blackoutDates,
       sessionData.registrationLinks[index],
       sessionData.sessionType
     );
+    hasUpcomingSessions = hasUpcomingSessions || recurrenceHasUpcomingSessions;
   });
+
+  if (!hasUpcomingSessions) {
+    showNoUpcomingSessionsMessage();
+  }
+
+  return hasUpcomingSessions;
+}
+
+function initTemplatePageWithTabs(): void {
+  const hasUpcomingSessions = initTemplatePage();
+  initDateTimeFlatlist();
+
+  if (hasUpcomingSessions) {
+    initTabMenuScrolling();
+  }
 }
 
 // Run when DOM is ready
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    initTemplatePage();
-    initDateTimeFlatlist();
-    initTabMenuScrolling();
-  });
+  document.addEventListener('DOMContentLoaded', initTemplatePageWithTabs);
 } else {
-  initTemplatePage();
-  initDateTimeFlatlist();
-  initTabMenuScrolling();
+  initTemplatePageWithTabs();
 }
