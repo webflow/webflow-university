@@ -4,6 +4,77 @@ import HomePage from './pages/HomePage';
 import CalendarPage from './pages/CalendarPage';
 import AutoplayTabsPage from './pages/AutoplayTabsPage';
 import ProSpherePage from './pages/ProSpherePage';
+import CalendarCMSFromFlatlist from './components/CalendarCMS/CalendarCMSFromFlatlist';
+import TimeSlotsAndRegistration from './components/TimeSlotsAndRegistration/TimeSlotsAndRegistration';
+
+const flatlistCalendarSessions = [
+  {
+    name: 'SEO & AEO',
+    slug: 'seo-aeo',
+    datetimes: [
+      '2026-05-18T14:00:00-04:00',
+      '2026-06-04T10:00:00-04:00',
+      '2026-06-23T14:00:00-04:00',
+      '2026-07-01T10:00:00-04:00',
+      '2026-07-08T14:00:00-04:00',
+    ],
+  },
+  {
+    name: 'Analyze & Optimize',
+    slug: 'analyze-optimize',
+    datetimes: [
+      '2026-05-21T10:00:00-04:00',
+      '2026-06-16T14:00:00-04:00',
+      '2026-06-25T10:00:00-04:00',
+    ],
+  },
+  {
+    name: 'Build & style',
+    slug: 'build-style-your-site',
+    datetimes: ['2026-06-09T14:00:00-04:00', '2026-06-18T10:00:00-04:00'],
+  },
+  {
+    name: 'The Webflow CMS',
+    slug: 'the-webflow-cms',
+    datetimes: [
+      '2026-05-19T10:00:00-04:00',
+      '2026-06-04T14:00:00-04:00',
+      '2026-06-09T10:00:00-04:00',
+      '2026-06-18T14:00:00-04:00',
+      '2026-06-23T10:00:00-04:00',
+    ],
+  },
+  {
+    name: 'Build flexible components',
+    slug: 'build-flexible-components',
+    datetimes: [
+      '2026-05-28T14:00:00-04:00',
+      '2026-06-10T14:00:00-04:00',
+      '2026-06-24T10:00:00-04:00',
+    ],
+  },
+  {
+    name: 'Design systems',
+    slug: 'design-systems',
+    datetimes: [
+      '2026-06-02T14:00:00-04:00',
+      '2026-06-11T10:00:00-04:00',
+      '2026-06-30T14:00:00-04:00',
+    ],
+  },
+  {
+    name: 'Enterprise collaboration',
+    slug: 'enterprise-collaboration',
+    datetimes: [
+      '2026-05-20T14:00:00-04:00',
+      '2026-06-02T10:00:00-04:00',
+      '2026-06-11T14:00:00-04:00',
+      '2026-06-16T10:00:00-04:00',
+      '2026-06-25T14:00:00-04:00',
+      '2026-06-30T10:00:00-04:00',
+    ],
+  },
+];
 
 function Navigation() {
   const location = useLocation();
@@ -46,6 +117,18 @@ function Navigation() {
         Calendar
       </Link>
       <Link
+        to="/calendar-flatlist"
+        style={location.pathname === '/calendar-flatlist' ? activeLinkStyle : linkStyle}
+      >
+        Calendar Flatlist
+      </Link>
+      <Link
+        to="/time-slots"
+        style={location.pathname === '/time-slots' ? activeLinkStyle : linkStyle}
+      >
+        Time Slots
+      </Link>
+      <Link
         to="/autoplay-tabs"
         style={location.pathname === '/autoplay-tabs' ? activeLinkStyle : linkStyle}
       >
@@ -61,6 +144,57 @@ function Navigation() {
   );
 }
 
+function CalendarFlatlistExample() {
+  return (
+    <div style={{ padding: '2rem' }}>
+      <CalendarCMSFromFlatlist
+        daysLimit={90}
+        showLegend
+        cmsCollectionComponentSlot={
+          <div slot="cmsCollectionComponentSlot">
+            <div className="w-dyn-list">
+              <div role="list" className="w-dyn-items">
+                {flatlistCalendarSessions.map((session) => (
+                  <div
+                    key={session.slug}
+                    className="w-dyn-item"
+                    data-datetime-flatlist={session.datetimes.join(', ')}
+                    data-duration="60"
+                    data-name={session.name}
+                    data-slug={session.slug}
+                    data-type="Live Training"
+                    role="listitem"
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+function TimeSlotsExample() {
+  return (
+    <div style={{ maxWidth: '720px', padding: '2rem' }}>
+      <TimeSlotsAndRegistration
+        dateTimeFlatlist={[
+          '2026-05-20T14:00:00-04:00',
+          '2026-06-02T10:00:00-04:00',
+          '2026-06-11T14:00:00-04:00',
+          '2026-06-16T10:00:00-04:00',
+          '2026-06-25T14:00:00-04:00',
+          '2026-06-30T10:00:00-04:00',
+        ].join(', ')}
+        duration={60}
+        buttonLinkText="Register now ->"
+        buttonLinkUrl="https://webflow.zoom.us/meeting/register/example"
+      />
+    </div>
+  );
+}
+
 function App() {
   return (
     <>
@@ -69,6 +203,8 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/calendar-flatlist" element={<CalendarFlatlistExample />} />
+          <Route path="/time-slots" element={<TimeSlotsExample />} />
           <Route path="/autoplay-tabs" element={<AutoplayTabsPage />} />
           <Route path="/prosphere" element={<ProSpherePage />} />
         </Routes>

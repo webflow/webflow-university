@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 
-import { initTabMenuScrolling } from './session-tabs';
+import { initDateTimeFlatlist, initTabMenuScrolling } from './session-tabs';
 import {
   formatTime,
   getNextOccurrences,
@@ -358,7 +358,10 @@ function initTemplatePage(): boolean {
 }
 
 function initTemplatePageWithTabs(): void {
-  if (initTemplatePage()) {
+  const hasUpcomingSessions = initTemplatePage();
+  initDateTimeFlatlist();
+
+  if (hasUpcomingSessions) {
     initTabMenuScrolling();
   }
 }

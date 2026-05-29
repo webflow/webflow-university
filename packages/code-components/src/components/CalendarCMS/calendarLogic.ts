@@ -22,6 +22,14 @@ export interface Session {
   rules: RecurrenceRule[];
 }
 
+export interface FlatlistSession {
+  slug: string;
+  name: string;
+  type?: string;
+  durationMin: number;
+  startsUTC: Date[];
+}
+
 export interface Occurrence {
   slug: string;
   name: string;
@@ -319,6 +327,76 @@ export function buildSessionsFromApiItems(items: CMSItem[]): Session[] {
   }
 
   return sessions;
+}
+
+export function parseFlatlistDatetimes(input?: string): Date[] {
+  if (!input || !input.trim()) {
+    return [];
+  }
+
+  return input
+    .split(',')
+    .map((dateString) => dateString.trim())
+    .filter(Boolean)
+    .map((dateString) => {
+      const parsed = DateTime.fromISO(dateString, { setZone: true });
+      return parsed.isValid ? parsed.toUTC().toJSDate() : null;
+    })
+    .filter((date): date is Date => date !== null)
+    .sort((a, b) => a.getTime() - b.getTime());
+}
+
+export function buildFlatlistSessionsFromCMSItems(items: CMSItem[]): FlatlistSession[] {
+  const sessions: FlatlistSession[] = [];
+
+  for (const item of items) {
+    const f = (item.fieldData || {}) as Record<string, unknown>;
+    const slug = typeof f.slug === 'string' ? (f.slug as string) : undefined;
+    if (!slug) {
+      continue;
+    }
+
+    const startsUTC = parseFlatlistDatetimes(String(f['datetime-flatlist'] || ''));
+    if (startsUTC.length === 0) {
+      continue;
+    }
+
+    const durationMin = parseInt(
+      String(f.duration || f['duration-1'] || DEFAULT_DURATION_MINUTES),
+      10
+    );
+
+    sessions.push({
+      slug,
+      name: typeof f.name === 'string' ? (f.name as string) : slug,
+      type: typeof f.type === 'string' ? (f.type as string) : undefined,
+      durationMin: Number.isFinite(durationMin) ? durationMin : DEFAULT_DURATION_MINUTES,
+      startsUTC,
+    });
+  }
+
+  return sessions;
+}
+
+export function generateFlatlistOccurrencesForSession(
+  session: FlatlistSession,
+  fromUTC: Date,
+  daysLimit: number
+): Occurrence[] {
+  const limitUTC = new Date(fromUTC.getTime() + daysLimit * 24 * 60 * 60 * 1000);
+
+  return session.startsUTC
+    .filter(
+      (startUTC) =>
+        startUTC.getTime() >= fromUTC.getTime() && startUTC.getTime() <= limitUTC.getTime()
+    )
+    .map((startUTC) => ({
+      slug: session.slug,
+      name: session.name,
+      type: session.type,
+      startUTC,
+      endUTC: new Date(startUTC.getTime() + session.durationMin * 60 * 1000),
+    }));
 }
 
 export function generateNextOccurrencesForSession(

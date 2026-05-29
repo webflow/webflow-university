@@ -1,28 +1,14 @@
 import { DateTime } from 'luxon';
 
 import { initTabMenuScrolling } from './session-tabs';
-import {
-  formatTime,
-  getNextOccurrence,
-  parseBlackoutDates,
-  parseDate,
-  type RecurrencePattern,
-} from './utils';
+import { formatTime } from './utils';
 
 /*
 EXPECTED HTML STRUCTURE:
 
 <div 
   data-slug="enterprise-collaboration"
-  data-start-1="2025-12-09 11:00"  <!-- ISO 8601 with space (recommended) -->
-  data-frequency-1="weekly"
-  data-duration-1="60"
-  data-until-1=""  <!-- Optional end date (date-only, e.g., "2025-12-19") -->
-  data-start-2="2025-12-04 15:00"  <!-- Optional second recurrence -->
-  data-frequency-2="weekly"               <!-- Optional -->
-  data-duration-2="60"                      <!-- Optional -->
-  data-until-2=""          <!-- Optional -->
-  data-blackout-date-string="10/21/2025, 10/28/2025, 11/25/2025"  <!-- Optional comma-separated dates -->
+  data-datetime-flatlist="2026-05-20T14:00:00-04:00, 2026-06-02T10:00:00-04:00"
   role="listitem" 
   class="w-dyn-item">
   
@@ -34,23 +20,20 @@ EXPECTED HTML STRUCTURE:
 </div>
 
 Notes:
-- All dates are assumed to be in America/New_York (ET) timezone
-- Recommended date format: ISO 8601 with space (e.g., "2025-12-04 15:00" for Dec 4, 3PM ET)
-- Alternative formats supported: "2025-12-04T15:00", "December 4, 2025 3:00 PM", "12/04/2025 03:00 PM"
-- Until dates can be date-only: "2025-12-19" (assumed midnight ET)
-- Supports up to 2 recurrence patterns per event
-- data-start-2, data-frequency-2, etc. are optional
-- data-blackout-date-string is optional, format: "MM/DD/YYYY, MM/DD/YYYY"
-- Script will show the NEXT closest occurrence across all recurrence patterns
-- Blackout dates will be skipped automatically
+- Dates are read from data-datetime-flatlist as comma-separated ISO 8601 datetimes
+- ISO offsets are respected, then normalized to America/New_York for the default display
+- Script will show the NEXT closest occurrence from the flat list
+- Duration is assumed to be 60 minutes
 */
+
+const DEFAULT_TIMEZONE = 'America/New_York';
+const DEFAULT_DURATION_MINUTES = 60;
 
 interface EventData {
   element: HTMLElement;
   slug: string;
-  recurrences: RecurrencePattern[];
-  blackoutDates: DateTime[];
-  timezone: string;
+  occurrences: DateTime[];
+  duration: number;
 }
 
 /**
@@ -58,108 +41,61 @@ interface EventData {
  */
 function parseEventData(element: HTMLElement): EventData | null {
   const { slug } = element.dataset;
-  const timezone = 'America/New_York'; // Default to ET
 
   if (!slug) {
     console.error('Missing required data-slug attribute', element);
     return null;
   }
 
-  // Parse recurrence patterns (up to 2)
-  const recurrences: RecurrencePattern[] = [];
+  const datetimeFlatlist = element.getAttribute('data-datetime-flatlist') || '';
+  const occurrences = datetimeFlatlist
+    .split(',')
+    .map((dateString) => dateString.trim())
+    .filter(Boolean)
+    .map((dateString) => {
+      const date = DateTime.fromISO(dateString, { setZone: true });
 
-  for (let i = 1; i <= 2; i++) {
-    // Access data attributes with hyphens using bracket notation
-    const startDateStr = element.getAttribute(`data-start-${i}`);
-    const frequency = element.getAttribute(`data-frequency-${i}`);
-    const durationStr = element.getAttribute(`data-duration-${i}`);
-    const untilStr = element.getAttribute(`data-until-${i}`);
+      if (!date.isValid) {
+        console.error(`Invalid datetime in data-datetime-flatlist: ${dateString}`, element);
+        return null;
+      }
 
-    // Skip if no start date for this recurrence
-    if (!startDateStr || !startDateStr.trim()) {
-      continue;
-    }
+      return date.setZone(DEFAULT_TIMEZONE);
+    })
+    .filter((date): date is DateTime => date !== null)
+    .sort((a, b) => a.toMillis() - b.toMillis());
 
-    if (!frequency || !durationStr) {
-      console.error(`Missing frequency or duration for recurrence ${i}`, element);
-      continue;
-    }
-
-    const startDate = parseDate(startDateStr, timezone);
-    if (!startDate) {
-      console.error(`Invalid start date for recurrence ${i}:`, startDateStr);
-      continue;
-    }
-
-    const duration = parseInt(durationStr, 10);
-    let until: DateTime | undefined;
-
-    if (untilStr && untilStr.trim()) {
-      until = parseDate(untilStr, timezone) || undefined;
-    }
-
-    recurrences.push({
-      startDate,
-      frequency,
-      duration,
-      until,
-    });
-  }
-
-  if (recurrences.length === 0) {
-    console.error('No valid recurrence patterns found', element);
+  if (occurrences.length === 0) {
+    console.error('No valid datetimes found in data-datetime-flatlist', element);
     return null;
   }
-
-  // Parse blackout dates
-  const blackoutDateString = element.getAttribute('data-blackout-date-string') || '';
-  const blackoutDates = parseBlackoutDates(blackoutDateString, timezone);
 
   return {
     element,
     slug,
-    recurrences,
-    blackoutDates,
-    timezone,
+    occurrences,
+    duration: DEFAULT_DURATION_MINUTES,
   };
 }
 
 /**
- * Find the next occurrence across all recurrence patterns
+ * Find the next occurrence from the flat datetime list
  */
 function findNextOccurrence(
   eventData: EventData
 ): { occurrence: DateTime; duration: number } | null {
-  let closestOccurrence: DateTime | null = null;
-  let closestDuration = 0;
+  const now = DateTime.now();
+  const nextOccurrence = eventData.occurrences.find(
+    (occurrence) => occurrence.toMillis() > now.toMillis()
+  );
 
-  // Check each recurrence pattern
-  for (const recurrence of eventData.recurrences) {
-    const nextOccurrence = getNextOccurrence(
-      recurrence.startDate,
-      recurrence.frequency,
-      eventData.blackoutDates,
-      recurrence.until
-    );
-
-    if (!nextOccurrence) {
-      continue;
-    }
-
-    // Keep track of the earliest occurrence
-    if (!closestOccurrence || nextOccurrence < closestOccurrence) {
-      closestOccurrence = nextOccurrence;
-      closestDuration = recurrence.duration;
-    }
-  }
-
-  if (!closestOccurrence) {
+  if (!nextOccurrence) {
     return null;
   }
 
   return {
-    occurrence: closestOccurrence,
-    duration: closestDuration,
+    occurrence: nextOccurrence,
+    duration: eventData.duration,
   };
 }
 
@@ -205,9 +141,9 @@ function updateEventDisplay(eventData: EventData, showInUserTimezone: boolean): 
  * Initialize event display updates
  */
 function initProEvents(): void {
-  // Query all event elements (look for data-slug and data-start-1)
+  // Query all event elements with the new flat datetime list
   const eventElements = document.querySelectorAll(
-    '[data-slug][data-start-1]'
+    '[data-slug][data-datetime-flatlist]'
   ) as NodeListOf<HTMLElement>;
 
   // Query the timezone toggle checkbox

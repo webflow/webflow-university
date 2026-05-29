@@ -3,7 +3,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { initTabMenuScrolling } from './session-tabs';
+import { initDateTimeFlatlist, initTabMenuScrolling } from './session-tabs';
 
 function setReadonlyNumber(element: HTMLElement, property: string, value: number): void {
   Object.defineProperty(element, property, {
@@ -85,5 +85,74 @@ describe('initTabMenuScrolling', () => {
 
   it('does nothing when required elements are missing', () => {
     expect(() => initTabMenuScrolling()).not.toThrow();
+  });
+});
+
+describe('initDateTimeFlatlist', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('hydrates the flatlist session dates with local time ranges', () => {
+    vi.setSystemTime(new Date('2026-05-15T12:00:00Z'));
+    document.body.innerHTML = `
+      <div
+        id="datetimes-flatlist"
+        data-datetime-flatlist="2026-05-21T10:00:00-04:00, 2026-06-16T14:00:00-04:00, 2026-06-25T10:00:00-04:00, 2026-06-30T14:00:00-04:00"
+        class="cc_pro-session_tab-pane with-top"
+      >
+        <ul role="list" class="cc_pro-session_tab-list">
+          <li class="pro-session_list-item"><div>Placeholder</div></li>
+        </ul>
+      </div>
+    `;
+
+    initDateTimeFlatlist();
+
+    const items = Array.from(document.querySelectorAll('.pro-session_list-item'));
+    expect(items).toHaveLength(4);
+    expect(items.map((item) => item.children[0].textContent)).toEqual([
+      'May 21 (Thu)',
+      'Jun 16 (Tue)',
+      'Jun 25 (Thu)',
+      'Jun 30 (Tue)',
+    ]);
+    expect(items[0].children[1].className).toBe('dotted-line');
+    expect(items[0].children[2].textContent).toMatch(/10AM - 11AM EDT|7AM - 8AM PDT|2PM - 3PM UTC/);
+  });
+
+  it('uses the optional duration data attribute', () => {
+    vi.setSystemTime(new Date('2026-05-15T12:00:00Z'));
+    document.body.innerHTML = `
+      <div
+        id="datetimes-flatlist"
+        data-duration="90"
+        data-datetime-flatlist="2026-05-21T10:00:00-04:00"
+      >
+        <ul role="list" class="cc_pro-session_tab-list"></ul>
+      </div>
+    `;
+
+    initDateTimeFlatlist();
+
+    const timeText = document.querySelector('.pro-session_list-item')?.children[2].textContent;
+    expect(timeText).toMatch(/10AM - 11:30AM EDT|7AM - 8:30AM PDT|2PM - 3:30PM UTC/);
+  });
+
+  it('only targets the #datetimes-flatlist component', () => {
+    vi.setSystemTime(new Date('2026-05-15T12:00:00Z'));
+    document.body.innerHTML = `
+      <div data-datetime-flatlist="2026-05-21T10:00:00-04:00">
+        <ul class="cc_pro-session_tab-list">
+          <li class="pro-session_list-item"><div>Do not touch</div></li>
+        </ul>
+      </div>
+    `;
+
+    initDateTimeFlatlist();
+
+    expect(document.querySelector('.pro-session_list-item')?.textContent).toBe('Do not touch');
   });
 });
