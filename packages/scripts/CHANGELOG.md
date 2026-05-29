@@ -1,5 +1,11 @@
 # scripts
 
+## 2.0.1
+
+### Patch Changes
+
+- 222fd71: Use the `data-duration` attribute when calculating Pro session time ranges, with a 60 minute fallback when no duration is provided.
+
 ## 2.0.0
 
 ### Major Changes
