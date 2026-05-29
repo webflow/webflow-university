@@ -1,9 +1,8 @@
 import { DateTime } from 'luxon';
 
-import { formatTime } from './utils';
+import { formatTime, parseDurationMinutes } from './utils';
 
 const DEFAULT_EVENT_TIMEZONE = 'America/New_York';
-const DEFAULT_DURATION_MINUTES = 60;
 
 function parseDateTimeFlatlist(dateTimeFlatlist: string): DateTime[] {
   return dateTimeFlatlist
@@ -43,13 +42,7 @@ export function initDateTimeFlatlist(): void {
   }
 
   const dateTimeFlatlist = container.getAttribute('data-datetime-flatlist') || '';
-  const duration = parseInt(
-    container.getAttribute('data-duration') ||
-      container.getAttribute('data-duration-minutes') ||
-      String(DEFAULT_DURATION_MINUTES),
-    10
-  );
-  const safeDuration = Number.isFinite(duration) ? duration : DEFAULT_DURATION_MINUTES;
+  const duration = parseDurationMinutes(container.getAttribute('data-duration'));
   const occurrences = parseDateTimeFlatlist(dateTimeFlatlist)
     .filter((date) => date > DateTime.now())
     .map((date) => date.setZone('local'));
@@ -80,7 +73,7 @@ export function initDateTimeFlatlist(): void {
     separatorDiv.className = 'dotted-line';
 
     const timeDiv = document.createElement('div');
-    timeDiv.textContent = formatTimeRange(occurrence, safeDuration);
+    timeDiv.textContent = formatTimeRange(occurrence, duration);
 
     li.appendChild(dateDiv);
     li.appendChild(separatorDiv);

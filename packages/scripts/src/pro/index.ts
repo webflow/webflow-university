@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon';
 
 import { initTabMenuScrolling } from './session-tabs';
-import { formatTime } from './utils';
+import { formatTime, parseDurationMinutes } from './utils';
 
 /*
 EXPECTED HTML STRUCTURE:
@@ -23,11 +23,10 @@ Notes:
 - Dates are read from data-datetime-flatlist as comma-separated ISO 8601 datetimes
 - ISO offsets are respected, then normalized to America/New_York for the default display
 - Script will show the NEXT closest occurrence from the flat list
-- Duration is assumed to be 60 minutes
+- Duration is read from data-duration, falling back to 60 minutes
 */
 
 const DEFAULT_TIMEZONE = 'America/New_York';
-const DEFAULT_DURATION_MINUTES = 60;
 
 interface EventData {
   element: HTMLElement;
@@ -74,7 +73,7 @@ function parseEventData(element: HTMLElement): EventData | null {
     element,
     slug,
     occurrences,
-    duration: DEFAULT_DURATION_MINUTES,
+    duration: parseDurationMinutes(element.getAttribute('data-duration')),
   };
 }
 

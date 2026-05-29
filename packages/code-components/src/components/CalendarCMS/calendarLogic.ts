@@ -361,16 +361,14 @@ export function buildFlatlistSessionsFromCMSItems(items: CMSItem[]): FlatlistSes
       continue;
     }
 
-    const durationMin = parseInt(
-      String(f.duration || f['duration-1'] || DEFAULT_DURATION_MINUTES),
-      10
-    );
+    const durationMin = parseInt(String(f.duration || DEFAULT_DURATION_MINUTES), 10);
 
     sessions.push({
       slug,
       name: typeof f.name === 'string' ? (f.name as string) : slug,
       type: typeof f.type === 'string' ? (f.type as string) : undefined,
-      durationMin: Number.isFinite(durationMin) ? durationMin : DEFAULT_DURATION_MINUTES,
+      durationMin:
+        Number.isFinite(durationMin) && durationMin > 0 ? durationMin : DEFAULT_DURATION_MINUTES,
       startsUTC,
     });
   }

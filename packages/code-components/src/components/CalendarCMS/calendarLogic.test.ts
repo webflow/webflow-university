@@ -180,6 +180,7 @@ describe('calendarLogic flatlist generation', () => {
       {
         fieldData: {
           'datetime-flatlist': '2026-05-20T14:00:00-04:00, 2026-06-02T10:00:00-04:00',
+          duration: '75',
           name: 'Enterprise Collaboration',
           slug: 'enterprise-collaboration',
           type: 'Live Training',
@@ -188,11 +189,25 @@ describe('calendarLogic flatlist generation', () => {
     ]);
 
     expect(sessions).toHaveLength(1);
-    expect(sessions[0].durationMin).toBe(60);
+    expect(sessions[0].durationMin).toBe(75);
     expect(sessions[0].startsUTC.map((date) => date.toISOString())).toEqual([
       '2026-05-20T18:00:00.000Z',
       '2026-06-02T14:00:00.000Z',
     ]);
+  });
+
+  it('falls back to 60 minutes instead of reading legacy numbered duration fields', () => {
+    const sessions = buildFlatlistSessionsFromCMSItems([
+      {
+        fieldData: {
+          'datetime-flatlist': '2026-05-20T14:00:00-04:00',
+          'duration-1': '75',
+          slug: 'legacy-duration-field',
+        },
+      },
+    ]);
+
+    expect(sessions[0].durationMin).toBe(60);
   });
 
   it('generates only flatlist occurrences within the requested window', () => {
