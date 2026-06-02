@@ -14,7 +14,7 @@
 The scripts package builds 3 browser bundles into `packages/scripts/dist`.
 
 - `dist/index.js` is the main Webflow University script. It initializes sidebar behavior, sidebar active-link highlighting, theme switching, contrast switching, global search behavior, and the `/courses` grid/list UI.
-- `dist/pro/index.js` is used on Pro event listing pages. It reads CMS-rendered `data-slug`, `data-name`, `data-type`, `data-datetime-flatlist`, and `data-duration` attributes, shows the next flatlist occurrence, supports a user-timezone toggle, and enables horizontal session-tab scrolling.
+- `dist/pro/index.js` is used on Pro event listing pages. It enables horizontal session-tab scrolling.
 - `dist/pro/template-page.js` is used on Pro template/detail pages. It reads `data-datetime-flatlist` and `data-duration` from `#datetimes-flatlist`, renders upcoming session dates, and enables horizontal session-tab scrolling when sessions are available.
 
 Use these files from jsdelivr in Webflow, for example:
