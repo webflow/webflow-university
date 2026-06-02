@@ -1,20 +1,13 @@
 import { initDateTimeFlatlist, initTabMenuScrolling } from './session-tabs';
 
 const EMPTY_STATE_ID = 'pro-session-empty-state';
-const EMPTY_STATE_MESSAGE = 'No upcoming sessions are scheduled right now. Check back soon.';
+const EMPTY_STATE_MESSAGE = 'No upcoming sessions scheduled, please check back later.';
 
 function showNoUpcomingSessionsMessage(): void {
-  const tabsContainer = document.querySelector('.cc_pro_session-tabs') as HTMLElement | null;
-  if (!tabsContainer || document.getElementById(EMPTY_STATE_ID)) {
+  const timeSlot = document.querySelector('#time-slot') as HTMLElement | null;
+  if (!timeSlot || document.getElementById(EMPTY_STATE_ID)) {
     return;
   }
-
-  const tabMenu = document.querySelector('.cc_pro_session-tab-menu') as HTMLElement | null;
-  const tabButtons = document.querySelectorAll<HTMLElement>('.cc_pro_tabs_button');
-  tabMenu?.style.setProperty('display', 'none');
-  tabButtons.forEach((button) => {
-    button.style.display = 'none';
-  });
 
   const emptyState = document.createElement('p');
   emptyState.id = EMPTY_STATE_ID;
@@ -26,7 +19,7 @@ function showNoUpcomingSessionsMessage(): void {
   emptyState.style.fontSize = '1rem';
   emptyState.style.lineHeight = '1.5';
 
-  tabsContainer.appendChild(emptyState);
+  timeSlot.appendChild(emptyState);
 }
 
 /**
