@@ -109,7 +109,7 @@ describe('initDateTimeFlatlist', () => {
       </div>
     `;
 
-    initDateTimeFlatlist();
+    expect(initDateTimeFlatlist()).toBe(true);
 
     const items = Array.from(document.querySelectorAll('.pro-session_list-item'));
     expect(items).toHaveLength(4);
@@ -135,7 +135,7 @@ describe('initDateTimeFlatlist', () => {
       </div>
     `;
 
-    initDateTimeFlatlist();
+    expect(initDateTimeFlatlist()).toBe(true);
 
     const timeText = document.querySelector('.pro-session_list-item')?.children[2].textContent;
     expect(timeText).toMatch(/10AM - 11:30AM EDT|7AM - 8:30AM PDT|2PM - 3:30PM UTC/);
@@ -151,8 +151,26 @@ describe('initDateTimeFlatlist', () => {
       </div>
     `;
 
-    initDateTimeFlatlist();
+    expect(initDateTimeFlatlist()).toBe(false);
 
     expect(document.querySelector('.pro-session_list-item')?.textContent).toBe('Do not touch');
+  });
+
+  it('returns false and hides the flatlist when there are no upcoming dates', () => {
+    vi.setSystemTime(new Date('2026-05-15T12:00:00Z'));
+    document.body.innerHTML = `
+      <div
+        id="datetimes-flatlist"
+        data-datetime-flatlist="2026-05-01T10:00:00-04:00"
+      >
+        <ul role="list" class="cc_pro-session_tab-list">
+          <li class="pro-session_list-item"><div>Placeholder</div></li>
+        </ul>
+      </div>
+    `;
+
+    expect(initDateTimeFlatlist()).toBe(false);
+    expect(document.querySelectorAll('.pro-session_list-item')).toHaveLength(0);
+    expect(document.querySelector<HTMLElement>('#datetimes-flatlist')?.style.display).toBe('none');
   });
 });
