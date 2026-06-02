@@ -8,7 +8,10 @@ EXPECTED HTML STRUCTURE:
 
 <div 
   data-slug="enterprise-collaboration"
+  data-name="Enterprise Collaboration"
+  data-type="Live Training"
   data-datetime-flatlist="2026-05-20T14:00:00-04:00, 2026-06-02T10:00:00-04:00"
+  data-duration="60"
   role="listitem" 
   class="w-dyn-item">
   
@@ -20,6 +23,7 @@ EXPECTED HTML STRUCTURE:
 </div>
 
 Notes:
+- data-slug, data-name, and data-type remain available as CMS metadata
 - Dates are read from data-datetime-flatlist as comma-separated ISO 8601 datetimes
 - ISO offsets are respected, then normalized to America/New_York for the default display
 - Script will show the NEXT closest occurrence from the flat list

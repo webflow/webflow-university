@@ -33,12 +33,13 @@ function formatTimeRange(startDate: DateTime, duration: number): string {
 }
 
 /**
- * Populate the new flatlist session datetime component.
+ * Populate the flatlist session datetime component.
+ * Returns true when at least one upcoming session was rendered.
  */
-export function initDateTimeFlatlist(): void {
+export function initDateTimeFlatlist(): boolean {
   const container = document.querySelector('#datetimes-flatlist') as HTMLElement | null;
   if (!container) {
-    return;
+    return false;
   }
 
   const dateTimeFlatlist = container.getAttribute('data-datetime-flatlist') || '';
@@ -50,14 +51,14 @@ export function initDateTimeFlatlist(): void {
   const listElement = container.querySelector('ul.cc_pro-session_tab-list');
   if (!listElement) {
     console.error('[initDateTimeFlatlist] List element not found in #datetimes-flatlist');
-    return;
+    return false;
   }
 
   listElement.innerHTML = '';
 
   if (occurrences.length === 0) {
     (container as HTMLElement).style.display = 'none';
-    return;
+    return false;
   }
 
   (container as HTMLElement).style.display = '';
@@ -80,6 +81,8 @@ export function initDateTimeFlatlist(): void {
     li.appendChild(timeDiv);
     listElement.appendChild(li);
   });
+
+  return true;
 }
 
 /**
