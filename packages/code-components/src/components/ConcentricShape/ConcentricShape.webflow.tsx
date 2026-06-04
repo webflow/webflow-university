@@ -31,7 +31,7 @@ const ConcentricShapeWebflow = declareComponent(ConcentricShape, {
     }),
     shapeCount: props.Number({
       name: 'Shape Count',
-      defaultValue: 8,
+      defaultValue: 5,
       group: 'Shape',
       tooltip: 'Number of concentric shapes',
     }),
@@ -109,7 +109,7 @@ const ConcentricShapeWebflow = declareComponent(ConcentricShape, {
     }),
     bloomIntensity: props.Number({
       name: 'Bloom Intensity',
-      defaultValue: 3.5,
+      defaultValue: 0.2,
       group: 'Post Processing',
       tooltip: 'Intensity of the bloom effect',
     }),

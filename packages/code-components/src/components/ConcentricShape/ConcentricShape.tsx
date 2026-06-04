@@ -177,7 +177,7 @@ interface ConcentricShapeInnerProps {
 function ConcentricShapeInner({
   scale = 1,
   vertexCount = 5,
-  shapeCount = 8,
+  shapeCount = 5,
   innerRadius = 0.5,
   outerRadius = 3,
   rotationSpeed = 0.1,
@@ -459,12 +459,13 @@ interface ConcentricShapeProps extends ConcentricShapeInnerProps {
   vignetteOffset?: number;
   vignetteDarkness?: number;
   disableInDesigner?: boolean;
+  preserveDrawingBuffer?: boolean;
 }
 
 function ConcentricShape({
   scale = 1,
   vertexCount = 5,
-  shapeCount = 8,
+  shapeCount = 5,
   innerRadius = 0.5,
   outerRadius = 3,
   rotationSpeed = 0.1,
@@ -477,7 +478,7 @@ function ConcentricShape({
   beamWidth = 0.12,
   tailLength = 0.3,
   color = DEFAULT_COLOR,
-  bloomIntensity = 3.5,
+  bloomIntensity = 0.2,
   bloomThreshold = 0.0,
   bloomSmoothing = 0.3,
   bloomRadius = 0.8,
@@ -485,6 +486,7 @@ function ConcentricShape({
   vignetteOffset = 0.75,
   vignetteDarkness = 0.75,
   disableInDesigner = true,
+  preserveDrawingBuffer = false,
 }: ConcentricShapeProps = {}) {
   // Detect if we're in Webflow designer mode using the official hook
   const { mode, interactive } = useWebflowContext();
@@ -541,6 +543,7 @@ function ConcentricShape({
           antialias: false,
           toneMapping: THREE.ACESFilmicToneMapping,
           alpha: true,
+          preserveDrawingBuffer,
           powerPreference: 'high-performance',
         }}
         onCreated={({ scene, gl }) => {

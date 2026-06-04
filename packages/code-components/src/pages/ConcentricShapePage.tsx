@@ -1,7 +1,15 @@
 import { useControls } from 'leva';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useCallback, useRef, useState } from 'react';
 
 const ConcentricShape = lazy(() => import('../components/ConcentricShape/ConcentricShape'));
+
+const SNAPSHOT_ASPECT_RATIOS = [
+  { label: '16:9', value: '16:9', width: 16, height: 9 },
+  { label: '1:1', value: '1:1', width: 1, height: 1 },
+  { label: '4:5', value: '4:5', width: 4, height: 5 },
+  { label: '9:16', value: '9:16', width: 9, height: 16 },
+  { label: '4:3', value: '4:3', width: 4, height: 3 },
+];
 
 function LoadingSpinner() {
   return (
@@ -42,9 +50,12 @@ function LoadingSpinner() {
 }
 
 function ConcentricShapePage() {
+  const sceneRef = useRef<HTMLDivElement>(null);
+  const [snapshotAspectRatio, setSnapshotAspectRatio] = useState('16:9');
+
   // Bloom controls
   const bloomControls = useControls('Bloom', {
-    bloomIntensity: { value: 3.5, min: 0, max: 10, step: 0.1 },
+    bloomIntensity: { value: 0.2, min: 0, max: 10, step: 0.1 },
     bloomThreshold: { value: 0.0, min: 0, max: 1, step: 0.05 },
     bloomSmoothing: { value: 0.3, min: 0, max: 1, step: 0.05 },
     bloomRadius: { value: 0.8, min: 0, max: 1, step: 0.05 },
@@ -66,7 +77,7 @@ function ConcentricShapePage() {
       step: 1,
       label: 'Vertex Count (3=triangle, 4=square, 5=pentagon, etc.)',
     },
-    shapeCount: { value: 8, min: 3, max: 20, step: 1 },
+    shapeCount: { value: 5, min: 3, max: 20, step: 1 },
     innerRadius: { value: 0.5, min: 0.1, max: 2, step: 0.1 },
     outerRadius: { value: 3, min: 1, max: 10, step: 0.1 },
     rotationSpeed: { value: 0.1, min: 0, max: 2, step: 0.05 },
@@ -105,16 +116,131 @@ function ConcentricShapePage() {
     color: { value: '#146EF5' },
   });
 
+  const handleSnapshot = useCallback(() => {
+    const sourceCanvas = sceneRef.current?.querySelector('canvas');
+    const selectedRatio =
+      SNAPSHOT_ASPECT_RATIOS.find((ratio) => ratio.value === snapshotAspectRatio) ??
+      SNAPSHOT_ASPECT_RATIOS[0];
+
+    if (!sourceCanvas) {
+      return;
+    }
+
+    const sourceWidth = sourceCanvas.width;
+    const sourceHeight = sourceCanvas.height;
+    const targetRatio = selectedRatio.width / selectedRatio.height;
+    const sourceRatio = sourceWidth / sourceHeight;
+
+    let cropWidth = sourceWidth;
+    let cropHeight = sourceHeight;
+    let cropX = 0;
+    let cropY = 0;
+
+    if (sourceRatio > targetRatio) {
+      cropWidth = sourceHeight * targetRatio;
+      cropX = (sourceWidth - cropWidth) / 2;
+    } else {
+      cropHeight = sourceWidth / targetRatio;
+      cropY = (sourceHeight - cropHeight) / 2;
+    }
+
+    const outputCanvas = document.createElement('canvas');
+    outputCanvas.width = Math.round(cropWidth);
+    outputCanvas.height = Math.round(cropHeight);
+
+    const context = outputCanvas.getContext('2d');
+    if (!context) {
+      return;
+    }
+
+    context.drawImage(
+      sourceCanvas,
+      cropX,
+      cropY,
+      cropWidth,
+      cropHeight,
+      0,
+      0,
+      outputCanvas.width,
+      outputCanvas.height
+    );
+
+    const downloadLink = document.createElement('a');
+    downloadLink.download = `concentric-shape-${selectedRatio.value.replace(':', 'x')}.png`;
+    downloadLink.href = outputCanvas.toDataURL('image/png');
+    downloadLink.click();
+  }, [snapshotAspectRatio]);
+
   return (
     <div
+      ref={sceneRef}
       style={{
         width: '100%',
         height: 'calc(100vh - 60px)',
         margin: 0,
         padding: 0,
         overflow: 'hidden',
+        position: 'relative',
       }}
     >
+      <div
+        style={{
+          position: 'absolute',
+          left: '20px',
+          bottom: '20px',
+          zIndex: 10,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          padding: '10px',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          borderRadius: '999px',
+          background: 'rgba(8, 8, 8, 0.72)',
+          boxShadow: '0 18px 60px rgba(0, 0, 0, 0.4)',
+          backdropFilter: 'blur(12px)',
+          color: '#fff',
+          fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        }}
+      >
+        <select
+          aria-label="Snapshot aspect ratio"
+          value={snapshotAspectRatio}
+          onChange={(event) => setSnapshotAspectRatio(event.target.value)}
+          style={{
+            height: '34px',
+            border: '1px solid rgba(255, 255, 255, 0.14)',
+            borderRadius: '999px',
+            background: 'rgba(255, 255, 255, 0.08)',
+            color: '#fff',
+            padding: '0 28px 0 12px',
+            fontSize: '13px',
+          }}
+        >
+          {SNAPSHOT_ASPECT_RATIOS.map((ratio) => (
+            <option key={ratio.value} value={ratio.value}>
+              {ratio.label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={handleSnapshot}
+          style={{
+            height: '34px',
+            border: 0,
+            borderRadius: '999px',
+            background: '#146EF5',
+            color: '#fff',
+            padding: '0 14px',
+            fontSize: '13px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 0 24px rgba(20, 110, 245, 0.55)',
+          }}
+        >
+          Save Snapshot
+        </button>
+      </div>
       <Suspense fallback={<LoadingSpinner />}>
         <ConcentricShape
           {...shapeControls}
@@ -124,6 +250,7 @@ function ConcentricShapePage() {
           {...bloomControls}
           {...vignetteControls}
           {...colorControls}
+          preserveDrawingBuffer
         />
       </Suspense>
     </div>
