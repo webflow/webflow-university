@@ -1,34 +1,23 @@
 /**
- * Calendar Component
+ * CalendarCMSFromFlatlist Component
  *
- * A React calendar component that displays recurring events from a CMS API.
- * Features include:
- * - Monthly calendar grid view with navigation
- * - Support for recurring events with configurable frequency (weekly/biweekly)
- * - Blackout date support to exclude specific dates
- * - Timezone handling with display toggle between event timezone and local timezone
- * - Optional weekend display (defaults to weekdays only)
- * - Event occurrence generation based on recurrence rules
- * - Responsive design with CSS Grid layout
- *
- * The component extracts session data from CMS collection items via slots
- * and generates calendar occurrences based on recurrence rules, handling
- * timezone conversions and DST corrections automatically.
+ * A separate CMS calendar implementation that reads explicit occurrence dates
+ * from data-datetime-flatlist instead of recurrence fields.
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
 import './Calendar.css';
 import {
   addMonthsUTC,
-  buildSessionsFromApiItems,
+  buildFlatlistSessionsFromCMSItems,
   convertElementsToCMSItems,
   formatMonthTitle,
   formatRange,
-  generateNextOccurrencesForSession,
+  generateFlatlistOccurrencesForSession,
   monthStart,
   startOfWeekMonday,
+  type FlatlistSession,
   type Occurrence,
-  type Session,
   ymdInZone,
 } from './calendarLogic';
 import {
@@ -36,44 +25,38 @@ import {
   DEFAULT_EVENT_TIMEZONE,
   GRID_WEEKS_COUNT,
 } from './constants';
-import PrevIcon from './PrevIcon';
 import NextIcon from './NextIcon';
+import PrevIcon from './PrevIcon';
 import { useCMSCollectionItems } from './useCMSCollectionItems';
 
-// Frequency handled by CMS IDs; no local enum needed
-
-interface CalendarProps {
+interface CalendarCMSFromFlatlistProps {
   cmsCollectionComponentSlot: React.ReactNode;
   showCMSCollectionComponent?: boolean;
-  eventTimezone?: string; // IANA TZ, default America/New_York
-  showWeekends?: boolean; // Whether to show Saturday and Sunday columns, default false
-  debugNoData?: boolean; // Debug flag to prevent data loading, default false
-  daysLimit?: number; // Number of days from now to calculate occurrences, default 120
-  showLegend?: boolean; // Whether to show the upcoming events legend, default true
+  eventTimezone?: string;
+  showWeekends?: boolean;
+  debugNoData?: boolean;
+  daysLimit?: number;
+  showLegend?: boolean;
 }
 
-const CalendarCMS = (props: CalendarProps) => {
+const CalendarCMSFromFlatlist = (props: CalendarCMSFromFlatlistProps) => {
   const eventTZ = props.eventTimezone || DEFAULT_EVENT_TIMEZONE;
-  const showWeekends = props.showWeekends ?? false; // Default to false (hide weekends)
-  const debugNoData = props.debugNoData ?? false; // Default to false (load data normally)
-  const daysLimit = props.daysLimit ?? DEFAULT_DAYS_LIMIT; // Default to 120 days
-  // Removed enableTimezoneCorrection - no longer needed since we parse dates correctly
-  const showLegend = props.showLegend ?? true; // Default to true (show legend)
+  const showWeekends = props.showWeekends ?? false;
+  const debugNoData = props.debugNoData ?? false;
+  const daysLimit = props.daysLimit ?? DEFAULT_DAYS_LIMIT;
+  const showLegend = props.showLegend ?? true;
 
-  // Dynamic day labels based on showWeekends prop
-  const DAY_LABELS = showWeekends
+  const dayLabels = showWeekends
     ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
-  // Extract CMS collection items from Webflow slot
   const { cmsCollectionComponentSlotRef, items } = useCMSCollectionItems(
     'cmsCollectionComponentSlot'
   );
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessions, setSessions] = useState<FlatlistSession[]>([]);
   const loading = items === null && !debugNoData;
   const error: string | null = null;
 
-  // Generate session detail URL from slug
   const getSessionUrl = (slug: string): string => {
     return `/pro/sessions/${slug}`;
   };
@@ -86,33 +69,27 @@ const CalendarCMS = (props: CalendarProps) => {
 
     if (items && items.length > 0) {
       const cmsItems = convertElementsToCMSItems(items);
-      const built = buildSessionsFromApiItems(cmsItems);
-      setSessions(built);
+      setSessions(buildFlatlistSessionsFromCMSItems(cmsItems));
     } else if (items && items.length === 0) {
-      // Items loaded but empty
       setSessions([]);
     }
-    // If items is null, still loading (handled by loading state)
   }, [items, debugNoData]);
 
   const [tzMode, setTzMode] = useState<'event' | 'local'>('local');
   const displayTZ = tzMode === 'event' ? eventTZ : Intl.DateTimeFormat().resolvedOptions().timeZone;
-
   const nowUTC = useMemo(() => new Date(), []);
 
-  const perSessionNext4 = useMemo(() => {
-    return sessions.map((s) => generateNextOccurrencesForSession(s, nowUTC, eventTZ, daysLimit));
-  }, [sessions, nowUTC, eventTZ, daysLimit]);
+  const perSessionUpcoming = useMemo(() => {
+    return sessions.map((session) =>
+      generateFlatlistOccurrencesForSession(session, nowUTC, daysLimit)
+    );
+  }, [sessions, nowUTC, daysLimit]);
 
-  // Flatten events for plotting
-  const allUpcoming = useMemo(() => perSessionNext4.flat(), [perSessionNext4]);
-
+  const allUpcoming = useMemo(() => perSessionUpcoming.flat(), [perSessionUpcoming]);
   const [currentMonthUTC, setCurrentMonthUTC] = useState(() => monthStart(nowUTC));
 
-  // Keyboard navigation: arrow keys to navigate months
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle if no input is focused
       if (
         document.activeElement?.tagName === 'INPUT' ||
         document.activeElement?.tagName === 'TEXTAREA' ||
@@ -143,7 +120,6 @@ const CalendarCMS = (props: CalendarProps) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [nowUTC]);
 
-  // Build month grid
   const gridColumnCount = useMemo(() => (showWeekends ? 7 : 5), [showWeekends]);
   const gridStyle = useMemo(
     () => ({ '--calendar-columns': gridColumnCount }) as React.CSSProperties,
@@ -168,7 +144,6 @@ const CalendarCMS = (props: CalendarProps) => {
     return cells;
   }, [currentMonthUTC, gridColumnCount, showWeekends]);
 
-  // Map events to YYYY-MM-DD keys in selected display timezone
   const eventsByDayKey = useMemo(() => {
     const map = new Map<string, Occurrence[]>();
     for (const occ of allUpcoming) {
@@ -176,7 +151,6 @@ const CalendarCMS = (props: CalendarProps) => {
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(occ);
     }
-    // sort events within day by time
     for (const arr of map.values()) arr.sort((a, b) => a.startUTC.getTime() - b.startUTC.getTime());
     return map;
   }, [allUpcoming, displayTZ]);
@@ -186,7 +160,6 @@ const CalendarCMS = (props: CalendarProps) => {
 
   return (
     <div className="wf-calendar">
-      {/* Hidden container for CMS collection slot */}
       <div
         ref={cmsCollectionComponentSlotRef}
         style={{ display: props.showCMSCollectionComponent ? 'block' : 'none' }}
@@ -277,7 +250,7 @@ const CalendarCMS = (props: CalendarProps) => {
             {loading && (
               <div className="wf-cal-status">
                 <div className="wf-cal-spinner"></div>
-                <div className="wf-cal-status-text">Loading…</div>
+                <div className="wf-cal-status-text">Loading...</div>
               </div>
             )}
             {error && (
@@ -289,9 +262,9 @@ const CalendarCMS = (props: CalendarProps) => {
         )}
 
         <div className="wf-cal-daylabels" style={gridStyle}>
-          {DAY_LABELS.map((lbl) => (
-            <div key={lbl} className="wf-cal-daylabel">
-              {lbl}
+          {dayLabels.map((label) => (
+            <div key={label} className="wf-cal-daylabel">
+              {label}
             </div>
           ))}
         </div>
@@ -313,6 +286,7 @@ const CalendarCMS = (props: CalendarProps) => {
               month: 'long',
               day: 'numeric',
             }).format(day);
+
             return (
               <div
                 key={idx}
@@ -360,17 +334,17 @@ const CalendarCMS = (props: CalendarProps) => {
         {showLegend && (
           <div className="wf-cal-legend">
             <div className="wf-cal-legend-title">Upcoming (next {daysLimit} days)</div>
-            {sessions.map((s, idx) => {
-              const list = perSessionNext4[idx] || [];
+            {sessions.map((session, idx) => {
+              const list = perSessionUpcoming[idx] || [];
               return (
-                <div key={s.slug} className="wf-cal-legend-row">
+                <div key={session.slug} className="wf-cal-legend-row">
                   <div className="wf-cal-legend-slug">
                     <a
-                      href={getSessionUrl(s.slug)}
+                      href={getSessionUrl(session.slug)}
                       className="wf-cal-legend-link"
-                      aria-label={`${s.name} session details`}
+                      aria-label={`${session.name} session details`}
                     >
-                      {s.name}
+                      {session.name}
                     </a>
                   </div>
                   <ul>
@@ -396,4 +370,4 @@ const CalendarCMS = (props: CalendarProps) => {
   );
 };
 
-export default CalendarCMS;
+export default CalendarCMSFromFlatlist;

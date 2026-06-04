@@ -1,15 +1,16 @@
 import process from 'node:process';
 
 import * as esbuild from 'esbuild';
-import { readdirSync } from 'fs';
-import { join, sep } from 'path';
+import { readdirSync, rmSync } from 'fs';
+import { isAbsolute, join, relative, resolve, sep } from 'path';
 
 // Config output
-const BUILD_DIRECTORY = 'dist';
 const PRODUCTION = process.env.NODE_ENV === 'production';
+const BUILD_DIRECTORY = PRODUCTION ? 'dist' : '.dev-dist';
+const BUILD_DIRECTORY_PATH = resolve(BUILD_DIRECTORY);
 
 // Config entrypoint files
-const ENTRY_POINTS = ['src/index.ts', 'src/pro/*.ts'];
+const ENTRY_POINTS = ['src/index.ts', 'src/pro/index.ts', 'src/pro/template-page.ts'];
 
 // Config dev serving
 const LIVE_RELOAD = !PRODUCTION;
@@ -38,6 +39,7 @@ const context = await esbuild.context(buildOptions);
 
 // Build files in prod
 if (PRODUCTION) {
+  removeSourceMaps();
   await context.rebuild();
   context.dispose();
 }
@@ -96,4 +98,52 @@ function logServedFiles() {
     .filter(Boolean);
 
   globalThis.console.table(filesInfo);
+}
+
+/**
+ * Removes dev-only source maps before production builds.
+ */
+function removeSourceMaps() {
+  try {
+    const directories = [BUILD_DIRECTORY_PATH];
+
+    while (directories.length > 0) {
+      const dirPath = directories.pop();
+
+      if (!dirPath) continue;
+      if (!isPathInsideBuildDirectory(dirPath)) {
+        throw new Error(`Refusing to read outside ${BUILD_DIRECTORY}: ${dirPath}`);
+      }
+
+      const files = readdirSync(dirPath, { withFileTypes: true });
+
+      for (const file of files) {
+        const path = resolve(dirPath, file.name);
+
+        if (!isPathInsideBuildDirectory(path)) {
+          throw new Error(`Refusing to delete outside ${BUILD_DIRECTORY}: ${path}`);
+        }
+
+        if (file.isDirectory()) {
+          directories.push(path);
+        } else if (path.endsWith('.map')) {
+          rmSync(path);
+        }
+      }
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      throw error;
+    }
+  }
+}
+
+/**
+ * Confirms a resolved path stays within the configured build output directory.
+ * @param {string} path
+ */
+function isPathInsideBuildDirectory(path) {
+  const relativePath = relative(BUILD_DIRECTORY_PATH, path);
+
+  return relativePath === '' || (!relativePath.startsWith('..') && !isAbsolute(relativePath));
 }

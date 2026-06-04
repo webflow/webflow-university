@@ -1,3 +1,90 @@
+import { DateTime } from 'luxon';
+
+import { formatTime, parseDurationMinutes } from './utils';
+
+const DEFAULT_EVENT_TIMEZONE = 'America/New_York';
+
+function parseDateTimeFlatlist(dateTimeFlatlist: string): DateTime[] {
+  return dateTimeFlatlist
+    .split(',')
+    .map((dateString) => dateString.trim())
+    .filter(Boolean)
+    .map((dateString) => {
+      const date = DateTime.fromISO(dateString, { setZone: true });
+
+      if (!date.isValid) {
+        console.error(`Invalid datetime in data-datetime-flatlist: ${dateString}`);
+        return null;
+      }
+
+      return date.setZone(DEFAULT_EVENT_TIMEZONE);
+    })
+    .filter((date): date is DateTime => date !== null)
+    .sort((a, b) => a.toMillis() - b.toMillis());
+}
+
+function formatTimeRange(startDate: DateTime, duration: number): string {
+  const endDate = startDate.plus({ minutes: duration });
+  const startTime = formatTime(startDate.hour, startDate.minute);
+  const endTime = formatTime(endDate.hour, endDate.minute);
+  const timezoneAbbr = startDate.toFormat('ZZZZ');
+
+  return `${startTime} - ${endTime} ${timezoneAbbr}`;
+}
+
+/**
+ * Populate the flatlist session datetime component.
+ * Returns true when at least one upcoming session was rendered.
+ */
+export function initDateTimeFlatlist(): boolean {
+  const container = document.querySelector('#datetimes-flatlist') as HTMLElement | null;
+  if (!container) {
+    return false;
+  }
+
+  const dateTimeFlatlist = container.getAttribute('data-datetime-flatlist') || '';
+  const duration = parseDurationMinutes(container.getAttribute('data-duration'));
+  const occurrences = parseDateTimeFlatlist(dateTimeFlatlist)
+    .filter((date) => date > DateTime.now())
+    .map((date) => date.setZone('local'));
+
+  const listElement = container.querySelector('ul.cc_pro-session_tab-list');
+  if (!listElement) {
+    console.error('[initDateTimeFlatlist] List element not found in #datetimes-flatlist');
+    return false;
+  }
+
+  listElement.innerHTML = '';
+
+  if (occurrences.length === 0) {
+    (container as HTMLElement).style.display = 'none';
+    return false;
+  }
+
+  (container as HTMLElement).style.display = '';
+
+  occurrences.forEach((occurrence) => {
+    const li = document.createElement('li');
+    li.className = 'pro-session_list-item';
+
+    const dateDiv = document.createElement('div');
+    dateDiv.textContent = occurrence.toFormat('MMM d (EEE)');
+
+    const separatorDiv = document.createElement('div');
+    separatorDiv.className = 'dotted-line';
+
+    const timeDiv = document.createElement('div');
+    timeDiv.textContent = formatTimeRange(occurrence, duration);
+
+    li.appendChild(dateDiv);
+    li.appendChild(separatorDiv);
+    li.appendChild(timeDiv);
+    listElement.appendChild(li);
+  });
+
+  return true;
+}
+
 /**
  * Initialize tab menu scrolling when container is narrow
  */
