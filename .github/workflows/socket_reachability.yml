@@ -29,7 +29,7 @@ concurrency:
 jobs:
   socket-security:
     name: Socket Security Scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-8-cores
     timeout-minutes: 120
     permissions:
       contents: read
@@ -67,7 +67,7 @@ jobs:
           # Build reachability flags if enabled
           REACH_FLAGS=""
           if [[ "${{ github.event.inputs.enable_reachability }}" != "false" ]]; then
-            REACH_FLAGS="--reach --reach-memory-limit 16384 --reach-timeout 3600"
+            REACH_FLAGS="--reach --reach-memory-limit 32768 --reach-timeout 3600"
             echo "Reachability analysis enabled"
           fi
 
