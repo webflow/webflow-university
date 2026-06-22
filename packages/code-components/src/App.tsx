@@ -4,6 +4,7 @@ import HomePage from './pages/HomePage';
 import CalendarPage from './pages/CalendarPage';
 import AutoplayTabsPage from './pages/AutoplayTabsPage';
 import ProSpherePage from './pages/ProSpherePage';
+import ConcentricShapePage from './pages/ConcentricShapePage';
 import CalendarCMSFromFlatlist from './components/CalendarCMS/CalendarCMSFromFlatlist';
 import TimeSlotsAndRegistration from './components/TimeSlotsAndRegistration/TimeSlotsAndRegistration';
 
@@ -140,6 +141,12 @@ function Navigation() {
       >
         ProSphere
       </Link>
+      <Link
+        to="/concentric-shape"
+        style={location.pathname === '/concentric-shape' ? activeLinkStyle : linkStyle}
+      >
+        ConcentricShape
+      </Link>
     </nav>
   );
 }
@@ -207,6 +214,7 @@ function App() {
           <Route path="/time-slots" element={<TimeSlotsExample />} />
           <Route path="/autoplay-tabs" element={<AutoplayTabsPage />} />
           <Route path="/prosphere" element={<ProSpherePage />} />
+          <Route path="/concentric-shape" element={<ConcentricShapePage />} />
         </Routes>
       </div>
     </>
