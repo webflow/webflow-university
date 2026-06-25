@@ -3,7 +3,7 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { initCoursesPage, isCoursesPage } from './index';
+import { initCoursesPage } from './index';
 
 function setPathname(pathname: string): void {
   window.history.pushState({}, '', pathname);
@@ -29,15 +29,32 @@ describe('courses page script', () => {
     setPathname('/');
   });
 
-  it('only matches the courses index page', () => {
-    expect(isCoursesPage('/courses')).toBe(true);
-    expect(isCoursesPage('/courses/')).toBe(true);
-    expect(isCoursesPage('/courses/webflow-101')).toBe(false);
-  });
-
-  it('does not initialize outside the courses page', () => {
+  it('initializes on the videos page when the toggle controls exist', () => {
     setPathname('/videos');
     setupCoursesDom();
+
+    initCoursesPage();
+
+    expect(document.querySelector('.cc_courses-grid')?.classList.contains('list')).toBe(false);
+    expect(document.getElementById('cardBtn')?.classList.contains('active')).toBe(true);
+    expect(localStorage.getItem('courseGridView')).toBe('cards');
+  });
+
+  it('initializes on the learning paths page when the toggle controls exist', () => {
+    setPathname('/learning-paths');
+    setupCoursesDom();
+
+    initCoursesPage();
+
+    expect(document.querySelector('.cc_courses-grid')?.classList.contains('list')).toBe(false);
+    expect(document.getElementById('cardBtn')?.classList.contains('active')).toBe(true);
+    expect(localStorage.getItem('courseGridView')).toBe('cards');
+  });
+
+  it('does not initialize when the toggle controls are missing', () => {
+    setPathname('/videos');
+    document.body.innerHTML =
+      '<div class="cc_courses-grid"><div class="cc_course-card">Course</div></div>';
 
     initCoursesPage();
 
