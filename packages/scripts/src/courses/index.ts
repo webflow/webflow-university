@@ -1,8 +1,10 @@
-const COURSES_PATH = '/courses';
 const COURSE_GRID_VIEW_STORAGE_KEY = 'courseGridView';
 
 export function initCoursesPage(): void {
-  if (!isCoursesPage()) {
+  const cardsButton = document.getElementById('cardBtn');
+  const listButton = document.getElementById('listBtn');
+
+  if (!cardsButton || !listButton) {
     return;
   }
 
@@ -13,25 +15,15 @@ export function initCoursesPage(): void {
     return;
   }
 
-  setupGridToggle(coursesGrid);
+  setupGridToggle(coursesGrid, cardsButton, listButton);
   setupCourseCardStyling(coursesGrid);
 }
 
-export function isCoursesPage(pathname = window.location.pathname): boolean {
-  const normalizedPath = pathname.replace(/\/+$/, '') || '/';
-
-  return normalizedPath === COURSES_PATH;
-}
-
-function setupGridToggle(coursesGrid: HTMLElement): void {
-  const cardsButton = document.getElementById('cardBtn');
-  const listButton = document.getElementById('listBtn');
-
-  if (!cardsButton || !listButton) {
-    console.error('No cardButton or listButton found');
-    return;
-  }
-
+function setupGridToggle(
+  coursesGrid: HTMLElement,
+  cardsButton: HTMLElement,
+  listButton: HTMLElement
+): void {
   const updateGridClass = (listView: boolean, activeButton: HTMLElement): void => {
     if (listView) {
       coursesGrid.classList.add('list');
