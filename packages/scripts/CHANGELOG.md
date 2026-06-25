@@ -1,5 +1,11 @@
 # scripts
 
+## 2.2.3
+
+### Patch Changes
+
+- d7dc5ce: Patch dependency resolutions for security advisories by adding workspace `pnpm` overrides for `ws`, `picomatch`, `esbuild`, `vite`, `vitest`, and `react-router`.
+
 ## 2.2.2
 
 ### Patch Changes
