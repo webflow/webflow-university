@@ -1,5 +1,11 @@
 # scripts
 
+## 2.2.2
+
+### Patch Changes
+
+- a841413: Initialize the courses grid/list toggle from its controls so it can run on videos and learning paths pages.
+
 ## 2.2.1
 
 ### Patch Changes
