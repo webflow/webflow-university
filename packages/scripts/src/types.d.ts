@@ -5,6 +5,11 @@ declare global {
         init: () => void;
       };
     };
+    onCourseCompleted?: (payload: {
+      fullName: string;
+      courseName: string;
+      completedCoursesCount: number;
+    }) => void;
   }
 
   // js-cookie library types
