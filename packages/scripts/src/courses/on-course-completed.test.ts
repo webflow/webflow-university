@@ -17,19 +17,38 @@ describe('onCourseCompleted', () => {
   });
 
   it('logs a congratulations message on course lesson pages', () => {
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     setPathname('/course-lesson/get-started-mcp-activity-resources');
 
     initOnCourseCompleted();
 
     window.onCourseCompleted?.({
       fullName: 'Jane Doe',
+      courseId: 'webflow-for-reviewers',
       courseName: 'Webflow for Reviewers',
       completedCoursesCount: 3,
     });
 
-    expect(logSpy).toHaveBeenCalledWith(
+    expect(warnSpy).toHaveBeenCalledWith(
       'Congratulations, Jane Doe. You completed Webflow for Reviewers, your 3rd course...'
+    );
+  });
+
+  it('omits the course count when completedCoursesCount is null', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    setPathname('/course-lesson/get-started-mcp-activity-resources');
+
+    initOnCourseCompleted();
+
+    window.onCourseCompleted?.({
+      fullName: 'Jane Doe',
+      courseId: 'webflow-for-reviewers',
+      courseName: 'Webflow for Reviewers',
+      completedCoursesCount: null,
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Congratulations, Jane Doe. You completed Webflow for Reviewers.'
     );
   });
 

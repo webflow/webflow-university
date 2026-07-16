@@ -6,9 +6,10 @@ declare global {
       };
     };
     onCourseCompleted?: (payload: {
-      fullName: string;
-      courseName: string;
-      completedCoursesCount: number;
+      fullName: string | null;
+      courseId: string;
+      courseName: string | null;
+      completedCoursesCount: number | null;
     }) => void;
   }
 

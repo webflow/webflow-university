@@ -1,7 +1,8 @@
 type CourseCompletedPayload = {
-  fullName: string;
-  courseName: string;
-  completedCoursesCount: number;
+  fullName: string | null;
+  courseId: string;
+  courseName: string | null;
+  completedCoursesCount: number | null;
 };
 
 function toOrdinal(count: number): string {
@@ -33,9 +34,21 @@ export function initOnCourseCompleted(): void {
     return;
   }
 
-  window.onCourseCompleted = ({ fullName, courseName, completedCoursesCount }: CourseCompletedPayload) => {
-    console.log(
-      `Congratulations, ${fullName}. You completed ${courseName}, your ${toOrdinal(completedCoursesCount)} course...`
+  window.onCourseCompleted = ({
+    fullName,
+    courseName,
+    completedCoursesCount,
+  }: CourseCompletedPayload) => {
+    const name = fullName || 'there';
+    const course = courseName || 'the course';
+
+    if (completedCoursesCount == null) {
+      console.warn(`Congratulations, ${name}. You completed ${course}.`);
+      return;
+    }
+
+    console.warn(
+      `Congratulations, ${name}. You completed ${course}, your ${toOrdinal(completedCoursesCount)} course...`
     );
   };
 }
