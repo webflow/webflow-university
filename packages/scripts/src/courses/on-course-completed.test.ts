@@ -52,6 +52,18 @@ describe('onCourseCompleted', () => {
     );
   });
 
+  it('no-ops when called without a payload', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    setPathname('/course-lesson/get-started-mcp-activity-resources');
+
+    initOnCourseCompleted();
+
+    expect(() => window.onCourseCompleted?.()).not.toThrow();
+    expect(() => window.onCourseCompleted?.(undefined)).not.toThrow();
+    expect(() => window.onCourseCompleted?.(null)).not.toThrow();
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
   it('does not register the hook outside course lesson pages', () => {
     setPathname('/courses');
 

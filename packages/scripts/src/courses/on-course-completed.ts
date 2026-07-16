@@ -34,11 +34,13 @@ export function initOnCourseCompleted(): void {
     return;
   }
 
-  window.onCourseCompleted = ({
-    fullName,
-    courseName,
-    completedCoursesCount,
-  }: CourseCompletedPayload) => {
+  window.onCourseCompleted = (payload?: CourseCompletedPayload | null) => {
+    // Host app may call this without a payload (e.g. lesson complete, not course complete).
+    if (!payload) {
+      return;
+    }
+
+    const { fullName, courseName, completedCoursesCount } = payload;
     const name = fullName || 'there';
     const course = courseName || 'the course';
 

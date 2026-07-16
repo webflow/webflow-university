@@ -5,12 +5,12 @@ declare global {
         init: () => void;
       };
     };
-    onCourseCompleted?: (payload: {
+    onCourseCompleted?: (payload?: {
       fullName: string | null;
       courseId: string;
       courseName: string | null;
       completedCoursesCount: number | null;
-    }) => void;
+    } | null) => void;
   }
 
   // js-cookie library types
