@@ -1,5 +1,11 @@
 # scripts
 
+## 2.2.4
+
+### Patch Changes
+
+- d864d30: Add a `window.onCourseCompleted` hook on course lesson pages that logs a congratulations message when a course is completed.
+
 ## 2.2.3
 
 ### Patch Changes
