@@ -1,7 +1,6 @@
 import { Link } from 'react-router';
 
 function HomePage() {
-
   const containerStyle: React.CSSProperties = {
     maxWidth: '1200px',
     margin: '0 auto',
@@ -72,9 +71,9 @@ function HomePage() {
       <header style={headerStyle}>
         <h1 style={titleStyle}>Webflow University Components</h1>
         <p style={descriptionStyle}>
-          A collection of React components built for Webflow University. These components are designed
-          to be imported into Webflow using the Webflow CLI, providing interactive and dynamic UI
-          elements for the university website.
+          A collection of React components built for Webflow University. These components are
+          designed to be imported into Webflow using the Webflow CLI, providing interactive and
+          dynamic UI elements for the university website.
         </p>
       </header>
 
@@ -107,9 +106,19 @@ function HomePage() {
               ProSphere →
             </Link>
             <p style={cardDescriptionStyle}>
-              A stunning 3D animated sphere built with Three.js, featuring neon glow effects,
-              cursor interaction, and customizable visual parameters. Perfect for hero sections
-              and visual showcases.
+              A stunning 3D animated sphere built with Three.js, featuring neon glow effects, cursor
+              interaction, and customizable visual parameters. Perfect for hero sections and visual
+              showcases.
+            </p>
+          </div>
+
+          <div style={cardStyle}>
+            <Link to="/concentric-shape" style={linkStyle}>
+              ConcentricShape →
+            </Link>
+            <p style={cardDescriptionStyle}>
+              A 2D animated component featuring concentric polygon shapes with radial transparency
+              fade and a traveling beam effect. Customizable vertices, colors, and bloom settings.
             </p>
           </div>
         </div>
@@ -119,4 +128,3 @@ function HomePage() {
 }
 
 export default HomePage;
-
