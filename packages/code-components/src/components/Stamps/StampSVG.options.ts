@@ -1,9 +1,18 @@
-/** Stamp date label — `DD.MM.YYYY` (e.g. 20.07.2026) */
+/**
+ * Stamp date label in the user's locale (e.g. en-US → 07/20/2026, de-DE → 20.07.2026).
+ * Uses `navigator.language` when available; falls back to runtime default locale.
+ */
 export function formatStampDate(date: Date = new Date()): string {
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day}.${month}.${year}`;
+  const locale =
+    typeof navigator !== 'undefined' && navigator.language
+      ? navigator.language
+      : undefined;
+
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
 }
 
 const GOOGLE_STAMP_FONTS =

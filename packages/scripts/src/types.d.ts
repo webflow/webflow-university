@@ -5,6 +5,7 @@ declare global {
         init: () => void;
       };
     };
+    /** Platform completion hook — we only use courseId as a slug fallback. */
     onCourseCompleted?: (payload: {
       fullName: string | null;
       courseId: string;

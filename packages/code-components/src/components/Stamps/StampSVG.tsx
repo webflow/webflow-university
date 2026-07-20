@@ -193,6 +193,40 @@ function measureTextWidth(
   return ctx.measureText(text).width + Math.max(0, text.length - 1) * letterSpacing;
 }
 
+/**
+ * Pull words up from the previous line so the last line isn't a single orphan
+ * (e.g. "… Webflow" / "MCP" → "… the" / "Webflow MCP") when space allows.
+ */
+function balanceOrphanTitleLines(
+  lines: string[],
+  maxWidth: number,
+  measure: (value: string) => number,
+  minLastLineWords = 2
+): string[] {
+  if (lines.length < 2) return lines;
+  const result = [...lines];
+
+  while (result.length >= 2) {
+    const lastIndex = result.length - 1;
+    const prevIndex = lastIndex - 1;
+    const lastWords = result[lastIndex].split(/\s+/).filter(Boolean);
+    if (lastWords.length >= minLastLineWords) break;
+
+    const prevWords = result[prevIndex].split(/\s+/).filter(Boolean);
+    // Keep at least one word on the previous line
+    if (prevWords.length < 2) break;
+
+    const stolen = prevWords[prevWords.length - 1];
+    const newLast = `${stolen} ${result[lastIndex]}`;
+    if (measure(newLast) > maxWidth) break;
+
+    result[prevIndex] = prevWords.slice(0, -1).join(' ');
+    result[lastIndex] = newLast;
+  }
+
+  return result.filter((line) => line.trim().length > 0);
+}
+
 /** Word-wrap (and hard-break long tokens) to fit a max width in SVG user units. */
 function wrapStampTitleLines(
   text: string,
@@ -241,7 +275,8 @@ function wrapStampTitleLines(
     }
   }
   if (current) lines.push(current);
-  return lines;
+
+  return balanceOrphanTitleLines(lines, maxWidth, measure);
 }
 
 function parseAspectRatio(aspectRatio: string): number {

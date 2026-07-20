@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { props } from '@webflow/data-types';
 import { declareComponent } from '@webflow/react';
 import StampSVG, { type StampSVGProps } from './StampSVG';
@@ -90,6 +91,12 @@ type StampSVGWebflowProps = {
 };
 
 function StampSVGForWebflow({ imageUrl, logoUrl, title }: StampSVGWebflowProps) {
+  // Client-only date avoids publish-time SSR text vs "today" on the visitor's machine (#418).
+  const [dateLabel, setDateLabel] = useState('');
+  useEffect(() => {
+    setDateLabel(formatStampDate());
+  }, []);
+
   const trimmedImage = imageUrl?.trim();
   const trimmedLogo = logoUrl?.trim();
   const courseTitle = title?.trim() || 'Course title';
@@ -97,7 +104,7 @@ function StampSVGForWebflow({ imageUrl, logoUrl, title }: StampSVGWebflowProps) 
   return (
     <StampSVG
       {...KEEGAN_FAVE_STYLE}
-      dateLabel={formatStampDate()}
+      dateLabel={dateLabel}
       image={{
         src: trimmedImage || DEFAULT_IMAGE_URL,
         alt: courseTitle,
@@ -115,7 +122,9 @@ const StampSVGWebflow = declareComponent(StampSVGForWebflow, {
   group: 'Media',
   options: {
     applyTagSelectors: true,
-    ssr: true,
+    // Client-only: completion page sets data-props from the URL after load. SSR HTML is
+    // baked with Designer defaults at publish time, so hydrating against live props (#418).
+    ssr: false,
   },
   props: {
     imageUrl: props.Text({
