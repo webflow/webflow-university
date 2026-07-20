@@ -78,7 +78,7 @@ const DEFAULT_PAGE_SETTINGS = {
   interactiveTilt: true,
   tiltAmount: 6,
   course: 'Webflow for Marketers',
-  stampCount: 10,
+  stampCount: 1,
   dateLabel: formatStampDate(),
   fontFamily: STAMP_FONT_OPTIONS['Instrument Serif'],
   fontWeight: 600,

@@ -6,6 +6,64 @@ export function formatStampDate(date: Date = new Date()): string {
   return `${day}.${month}.${year}`;
 }
 
+const GOOGLE_STAMP_FONTS =
+  /^(Instrument Serif|Instrument Sans|Playfair Display|DM Serif Display|Libre Baskerville|Space Grotesk|IBM Plex Mono|BioRhyme|Big Shoulders Display|Dela Gothic One|Fraunces|Syne)$/i;
+
+function googleFontsCssQuery(family: string): string {
+  const encoded = encodeURIComponent(family).replace(/%20/g, '+');
+  if (/Instrument Serif/i.test(family)) return `family=${encoded}:ital@0;1`;
+  if (/DM Serif Display|Dela Gothic One/i.test(family)) return `family=${encoded}`;
+  if (/BioRhyme/i.test(family)) return `family=${encoded}:wght@400;700`;
+  if (/Big Shoulders Display/i.test(family)) {
+    return `family=${encoded}:wght@400;500;600;700;800;900`;
+  }
+  if (/Fraunces/i.test(family)) {
+    return `family=${encoded}:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400`;
+  }
+  if (/Syne/i.test(family)) return `family=${encoded}:wght@400;500;600;700;800`;
+  return `family=${encoded}:wght@300;400;500;600;700`;
+}
+
+/**
+ * Ensure Google Fonts used by StampSVG are loaded in the document
+ * (needed in Webflow Code Components where playground CSS is absent).
+ */
+export function ensureStampGoogleFonts(fontFamilyStack: string): Promise<void> {
+  if (typeof document === 'undefined') return Promise.resolve();
+
+  const families = fontFamilyStack
+    .split(',')
+    .map((part) => part.trim().replace(/^['"]|['"]$/g, ''))
+    .filter((name) => name && GOOGLE_STAMP_FONTS.test(name));
+
+  if (families.length === 0) return Promise.resolve();
+
+  const href = `https://fonts.googleapis.com/css2?${families
+    .map(googleFontsCssQuery)
+    .join('&')}&display=swap`;
+
+  const existing = document.querySelectorAll<HTMLLinkElement>(
+    'link[data-stamp-svg-font="true"]'
+  );
+  for (const link of existing) {
+    if (link.href === href || link.getAttribute('href') === href) {
+      return document.fonts?.ready ?? Promise.resolve();
+    }
+  }
+
+  return new Promise((resolve) => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    link.setAttribute('data-stamp-svg-font', 'true');
+    link.onload = () => resolve();
+    link.onerror = () => resolve();
+    document.head.appendChild(link);
+    // Cap wait so we never block forever if onload is skipped
+    window.setTimeout(() => resolve(), 2500);
+  });
+}
+
 export const STAMP_ASPECT_RATIO_OPTIONS = {
   '16:9': '16 / 9',
   '16:10': '16 / 10',

@@ -18,7 +18,8 @@ import {
   serializeStampSvg,
   STAMP_SVG_FALLBACK_IMAGE_URL,
 } from './exportStampSvgPng';
-import { formatStampDate, STAMP_FONT_OPTIONS } from './StampSVG.options';
+import { ensureStampGoogleFonts, formatStampDate, STAMP_FONT_OPTIONS } from './StampSVG.options';
+import './StampSVG.css';
 
 interface ImageProp {
   src: string;
@@ -130,6 +131,8 @@ export interface StampSVGProps {
   /** Pointer-driven 3D tilt for tangibility */
   interactiveTilt?: boolean;
   tiltAmount?: number;
+  /** Idle scale/translate breathing loop */
+  breathe?: boolean;
   showShadow?: boolean;
   shadowColor?: string;
   /** Scales the layered table-shadow stack */
@@ -143,6 +146,26 @@ const DEFAULT_IMAGE: ImageProp = {
   src: 'https://placehold.co/1600x900/c8c4b8/5a5a5a?text=StampSVG',
   alt: 'Stamp artwork',
 };
+
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const sync = () => setReduced(mediaQuery.matches);
+    sync();
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', sync);
+      return () => mediaQuery.removeEventListener('change', sync);
+    }
+
+    mediaQuery.addListener(sync);
+    return () => mediaQuery.removeListener(sync);
+  }, []);
+
+  return reduced;
+}
 
 const STAMP_PADDING = 80;
 const STAMP_CONTENT_LONG = 1000;
@@ -361,6 +384,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
   pointerLight = false,
   interactiveTilt = true,
   tiltAmount = 6,
+  breathe = true,
   showShadow = true,
   shadowColor = 'var(--theme--t_bg-primary, #080808)',
   shadowOpacity = 0.55,
@@ -382,9 +406,16 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
   const rootRef = useRef<HTMLDivElement>(null);
   const tiltLayerRef = useRef<HTMLDivElement>(null);
   const tiltFrameRef = useRef<number | null>(null);
+  const tiltCurrentRef = useRef({ x: 0, y: 0 });
+  const tiltTargetRef = useRef({ x: 0, y: 0 });
+  const tiltHoveringRef = useRef(false);
   const [exportHideShadow, setExportHideShadow] = useState(false);
   const [fontsReadyTick, setFontsReadyTick] = useState(0);
+  const prefersReducedMotion = usePrefersReducedMotion();
   const effectiveShowShadow = showShadow && !exportHideShadow;
+  const effectiveBreathe = breathe && !prefersReducedMotion;
+  const effectiveTilt = interactiveTilt && !prefersReducedMotion;
+  const effectivePointerLight = pointerLight && !prefersReducedMotion;
 
 
   const layout = useMemo(() => computeStampLayout(aspectRatio), [aspectRatio]);
@@ -473,20 +504,29 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
   const titleMaxWidthPx = (artWidth * resolvedTitleMaxWidth) / 100;
 
   useEffect(() => {
-    if (typeof document === 'undefined' || !document.fonts?.load || !title) return;
+    if (typeof document === 'undefined') return;
     let cancelled = false;
-    void document.fonts
-      .load(`${Math.round(fontWeight)} ${titleFontSize}px ${resolvedFontFamily}`)
-      .then(() => {
-        if (!cancelled) setFontsReadyTick((tick) => tick + 1);
-      })
-      .catch(() => {
-        /* ignore load failures — wrapping falls back to estimates */
-      });
+
+    void (async () => {
+      await ensureStampGoogleFonts(resolvedFontFamily);
+      if (cancelled || !document.fonts?.load) return;
+      try {
+        await document.fonts.load(
+          `${Math.round(fontWeight)} ${titleFontSize}px ${resolvedFontFamily}`
+        );
+        await document.fonts.load(
+          `${Math.round(fontWeight)} ${dateFontSize}px ${resolvedFontFamily}`
+        );
+      } catch {
+        /* ignore — wrapping falls back to estimates */
+      }
+      if (!cancelled) setFontsReadyTick((tick) => tick + 1);
+    })();
+
     return () => {
       cancelled = true;
     };
-  }, [fontWeight, resolvedFontFamily, title, titleFontSize]);
+  }, [dateFontSize, fontWeight, resolvedFontFamily, titleFontSize]);
 
   const titleLines = useMemo(() => {
     // Re-measure after webfonts load (tick is a cache-buster, not a value input).
@@ -616,7 +656,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
     imageErode && imgErodeAmount > 0.001 && imgErodeOpacity > 0.001;
 
   useEffect(() => {
-    if (!pointerLight) return;
+    if (!effectivePointerLight) return;
 
     return subscribeToGlobalPointerLight((clientX, clientY) => {
       const svg = svgRef.current;
@@ -630,7 +670,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
       pointLight.setAttribute('x', String(Math.round(x)));
       pointLight.setAttribute('y', String(Math.round(y)));
     });
-  }, [pointerLight]);
+  }, [effectivePointerLight]);
 
   useEffect(() => {
     return () => {
@@ -647,8 +687,37 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
     tiltLayer.style.setProperty('--stamp-tilt-y', `${rotateY}deg`);
   };
 
+  const tickTilt = () => {
+    const current = tiltCurrentRef.current;
+    const target = tiltTargetRef.current;
+    // Snappier while tracking the pointer; slower ease when returning to rest
+    const lerp = tiltHoveringRef.current ? 0.22 : 0.1;
+    current.x += (target.x - current.x) * lerp;
+    current.y += (target.y - current.y) * lerp;
+    setTilt(current.x, current.y);
+
+    const settled =
+      Math.abs(target.x - current.x) < 0.015 && Math.abs(target.y - current.y) < 0.015;
+
+    if (settled) {
+      current.x = target.x;
+      current.y = target.y;
+      setTilt(current.x, current.y);
+      tiltFrameRef.current = null;
+      return;
+    }
+
+    tiltFrameRef.current = requestAnimationFrame(tickTilt);
+  };
+
+  const ensureTiltLoop = () => {
+    if (tiltFrameRef.current === null) {
+      tiltFrameRef.current = requestAnimationFrame(tickTilt);
+    }
+  };
+
   const handleTiltMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!interactiveTilt || tiltAmount <= 0) return;
+    if (!effectiveTilt || tiltAmount <= 0) return;
     // Use the stable hit target (not the tilting layer) so edge hover doesn't oscillate
     const hitTarget = rootRef.current;
     if (!hitTarget) return;
@@ -659,23 +728,35 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
     const rotateY = (px - 0.5) * tiltAmount * 2;
     const rotateX = (0.5 - py) * tiltAmount * 2;
 
-    if (tiltFrameRef.current !== null) {
-      cancelAnimationFrame(tiltFrameRef.current);
-    }
-    tiltFrameRef.current = requestAnimationFrame(() => setTilt(rotateX, rotateY));
+    tiltHoveringRef.current = true;
+    tiltTargetRef.current = { x: rotateX, y: rotateY };
+    ensureTiltLoop();
   };
 
   const handleTiltLeave = () => {
-    if (!interactiveTilt) return;
+    if (!effectiveTilt) return;
+    tiltHoveringRef.current = false;
+    tiltTargetRef.current = { x: 0, y: 0 };
+    ensureTiltLoop();
+  };
+
+  // If reduced motion turns on mid-session, flatten any active tilt
+  useEffect(() => {
+    if (!prefersReducedMotion) return;
     if (tiltFrameRef.current !== null) {
       cancelAnimationFrame(tiltFrameRef.current);
+      tiltFrameRef.current = null;
     }
-    tiltFrameRef.current = requestAnimationFrame(() => setTilt(0, 0));
-  };
+    tiltHoveringRef.current = false;
+    tiltCurrentRef.current = { x: 0, y: 0 };
+    tiltTargetRef.current = { x: 0, y: 0 };
+    setTilt(0, 0);
+  }, [prefersReducedMotion]);
 
   return (
     <div
       ref={rootRef}
+      className="stamp-svg-root"
       onPointerMove={handleTiltMove}
       onPointerLeave={handleTiltLeave}
       style={
@@ -695,6 +776,15 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
       }
     >
       <div
+        className={effectiveBreathe ? 'stamp-svg-breathe' : undefined}
+        style={{
+          width: '100%',
+          height: '100%',
+          transformStyle: 'preserve-3d',
+          transformOrigin: 'center center',
+        }}
+      >
+      <div
         ref={tiltLayerRef}
         style={
           {
@@ -705,7 +795,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
             '--stamp-tilt-x': '0deg',
             '--stamp-tilt-y': '0deg',
             transform: 'rotateX(var(--stamp-tilt-x)) rotateY(var(--stamp-tilt-y))',
-            willChange: interactiveTilt ? 'transform' : undefined,
+            willChange: effectiveTilt ? 'transform' : undefined,
           } as CSSProperties
         }
       >
@@ -1505,6 +1595,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
           </g>
         </g>
       </svg>
+      </div>
       </div>
     </div>
   );

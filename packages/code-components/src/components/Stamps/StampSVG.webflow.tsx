@@ -2,6 +2,7 @@ import { props } from '@webflow/data-types';
 import { declareComponent } from '@webflow/react';
 import StampSVG, { type StampSVGProps } from './StampSVG';
 import { formatStampDate } from './StampSVG.options';
+import './StampSVG.css';
 
 /** Public fallback used when Image URL is empty in Designer */
 const DEFAULT_IMAGE_URL =
@@ -73,6 +74,7 @@ const KEEGAN_FAVE_STYLE = {
   pointerLight: true,
   interactiveTilt: true,
   tiltAmount: 6,
+  breathe: true,
   showShadow: true,
   shadowColor: 'var(--theme--t_bg-primary, #080808)',
   shadowOpacity: 0.55,
