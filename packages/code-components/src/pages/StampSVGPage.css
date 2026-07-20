@@ -1,0 +1,278 @@
+@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@400;500;600;700;800;900&family=BioRhyme:wght@400;700&family=Dela+Gothic+One&family=DM+Serif+Display&family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Instrument+Sans:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Playfair+Display:wght@400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&display=swap');
+
+.stamp-svg-page {
+  --page-bg-primary: var(--theme--t_bg-primary, var(--swatches--black, #080808));
+  --page-bg-secondary: var(--theme--t_bg-secondary, var(--swatches--gray-800, #222222));
+  --page-bg-tertiary: var(--theme--t_bg-tertiary, var(--swatches--gray-900, #171717));
+  --page-border: var(--theme--t_border-primary, var(--swatches--gray-700, #363636));
+  --page-text-primary: var(--theme--t_text-primary, var(--swatches--white, #ffffff));
+  --page-text-secondary: var(--theme--t_text-secondary, var(--swatches--gray-300, #ababab));
+  --page-text-tertiary: var(--theme--t_text-tertiary, var(--swatches--gray-600, #5a5a5a));
+  --page-shadow: rgba(8, 8, 8, 0.72);
+
+  /* Stamp defaults driven by page theme */
+  --stamp-paper: var(--swatches--gray-900, #171717);
+  --stamp-outline: var(--swatches--gray-800, #222222);
+  --stamp-text: var(--swatches--white, #ffffff);
+  --stamp-shadow: var(--swatches--black, #080808);
+  --stamp-shadow-opacity: 0.6;
+
+  min-height: 100vh;
+  min-height: 100dvh;
+  position: relative;
+  overflow: hidden;
+  color: var(--page-text-secondary);
+  background: linear-gradient(
+    160deg,
+    var(--page-bg-primary) 0%,
+    var(--page-bg-secondary) 140%
+  );
+  font-family: var(--typography--font_text, 'WF Visual Sans Text', sans-serif);
+  transition:
+    color 100ms ease-out,
+    background-color 100ms ease-out;
+}
+
+.stamp-svg-page[data-page-theme='dark'] {
+  --theme--t_bg-primary: var(--swatches--black, #080808);
+  --theme--t_bg-secondary: var(--swatches--gray-800, #222222);
+  --theme--t_bg-tertiary: var(--swatches--gray-900, #171717);
+  --theme--t_border-primary: var(--swatches--gray-700, #363636);
+  --theme--t_text-primary: var(--swatches--white, #ffffff);
+  --theme--t_text-secondary: var(--swatches--gray-300, #ababab);
+  --theme--t_text-tertiary: var(--swatches--gray-400, #898989);
+  --page-bg-primary: var(--theme--t_bg-primary);
+  --page-bg-secondary: var(--theme--t_bg-secondary);
+  --page-bg-tertiary: var(--theme--t_bg-tertiary);
+  --page-border: var(--theme--t_border-primary);
+  --page-text-primary: var(--theme--t_text-primary);
+  --page-text-secondary: var(--theme--t_text-secondary);
+  --page-text-tertiary: var(--theme--t_text-tertiary);
+  --page-shadow: rgba(8, 8, 8, 0.72);
+  --stamp-paper: var(--theme--t_bg-tertiary);
+  --stamp-outline: var(--theme--t_bg-secondary);
+  --stamp-text: var(--theme--t_text-primary);
+  --stamp-shadow: var(--swatches--black, #080808);
+  --stamp-shadow-opacity: 0.6;
+  color-scheme: dark;
+}
+
+.stamp-svg-page[data-page-theme='light'] {
+  --theme--t_bg-primary: var(
+    --theme--light--tl_bg-primary,
+    var(--swatches--gray-100, #f0f0f0)
+  );
+  --theme--t_bg-secondary: var(
+    --theme--light--tl_bg-secondary,
+    var(--swatches--gray-200, #d8d8d8)
+  );
+  --theme--t_bg-tertiary: var(--swatches--white, #ffffff);
+  --theme--t_border-primary: var(
+    --theme--light--tl_border-primary,
+    var(--swatches--gray-300, #ababab)
+  );
+  --theme--t_text-primary: var(
+    --theme--light--tl_text-primary,
+    var(--swatches--gray-900, #171717)
+  );
+  --theme--t_text-secondary: var(
+    --theme--light--tl_text-secondary,
+    var(--swatches--gray-700, #363636)
+  );
+  --theme--t_text-tertiary: var(
+    --theme--light--tl_text-tertiary,
+    var(--swatches--gray-500, #757575)
+  );
+  --page-bg-primary: var(--theme--t_bg-primary);
+  --page-bg-secondary: var(--theme--t_bg-secondary);
+  --page-bg-tertiary: var(--theme--t_bg-tertiary);
+  --page-border: var(--theme--t_border-primary);
+  --page-text-primary: var(--theme--t_text-primary);
+  --page-text-secondary: var(--theme--t_text-secondary);
+  --page-text-tertiary: var(--theme--t_text-tertiary);
+  --page-shadow: rgba(8, 8, 8, 0.2);
+  --stamp-paper: var(--swatches--white, #ffffff);
+  --stamp-outline: var(--swatches--white, #ffffff);
+  --stamp-text: var(--theme--t_text-primary);
+  --stamp-shadow: var(--swatches--black, #080808);
+  --stamp-shadow-opacity: 0.28;
+  color-scheme: light;
+}
+
+.stamp-svg-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--page-border) 36%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--page-border) 36%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(circle at 50% 48%, black 0%, transparent 72%);
+}
+
+.stamp-svg-page__viewport {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  touch-action: none;
+  cursor: default;
+}
+
+.stamp-svg-page__viewport--pan-ready {
+  cursor: grab;
+}
+
+.stamp-svg-page__viewport--panning {
+  cursor: grabbing;
+}
+
+.stamp-svg-page__viewport--panning .stamp-svg-page__stamp {
+  pointer-events: none;
+}
+
+.stamp-svg-page__stage {
+  width: max-content;
+  max-width: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space--gap--g_sm, 0.75rem);
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.stamp-svg-page__stamp {
+  width: min(960px, 78vw);
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.stamp-svg-page__hint {
+  position: fixed;
+  left: var(--space--s_sm, 1rem);
+  bottom: var(--space--s_sm, 1rem);
+  z-index: 3;
+  margin: 0;
+  color: var(--page-text-tertiary);
+  font-family: var(--typography--font_mono, 'WF Visual Sans Text', sans-serif);
+  font-size: var(--typography--text-xs, 0.75rem);
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.stamp-svg-page__modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: color-mix(in srgb, var(--page-bg-primary) 72%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.stamp-svg-page__modal {
+  width: min(420px, 100%);
+  padding: 1.35rem 1.4rem 1.25rem;
+  border: 1px solid var(--page-border);
+  border-radius: 10px;
+  background: var(--page-bg-tertiary);
+  color: var(--page-text-primary);
+  box-shadow: 0 18px 48px var(--page-shadow);
+}
+
+.stamp-svg-page__modal-title {
+  margin: 0;
+  font-family: var(--typography--font_display, 'Instrument Serif', Georgia, serif);
+  font-size: 1.55rem;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.stamp-svg-page__modal-copy {
+  margin: 0.45rem 0 1rem;
+  color: var(--page-text-secondary);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.stamp-svg-page__modal-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: var(--page-text-tertiary);
+  font-family: var(--typography--font_mono, 'WF Visual Sans Text', sans-serif);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.stamp-svg-page__modal-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 1.1rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--page-border);
+  border-radius: 8px;
+  background: var(--page-bg-primary);
+  color: var(--page-text-primary);
+  font: inherit;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.stamp-svg-page__modal-input:focus {
+  border-color: color-mix(in srgb, var(--page-text-primary) 45%, var(--page-border));
+}
+
+.stamp-svg-page__modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
+.stamp-svg-page__modal-button {
+  min-height: 2.25rem;
+  padding: 0.45rem 0.95rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--page-text-primary);
+  color: var(--page-bg-primary);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.stamp-svg-page__modal-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.stamp-svg-page__modal-button--ghost {
+  background: transparent;
+  border-color: var(--page-border);
+  color: var(--page-text-secondary);
+}
+
+@media (max-width: 767px) {
+  .stamp-svg-page__stamp {
+    width: min(720px, 92vw);
+    margin-left: 0 !important;
+  }
+
+  .stamp-svg-page__hint {
+    max-width: calc(100% - 2rem);
+  }
+}

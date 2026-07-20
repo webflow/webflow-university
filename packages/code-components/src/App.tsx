@@ -1,3 +1,4 @@
+import { Leva } from 'leva';
 import { Routes, Route, Link, useLocation } from 'react-router';
 import './App.css';
 import HomePage from './pages/HomePage';
@@ -5,6 +6,8 @@ import CalendarPage from './pages/CalendarPage';
 import AutoplayTabsPage from './pages/AutoplayTabsPage';
 import ProSpherePage from './pages/ProSpherePage';
 import ConcentricShapePage from './pages/ConcentricShapePage';
+import StampSVGPage from './pages/StampSVGPage';
+import StampSVGBatchExportPage from './pages/StampSVGBatchExportPage';
 import CalendarCMSFromFlatlist from './components/CalendarCMS/CalendarCMSFromFlatlist';
 import TimeSlotsAndRegistration from './components/TimeSlotsAndRegistration/TimeSlotsAndRegistration';
 
@@ -77,6 +80,8 @@ const flatlistCalendarSessions = [
   },
 ];
 
+export const NAV_WIDTH = 140;
+
 function Navigation() {
   const location = useLocation();
 
@@ -84,22 +89,26 @@ function Navigation() {
     position: 'fixed',
     top: 0,
     left: 0,
-    right: 0,
+    bottom: 0,
+    width: `${NAV_WIDTH}px`,
     zIndex: 1000,
     backgroundColor: 'rgba(8, 8, 8, 0.95)',
     backdropFilter: 'blur(10px)',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-    padding: '1rem 2rem',
+    borderRight: '1px solid rgba(255, 255, 255, 0.1)',
+    padding: '0.75rem 0.5rem',
     display: 'flex',
-    gap: '2rem',
-    alignItems: 'center',
+    flexDirection: 'column',
+    gap: '0.15rem',
+    overflowY: 'auto',
   };
 
   const linkStyle: React.CSSProperties = {
     color: '#fff',
     textDecoration: 'none',
-    padding: '0.5rem 1rem',
+    padding: '0.4rem 0.55rem',
     borderRadius: '4px',
+    fontSize: '0.78rem',
+    lineHeight: 1.2,
     transition: 'background-color 0.2s',
   };
 
@@ -109,44 +118,24 @@ function Navigation() {
     color: '#146EF5',
   };
 
+  const links: Array<{ to: string; label: string }> = [
+    { to: '/', label: 'Home' },
+    { to: '/calendar', label: 'Calendar' },
+    { to: '/calendar-flatlist', label: 'Calendar Flatlist' },
+    { to: '/time-slots', label: 'Time Slots' },
+    { to: '/autoplay-tabs', label: 'Autoplay Tabs' },
+    { to: '/prosphere', label: 'ProSphere' },
+    { to: '/concentric-shape', label: 'ConcentricShape' },
+    { to: '/stamp-svg', label: 'StampSVG' },
+  ];
+
   return (
     <nav style={navStyle}>
-      <Link to="/" style={location.pathname === '/' ? activeLinkStyle : linkStyle}>
-        Home
-      </Link>
-      <Link to="/calendar" style={location.pathname === '/calendar' ? activeLinkStyle : linkStyle}>
-        Calendar
-      </Link>
-      <Link
-        to="/calendar-flatlist"
-        style={location.pathname === '/calendar-flatlist' ? activeLinkStyle : linkStyle}
-      >
-        Calendar Flatlist
-      </Link>
-      <Link
-        to="/time-slots"
-        style={location.pathname === '/time-slots' ? activeLinkStyle : linkStyle}
-      >
-        Time Slots
-      </Link>
-      <Link
-        to="/autoplay-tabs"
-        style={location.pathname === '/autoplay-tabs' ? activeLinkStyle : linkStyle}
-      >
-        Autoplay Tabs
-      </Link>
-      <Link
-        to="/prosphere"
-        style={location.pathname === '/prosphere' ? activeLinkStyle : linkStyle}
-      >
-        ProSphere
-      </Link>
-      <Link
-        to="/concentric-shape"
-        style={location.pathname === '/concentric-shape' ? activeLinkStyle : linkStyle}
-      >
-        ConcentricShape
-      </Link>
+      {links.map(({ to, label }) => (
+        <Link key={to} to={to} style={location.pathname === to ? activeLinkStyle : linkStyle}>
+          {label}
+        </Link>
+      ))}
     </nav>
   );
 }
@@ -205,8 +194,9 @@ function TimeSlotsExample() {
 function App() {
   return (
     <>
+      <Leva theme={{ sizes: { rootWidth: '420px' } }} />
       <Navigation />
-      <div style={{ paddingTop: '60px' }}>
+      <div style={{ paddingLeft: `${NAV_WIDTH}px` }}>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/calendar" element={<CalendarPage />} />
@@ -215,6 +205,8 @@ function App() {
           <Route path="/autoplay-tabs" element={<AutoplayTabsPage />} />
           <Route path="/prosphere" element={<ProSpherePage />} />
           <Route path="/concentric-shape" element={<ConcentricShapePage />} />
+          <Route path="/stamp-svg" element={<StampSVGPage />} />
+          <Route path="/stamp-svg-batch-export" element={<StampSVGBatchExportPage />} />
         </Routes>
       </div>
     </>

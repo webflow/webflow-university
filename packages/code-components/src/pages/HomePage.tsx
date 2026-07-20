@@ -121,6 +121,16 @@ function HomePage() {
               fade and a traveling beam effect. Customizable vertices, colors, and bloom settings.
             </p>
           </div>
+
+          <div style={cardStyle}>
+            <Link to="/stamp-svg" style={linkStyle}>
+              StampSVG →
+            </Link>
+            <p style={cardDescriptionStyle}>
+              Lightweight SVG stamp and sticker treatment with perforated edges, textured outline,
+              specular lighting, and optional pointer light. No canvas or heavy rendering library.
+            </p>
+          </div>
         </div>
       </section>
     </div>
