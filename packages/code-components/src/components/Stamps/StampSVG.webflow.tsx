@@ -1,23 +1,24 @@
 import { props } from '@webflow/data-types';
 import { declareComponent } from '@webflow/react';
 import StampSVG, { type StampSVGProps } from './StampSVG';
+import { formatStampDate } from './StampSVG.options';
 
 /** Public fallback used when Image URL is empty in Designer */
 const DEFAULT_IMAGE_URL =
   'https://cdn.prod.website-files.com/6491b4dd238fa881faab3d5c/6a514df3e397573a9787c75f_WFU%20Thumb%20Placeholder.jpg';
 
-/** Keegan's Fave #1 — light theme, baked into the Webflow component */
+/** Keegan's Fave #1 — dark theme; colors follow site `--theme--t_*` tokens */
 const KEEGAN_FAVE_STYLE = {
-  dateLabel: '16.07.2026',
   showLogo: true,
   logoSize: 88,
   width: '100%',
   aspectRatio: '16 / 9',
   rotation: -2,
-  paperColor: 'var(--stamp-paper, var(--swatches--white, #ffffff))',
-  outlineColor: '#efefef',
-  outlineWidth: 3,
-  textColor: 'var(--swatches--white, #ffffff)',
+  paperColor: 'var(--theme--t_bg-tertiary, #171717)',
+  outlineColor: 'var(--theme--t_bg-secondary, #222)',
+  outlineWidth: 6,
+  // Always light — title/date sit on the course image, not the paper
+  textColor: 'var(--theme--t_btn-2-text, white)',
   textOpacity: 1,
   fontFamily: "'Instrument Serif', Georgia, 'Times New Roman', serif",
   fontWeight: 400,
@@ -45,14 +46,14 @@ const KEEGAN_FAVE_STYLE = {
   frameInkTurbulence: 0.012,
   frameInkBreaks: 0.02,
   paperTexture: true,
-  paperTextureOpacity: 0.28,
+  paperTextureOpacity: 0.18,
   paperTextureScale: 0.9,
-  paperTextureDarkInk: true,
+  paperTextureDarkInk: false,
   imageDistort: true,
-  imageDistortAmount: 8,
-  imageDistortTurbulence: 0.03,
+  imageDistortAmount: 2,
+  imageDistortTurbulence: 0.028,
   imageDistortOctaves: 2,
-  imageDistortBlur: 0.3,
+  imageDistortBlur: 0.1,
   imageErode: true,
   imageErodeOverText: true,
   imageErodeAmount: 0.01,
@@ -67,12 +68,14 @@ const KEEGAN_FAVE_STYLE = {
   specularStrength: 0.1,
   specularExponent: 68,
   highlightOpacity: 0.08,
+  lightColor: 'var(--theme--t_icon-primary, white)',
   lightZ: 1375,
   pointerLight: true,
   interactiveTilt: true,
   tiltAmount: 6,
   showShadow: true,
-  shadowOpacity: 0.32,
+  shadowColor: 'var(--theme--t_bg-primary, #080808)',
+  shadowOpacity: 0.55,
   shadowBlur: 22,
   shadowX: 6,
   shadowY: 14,
@@ -92,6 +95,7 @@ function StampSVGForWebflow({ imageUrl, logoUrl, title }: StampSVGWebflowProps) 
   return (
     <StampSVG
       {...KEEGAN_FAVE_STYLE}
+      dateLabel={formatStampDate()}
       image={{
         src: trimmedImage || DEFAULT_IMAGE_URL,
         alt: courseTitle,

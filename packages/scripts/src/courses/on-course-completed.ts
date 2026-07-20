@@ -97,15 +97,82 @@ export function readCourseCompletionQuery(search = window.location.search): Cour
   };
 }
 
+type StampSvgIslandProps = {
+  imageUrl?: string;
+  logoUrl?: string;
+  title?: string;
+};
+
+function parseJsonAttribute<T>(value: string | null): T | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
+}
+
+function findStampSvgCodeIsland(): HTMLElement | null {
+  const islands = document.querySelectorAll<HTMLElement>('code-island[data-loader]');
+
+  for (const island of islands) {
+    const loader = parseJsonAttribute<{ val?: { submoduleId?: string } }>(
+      island.getAttribute('data-loader')
+    );
+
+    if (loader?.val?.submoduleId === 'StampSVG') {
+      return island;
+    }
+  }
+
+  return document.querySelector<HTMLElement>('code-island[data-loader*="StampSVG"]');
+}
+
+function mergeStampSvgPropsFromQuery(
+  current: StampSvgIslandProps,
+  query: CourseCompletionQuery
+): StampSvgIslandProps {
+  const next: StampSvgIslandProps = { ...current };
+
+  if (query.courseThumbnail) {
+    next.imageUrl = query.courseThumbnail;
+  }
+
+  if (query.courseName) {
+    next.title = query.courseName;
+  }
+
+  return next;
+}
+
 /**
  * Populate completion-page UI from URL query params.
- * Data-attribute targets will be wired once the page markup is ready.
+ * Updates the StampSVG code-island `data-props` before (or by forcing) hydration.
  */
 export function populateCourseCompletionPage(
   query: CourseCompletionQuery = readCourseCompletionQuery()
 ): void {
-  // TODO: map `query` onto elements via data attributes once available.
-  void query;
+  const island = findStampSvgCodeIsland();
+  if (!island) {
+    return;
+  }
+
+  const current = parseJsonAttribute<StampSvgIslandProps>(island.getAttribute('data-props')) ?? {};
+  const next = mergeStampSvgPropsFromQuery(current, query);
+  const nextRaw = JSON.stringify(next);
+
+  if (island.getAttribute('data-props') === nextRaw) {
+    return;
+  }
+
+  // Replace the island so the runtime always re-reads `data-props` on connect,
+  // even if hydration already started with the Designer defaults.
+  const clone = island.cloneNode(false) as HTMLElement;
+  clone.setAttribute('data-props', nextRaw);
+  island.replaceWith(clone);
 }
 
 export function initOnCourseCompleted(): void {

@@ -96,15 +96,12 @@ curl https://cdn.jsdelivr.net/gh/your-org/webflow-university@main/packages/scrip
 If not already set up:
 
 ```bash
-# Install Webflow CLI globally (if needed)
-npm install -g @webflow/cli
-
-# Authenticate
-npx webflow login
-
-# Link your library
+# Authenticate with the package-local CLI
 cd packages/code-components
-npx webflow library share
+pnpm exec webflow auth login
+
+# Share your library into the Webflow workspace
+pnpm share
 ```
 
 ## Team Onboarding
@@ -161,7 +158,7 @@ npx webflow library share
 1. Create component in `packages/code-components/src/components/`
 2. Export from appropriate file
 3. Build: `pnpm build:components`
-4. Share with Webflow: `npx webflow library share`
+4. Share with Webflow: `pnpm share:components`
 
 ### Deploying Scripts
 

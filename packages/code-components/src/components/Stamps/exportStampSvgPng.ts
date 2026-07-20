@@ -66,10 +66,11 @@ function bakeCssVariables(svg: SVGSVGElement, root: HTMLElement) {
  * Used when pasting the SVG into CMS / Designer so colors follow light/dark theme.
  */
 const STAMP_THEME_TOKENS = {
-  paper: 'var(--theme--t_bg-tertiary)',
-  text: 'var(--theme--t_text-primary)',
-  outline: 'var(--theme--t_bg-secondary)',
-  shadow: 'var(--swatches--black)',
+  paper: 'var(--theme--t_bg-tertiary, #171717)',
+  // Overlay on artwork — keep light across themes (not t_text-primary)
+  text: 'var(--theme--t_btn-2-text, white)',
+  outline: 'var(--theme--t_bg-secondary, #222)',
+  shadow: 'var(--theme--t_bg-primary, #080808)',
 } as const;
 
 /**

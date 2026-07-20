@@ -36,10 +36,9 @@ pnpm install
    ```bash
    pnpm dev:components
    ```
-4. Build for Webflow:
+4. Share to Webflow:
    ```bash
-   pnpm build:components
-   npx webflow library share
+   pnpm share:components
    ```
 
 ### 3. Before Committing

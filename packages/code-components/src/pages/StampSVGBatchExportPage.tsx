@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import StampSVG, { type StampSVGHandle } from '../components/Stamps/StampSVG';
 import {
+  formatStampDate,
   STAMP_ASPECT_RATIO_OPTIONS,
   STAMP_FONT_OPTIONS,
 } from '../components/Stamps/StampSVG.options';
@@ -18,10 +19,10 @@ const KEEGAN_FAVE_1_BASE = {
   paperTexture: true,
   paperTextureScale: 0.9,
   imageDistort: true,
-  imageDistortAmount: 8,
-  imageDistortTurbulence: 0.03,
+  imageDistortAmount: 2,
+  imageDistortTurbulence: 0.028,
   imageDistortOctaves: 2,
-  imageDistortBlur: 0.3,
+  imageDistortBlur: 0.1,
   imageErode: true,
   imageErodeOverText: true,
   imageErodeAmount: 0.01,
@@ -33,7 +34,6 @@ const KEEGAN_FAVE_1_BASE = {
   imageErodeVariationScale: 0.3,
   interactiveTilt: false,
   tiltAmount: 6,
-  dateLabel: '16.07.2026',
   fontFamily: STAMP_FONT_OPTIONS['Instrument Serif'],
   fontWeight: 400,
   letterSpacing: -0.5,
@@ -74,14 +74,12 @@ const KEEGAN_FAVE_1_BASE = {
 const THEME_TOKENS = {
   light: {
     paperTextureOpacity: 0.28,
-    outlineColor: '#efefef',
     outlineWidth: 3,
     shadowOpacity: 0.32,
     paperTextureDarkInk: true,
   },
   dark: {
     paperTextureOpacity: 0.18,
-    outlineColor: '#222222',
     outlineWidth: 6,
     shadowOpacity: 0.55,
     paperTextureDarkInk: false,
@@ -185,10 +183,13 @@ function StampSVGBatchExportPage() {
             ref={stampRef}
             image={{ src: course.image, alt: course.title }}
             title={course.title}
-            paperColor="var(--stamp-paper)"
+            paperColor="var(--theme--t_bg-tertiary)"
+            outlineColor="var(--theme--t_bg-secondary)"
+            textColor="var(--theme--t_btn-2-text, white)"
+            shadowColor="var(--theme--t_bg-primary)"
+            lightColor="var(--theme--t_icon-primary)"
             {...KEEGAN_FAVE_1_BASE}
             paperTextureOpacity={themeTokens.paperTextureOpacity}
-            outlineColor={themeTokens.outlineColor}
             outlineWidth={themeTokens.outlineWidth}
             shadowOpacity={themeTokens.shadowOpacity}
             paperTextureDarkInk={themeTokens.paperTextureDarkInk}

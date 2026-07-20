@@ -1,3 +1,11 @@
+/** Stamp date label — `DD.MM.YYYY` (e.g. 20.07.2026) */
+export function formatStampDate(date: Date = new Date()): string {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}.${month}.${year}`;
+}
+
 export const STAMP_ASPECT_RATIO_OPTIONS = {
   '16:9': '16 / 9',
   '16:10': '16 / 10',

@@ -6,12 +6,30 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildCourseCompletionUrl,
   initOnCourseCompleted,
+  populateCourseCompletionPage,
   readCourseCompletionQuery,
   toOrdinal,
 } from './on-course-completed';
 
 function setLocation(pathWithSearch: string): void {
   window.history.pushState({}, '', pathWithSearch);
+}
+
+function stampSvgIslandHtml(props: { imageUrl: string; logoUrl: string; title: string }): string {
+  const loader = JSON.stringify({
+    tag: 'FEDERATION',
+    val: {
+      clientModuleUrl:
+        'https://code-components.website-files.com/example%2Fmodule%2Fwf-manifest.json',
+      moduleId: '_example',
+      submoduleId: 'StampSVG',
+      exportPath: 'default',
+      serverModuleUrl: '_',
+    },
+  });
+  const dataProps = JSON.stringify(props);
+
+  return `<code-island data-loader='${loader}' data-props='${dataProps}' data-hydrate="true" style="display:contents"><!--$--><!--/$--></code-island>`;
 }
 
 describe('onCourseCompleted', () => {
@@ -23,9 +41,7 @@ describe('onCourseCompleted', () => {
   });
 
   it('redirects to the completion page with metadata query params', () => {
-    const assignSpy = vi
-      .spyOn(window.location, 'assign')
-      .mockImplementation(() => {});
+    const assignSpy = vi.spyOn(window.location, 'assign').mockImplementation(() => {});
     setLocation('/course-lesson/get-started-mcp-activity-resources');
     document.body.innerHTML =
       '<img data-course-thumbnail src="https://cdn.example.com/course.webp" alt="" />';
@@ -45,9 +61,7 @@ describe('onCourseCompleted', () => {
   });
 
   it('omits null optional fields from the redirect URL', () => {
-    const assignSpy = vi
-      .spyOn(window.location, 'assign')
-      .mockImplementation(() => {});
+    const assignSpy = vi.spyOn(window.location, 'assign').mockImplementation(() => {});
     setLocation('/course-lesson/get-started-mcp-activity-resources');
 
     initOnCourseCompleted();
@@ -59,9 +73,7 @@ describe('onCourseCompleted', () => {
       completedCoursesCount: null,
     });
 
-    expect(assignSpy).toHaveBeenCalledWith(
-      '/course-completion?courseId=webflow-for-reviewers'
-    );
+    expect(assignSpy).toHaveBeenCalledWith('/course-completion?courseId=webflow-for-reviewers');
   });
 
   it('does not register the hook outside course lesson pages', () => {
@@ -88,6 +100,69 @@ describe('onCourseCompleted', () => {
     initOnCourseCompleted();
 
     expect(window.onCourseCompleted).toBeUndefined();
+  });
+
+  it('updates StampSVG code-island data-props from query params', () => {
+    setLocation(
+      '/course-completion?courseName=Webflow+for+Reviewers&courseThumbnail=https%3A%2F%2Fcdn.example.com%2Fcourse.webp'
+    );
+    document.body.innerHTML = stampSvgIslandHtml({
+      imageUrl: 'https://cdn.example.com/placeholder.jpg',
+      logoUrl: 'https://cdn.example.com/logo.png',
+      title: 'Webflow HELLO',
+    });
+
+    initOnCourseCompleted();
+
+    const island = document.querySelector('code-island');
+    expect(island).not.toBeNull();
+    expect(JSON.parse(island!.getAttribute('data-props')!)).toEqual({
+      imageUrl: 'https://cdn.example.com/course.webp',
+      logoUrl: 'https://cdn.example.com/logo.png',
+      title: 'Webflow for Reviewers',
+    });
+  });
+
+  it('leaves existing StampSVG props when query values are missing', () => {
+    setLocation('/course-completion?courseId=webflow-for-reviewers');
+    document.body.innerHTML = stampSvgIslandHtml({
+      imageUrl: 'https://cdn.example.com/placeholder.jpg',
+      logoUrl: 'https://cdn.example.com/logo.png',
+      title: 'Webflow HELLO',
+    });
+
+    populateCourseCompletionPage();
+
+    const island = document.querySelector('code-island');
+    expect(JSON.parse(island!.getAttribute('data-props')!)).toEqual({
+      imageUrl: 'https://cdn.example.com/placeholder.jpg',
+      logoUrl: 'https://cdn.example.com/logo.png',
+      title: 'Webflow HELLO',
+    });
+  });
+
+  it('replaces the StampSVG island so updated props are re-read on connect', () => {
+    setLocation(
+      '/course-completion?courseName=Course+A&courseThumbnail=https%3A%2F%2Fcdn.example.com%2Fthumb.png'
+    );
+    document.body.innerHTML = stampSvgIslandHtml({
+      imageUrl: 'https://cdn.example.com/placeholder.jpg',
+      logoUrl: 'https://cdn.example.com/logo.png',
+      title: 'Webflow HELLO',
+    });
+    const island = document.querySelector('code-island')!;
+    island.appendChild(document.createElement('div'));
+
+    populateCourseCompletionPage();
+
+    const nextIsland = document.querySelector('code-island');
+    expect(nextIsland).not.toBe(island);
+    expect(nextIsland?.childElementCount).toBe(0);
+    expect(JSON.parse(nextIsland!.getAttribute('data-props')!)).toEqual({
+      imageUrl: 'https://cdn.example.com/thumb.png',
+      logoUrl: 'https://cdn.example.com/logo.png',
+      title: 'Course A',
+    });
   });
 });
 

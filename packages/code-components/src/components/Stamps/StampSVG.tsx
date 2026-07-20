@@ -18,7 +18,7 @@ import {
   serializeStampSvg,
   STAMP_SVG_FALLBACK_IMAGE_URL,
 } from './exportStampSvgPng';
-import { STAMP_FONT_OPTIONS } from './StampSVG.options';
+import { formatStampDate, STAMP_FONT_OPTIONS } from './StampSVG.options';
 
 interface ImageProp {
   src: string;
@@ -42,7 +42,7 @@ export interface StampSVGProps {
   rotation?: number;
   paperColor?: string;
   outlineColor?: string;
-  /** Overlaid on artwork — always defaults to white for contrast */
+  /** Overlaid on artwork — stays light for contrast on photos (not theme text) */
   textColor?: string;
   /** Opacity of title + date overlay (0–1) */
   textOpacity?: number;
@@ -294,16 +294,16 @@ export type StampSVGHandle = {
 const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
   image = DEFAULT_IMAGE,
   title = '',
-  dateLabel = '16.07.2026',
+  dateLabel = formatStampDate(),
   showLogo = true,
   logoUrl,
   logoSize = 70,
   width = '100%',
   aspectRatio = '16 / 9',
   rotation = -3,
-  paperColor = 'var(--stamp-paper, var(--theme--t_bg-tertiary, var(--swatches--gray-900, #171717)))',
-  outlineColor = 'var(--theme--t_bg-secondary, var(--swatches--gray-800, #222222))',
-  textColor = 'var(--swatches--white, #ffffff)',
+  paperColor = 'var(--theme--t_bg-tertiary, #171717)',
+  outlineColor = 'var(--theme--t_bg-secondary, #222)',
+  textColor = 'var(--theme--t_btn-2-text, white)',
   textOpacity = 1,
   fontFamily = STAMP_FONT_OPTIONS['Instrument Serif'],
   fontWeight = 600,
@@ -354,7 +354,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
   specularStrength = 0.08,
   specularExponent = 68,
   highlightOpacity = 0.05,
-  lightColor = '#ffffff',
+  lightColor = 'var(--theme--t_icon-primary, white)',
   lightX = 250,
   lightY = 160,
   lightZ = 1375,
@@ -362,7 +362,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
   interactiveTilt = true,
   tiltAmount = 6,
   showShadow = true,
-  shadowColor = 'var(--swatches--black, #080808)',
+  shadowColor = 'var(--theme--t_bg-primary, #080808)',
   shadowOpacity = 0.55,
   shadowBlur = 26,
   shadowX = 8,

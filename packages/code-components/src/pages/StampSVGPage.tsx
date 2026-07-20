@@ -2,6 +2,7 @@ import { button, folder, useControls } from 'leva';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import StampSVG, { type StampSVGHandle } from '../components/Stamps/StampSVG';
 import {
+  formatStampDate,
   STAMP_ASPECT_RATIO_OPTIONS,
   STAMP_FONT_OPTIONS,
 } from '../components/Stamps/StampSVG.options';
@@ -78,7 +79,7 @@ const DEFAULT_PAGE_SETTINGS = {
   tiltAmount: 6,
   course: 'Webflow for Marketers',
   stampCount: 10,
-  dateLabel: '16.07.2026',
+  dateLabel: formatStampDate(),
   fontFamily: STAMP_FONT_OPTIONS['Instrument Serif'],
   fontWeight: 600,
   letterSpacing: 0,
@@ -146,8 +147,8 @@ function setupSelectOptions(setups: SavedSetupsMap): Record<string, string> {
 /** One-click looks — each sets a coherent, intentionally different cluster of controls */
 const STAMP_PRESETS = {
   "Keegan's Fave #1": {
-    lightMode: true,
-    ...THEME_STAMP_CONTROLS.light,
+    lightMode: false,
+    ...THEME_STAMP_CONTROLS.dark,
     stampFrame: true,
     frameDistort: true,
     frameInkDisplacement: 7.7,
@@ -155,13 +156,13 @@ const STAMP_PRESETS = {
     frameInkTurbulence: 0.012,
     frameInkBreaks: 0.02,
     paperTexture: true,
-    paperTextureOpacity: 0.28,
+    paperTextureOpacity: 0.18,
     paperTextureScale: 0.9,
     imageDistort: true,
-    imageDistortAmount: 8,
-    imageDistortTurbulence: 0.03,
+    imageDistortAmount: 2,
+    imageDistortTurbulence: 0.028,
     imageDistortOctaves: 2,
-    imageDistortBlur: 0.3,
+    imageDistortBlur: 0.1,
     imageErode: true,
     imageErodeOverText: true,
     imageErodeAmount: 0.01,
@@ -175,7 +176,7 @@ const STAMP_PRESETS = {
     tiltAmount: 6,
     course: 'Webflow for Marketers',
     stampCount: 10,
-    dateLabel: '16.07.2026',
+    dateLabel: formatStampDate(),
     fontFamily: STAMP_FONT_OPTIONS['Instrument Serif'],
     fontWeight: 400,
     letterSpacing: -0.5,
@@ -1933,8 +1934,11 @@ function StampSVGPage() {
                 imageErodeVariationScale={controls.imageErodeVariationScale}
                 interactiveTilt={controls.interactiveTilt}
                 tiltAmount={controls.tiltAmount}
-                paperColor="var(--stamp-paper)"
-                outlineColor={controls.outlineColor}
+                paperColor="var(--theme--t_bg-tertiary)"
+                outlineColor="var(--theme--t_bg-secondary)"
+                textColor="var(--theme--t_btn-2-text, white)"
+                shadowColor="var(--theme--t_bg-primary)"
+                lightColor="var(--theme--t_icon-primary)"
                 outlineWidth={controls.outlineWidth}
                 edgeRoughness={controls.edgeRoughness}
                 grainFrequency={controls.grainFrequency}
