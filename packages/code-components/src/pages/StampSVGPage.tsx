@@ -1,10 +1,10 @@
 import { button, folder, useControls } from 'leva';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import StampSVG, {
+import StampSVG, { type StampSVGHandle } from '../components/Stamps/StampSVG';
+import {
   STAMP_ASPECT_RATIO_OPTIONS,
   STAMP_FONT_OPTIONS,
-  type StampSVGHandle,
-} from '../components/Stamps/StampSVG';
+} from '../components/Stamps/StampSVG.options';
 import { COURSE_STAMPS } from '../components/Stamps/courses';
 import './StampSVGPage.css';
 
@@ -1409,6 +1409,8 @@ function StampSVGPage() {
   undoSettingsRef.current = undoSettings;
   const redoSettingsRef = useRef(redoSettings);
   redoSettingsRef.current = redoSettings;
+  const applySettingsRef = useRef(applySettings);
+  applySettingsRef.current = applySettings;
 
   const applyPreset = (preset: (typeof STAMP_PRESETS)[keyof typeof STAMP_PRESETS]) => {
     applySettings(preset);
@@ -1757,7 +1759,7 @@ function StampSVGPage() {
     if (!name || name === NO_SAVED_SETUP) return;
     const setup = savedSetupsRef.current[name];
     if (!setup || typeof setup !== 'object') return;
-    applySettings(setup);
+    applySettingsRef.current(setup);
   }, [savedSetupControls.setup]);
 
   useControls(

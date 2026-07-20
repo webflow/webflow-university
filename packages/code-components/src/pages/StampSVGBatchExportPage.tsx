@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import StampSVG, {
+import StampSVG, { type StampSVGHandle } from '../components/Stamps/StampSVG';
+import {
   STAMP_ASPECT_RATIO_OPTIONS,
   STAMP_FONT_OPTIONS,
-  type StampSVGHandle,
-} from '../components/Stamps/StampSVG';
+} from '../components/Stamps/StampSVG.options';
 import { COURSE_STAMPS } from '../components/Stamps/courses';
 import './StampSVGPage.css';
 

@@ -16,6 +16,7 @@ import {
   parseFontFamilyList,
   rasterizeStampSvgPng,
 } from './exportStampSvgPng';
+import { STAMP_FONT_OPTIONS } from './StampSVG.options';
 
 interface ImageProp {
   src: string;
@@ -142,45 +143,6 @@ const DEFAULT_IMAGE: ImageProp = {
 const STAMP_PADDING = 80;
 const STAMP_CONTENT_LONG = 1000;
 
-export const STAMP_ASPECT_RATIO_OPTIONS = {
-  '16:9': '16 / 9',
-  '16:10': '16 / 10',
-  '3:2': '3 / 2',
-  '4:3': '4 / 3',
-  '1:1': '1 / 1',
-  '4:5': '4 / 5',
-  '3:4': '3 / 4',
-  '2:3': '2 / 3',
-  '9:16': '9 / 16',
-} as const;
-
-export const STAMP_FONT_OPTIONS = {
-  'Instrument Serif': "'Instrument Serif', Georgia, 'Times New Roman', serif",
-  'Instrument Sans': "'Instrument Sans', system-ui, sans-serif",
-  'WF Sans': "var(--typography--font_headings, 'WF Visual Sans', system-ui, sans-serif)",
-  'WF Text': "var(--typography--font_text, 'WF Visual Sans Text', system-ui, sans-serif)",
-  'WF Mono': "var(--typography--font_mono, 'WF Visual Sans Text', ui-monospace, monospace)",
-  'Playfair Display': "'Playfair Display', Georgia, serif",
-  'DM Serif Display': "'DM Serif Display', Georgia, serif",
-  'Libre Baskerville': "'Libre Baskerville', Georgia, serif",
-  'Space Grotesk': "'Space Grotesk', system-ui, sans-serif",
-  'IBM Plex Mono': "'IBM Plex Mono', ui-monospace, monospace",
-  /** Chunky organic slab */
-  BioRhyme: "'BioRhyme', 'Rockwell', 'Courier New', serif",
-  /** Ultra-condensed tall industrial display */
-  'Big Shoulders Display':
-    "'Big Shoulders Display', 'Arial Narrow', Impact, sans-serif",
-  /** Heavy Japanese-influenced gothic display */
-  'Dela Gothic One': "'Dela Gothic One', Impact, 'Arial Black', sans-serif",
-  /** Soft “wonky” optical serif */
-  Fraunces: "'Fraunces', Georgia, 'Times New Roman', serif",
-  /** Geometric display with sharp personality */
-  Syne: "'Syne', system-ui, sans-serif",
-  Georgia: "Georgia, 'Times New Roman', Times, serif",
-  Slab: "'Arial Black', 'Helvetica Neue', Impact, Haettenschweiler, sans-serif",
-  Typewriter: "'Courier New', Courier, ui-monospace, monospace",
-} as const;
-
 let wrapMeasureCanvas: HTMLCanvasElement | null = null;
 
 function measureTextWidth(
@@ -205,7 +167,7 @@ function measureTextWidth(
 }
 
 /** Word-wrap (and hard-break long tokens) to fit a max width in SVG user units. */
-export function wrapStampTitleLines(
+function wrapStampTitleLines(
   text: string,
   maxWidth: number,
   font: string,
@@ -512,28 +474,28 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
     };
   }, [fontWeight, resolvedFontFamily, title, titleFontSize]);
 
-  const titleLines = useMemo(
-    () =>
-      title
-        ? wrapStampTitleLines(
-            title,
-            titleMaxWidthPx,
-            resolvedFontFamily,
-            Math.max(100, Math.min(900, Math.round(fontWeight))),
-            titleFontSize,
-            resolvedLetterSpacing
-          )
-        : [],
-    [
-      fontsReadyTick,
-      fontWeight,
-      resolvedFontFamily,
-      resolvedLetterSpacing,
-      title,
-      titleFontSize,
-      titleMaxWidthPx,
-    ]
-  );
+  const titleLines = useMemo(() => {
+    // Re-measure after webfonts load (tick is a cache-buster, not a value input).
+    void fontsReadyTick;
+    return title
+      ? wrapStampTitleLines(
+          title,
+          titleMaxWidthPx,
+          resolvedFontFamily,
+          Math.max(100, Math.min(900, Math.round(fontWeight))),
+          titleFontSize,
+          resolvedLetterSpacing
+        )
+      : [];
+  }, [
+    fontsReadyTick,
+    fontWeight,
+    resolvedFontFamily,
+    resolvedLetterSpacing,
+    title,
+    titleFontSize,
+    titleMaxWidthPx,
+  ]);
 
   useImperativeHandle(ref, () => ({
     exportPng: async (filename = 'stamp.png') => {
