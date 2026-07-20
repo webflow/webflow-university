@@ -3,22 +3,32 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { initOnCourseCompleted } from './on-course-completed';
+import {
+  buildCourseCompletionUrl,
+  initOnCourseCompleted,
+  readCourseCompletionQuery,
+  toOrdinal,
+} from './on-course-completed';
 
-function setPathname(pathname: string): void {
-  window.history.pushState({}, '', pathname);
+function setLocation(pathWithSearch: string): void {
+  window.history.pushState({}, '', pathWithSearch);
 }
 
 describe('onCourseCompleted', () => {
   afterEach(() => {
     delete window.onCourseCompleted;
-    setPathname('/');
+    document.body.innerHTML = '';
+    setLocation('/');
     vi.restoreAllMocks();
   });
 
-  it('logs a congratulations message on course lesson pages', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    setPathname('/course-lesson/get-started-mcp-activity-resources');
+  it('redirects to the completion page with metadata query params', () => {
+    const assignSpy = vi
+      .spyOn(window.location, 'assign')
+      .mockImplementation(() => {});
+    setLocation('/course-lesson/get-started-mcp-activity-resources');
+    document.body.innerHTML =
+      '<img data-course-thumbnail src="https://cdn.example.com/course.webp" alt="" />';
 
     initOnCourseCompleted();
 
@@ -29,34 +39,87 @@ describe('onCourseCompleted', () => {
       completedCoursesCount: 3,
     });
 
-    expect(warnSpy).toHaveBeenCalledWith(
-      'Congratulations, Jane Doe. You completed Webflow for Reviewers, your 3rd course...'
+    expect(assignSpy).toHaveBeenCalledWith(
+      '/course-completion?fullName=Jane+Doe&courseId=webflow-for-reviewers&courseName=Webflow+for+Reviewers&completedCoursesCount=3&courseThumbnail=https%3A%2F%2Fcdn.example.com%2Fcourse.webp'
     );
   });
 
-  it('omits the course count when completedCoursesCount is null', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    setPathname('/course-lesson/get-started-mcp-activity-resources');
+  it('omits null optional fields from the redirect URL', () => {
+    const assignSpy = vi
+      .spyOn(window.location, 'assign')
+      .mockImplementation(() => {});
+    setLocation('/course-lesson/get-started-mcp-activity-resources');
 
     initOnCourseCompleted();
 
     window.onCourseCompleted?.({
-      fullName: 'Jane Doe',
+      fullName: null,
       courseId: 'webflow-for-reviewers',
-      courseName: 'Webflow for Reviewers',
+      courseName: null,
       completedCoursesCount: null,
     });
 
-    expect(warnSpy).toHaveBeenCalledWith(
-      'Congratulations, Jane Doe. You completed Webflow for Reviewers.'
+    expect(assignSpy).toHaveBeenCalledWith(
+      '/course-completion?courseId=webflow-for-reviewers'
     );
   });
 
   it('does not register the hook outside course lesson pages', () => {
-    setPathname('/courses');
+    setLocation('/courses');
 
     initOnCourseCompleted();
 
     expect(window.onCourseCompleted).toBeUndefined();
+  });
+
+  it('reads completion metadata from the URL on the completion page', () => {
+    setLocation(
+      '/course-completion?fullName=Jane+Doe&courseId=webflow-for-reviewers&courseName=Webflow+for+Reviewers&completedCoursesCount=3&courseThumbnail=https%3A%2F%2Fcdn.example.com%2Fcourse.webp'
+    );
+
+    expect(readCourseCompletionQuery()).toEqual({
+      fullName: 'Jane Doe',
+      courseId: 'webflow-for-reviewers',
+      courseName: 'Webflow for Reviewers',
+      completedCoursesCount: 3,
+      courseThumbnail: 'https://cdn.example.com/course.webp',
+    });
+
+    initOnCourseCompleted();
+
+    expect(window.onCourseCompleted).toBeUndefined();
+  });
+});
+
+describe('buildCourseCompletionUrl', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('includes the course thumbnail when present', () => {
+    document.body.innerHTML =
+      '<img data-course-thumbnail src="https://cdn.example.com/thumb.png" alt="" />';
+
+    expect(
+      buildCourseCompletionUrl({
+        fullName: 'Ada',
+        courseId: 'course-a',
+        courseName: 'Course A',
+        completedCoursesCount: 1,
+      })
+    ).toBe(
+      '/course-completion?fullName=Ada&courseId=course-a&courseName=Course+A&completedCoursesCount=1&courseThumbnail=https%3A%2F%2Fcdn.example.com%2Fthumb.png'
+    );
+  });
+});
+
+describe('toOrdinal', () => {
+  it('formats common ordinals', () => {
+    expect(toOrdinal(1)).toBe('1st');
+    expect(toOrdinal(2)).toBe('2nd');
+    expect(toOrdinal(3)).toBe('3rd');
+    expect(toOrdinal(4)).toBe('4th');
+    expect(toOrdinal(11)).toBe('11th');
+    expect(toOrdinal(21)).toBe('21st');
   });
 });

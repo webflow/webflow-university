@@ -1651,8 +1651,15 @@ function StampSVGPage() {
     };
   }, []);
 
-  const [, setExport] = useControls('Export', () => ({
+  const exportOptionsRef = useRef({ themeVariables: true });
+
+  const [exportControls, setExport] = useControls('Export', () => ({
     copyStatus: { value: 'Ready', editable: false, label: 'Status' },
+    themeVariables: {
+      value: true,
+      // ON = CMS paste (Webflow theme tokens). OFF = self-contained visual match.
+      label: 'Theme vars (CMS)',
+    },
     'Copy JSON': button(() => {
       const settings = Object.fromEntries(
         SETTINGS_KEYS.map((key) => [key, controlsRef.current[key]])
@@ -1666,6 +1673,34 @@ function StampSVGPage() {
         () => setExport({ copyStatus: 'Copy failed — check console' })
       );
       console.log('[StampSVG settings]\n' + json);
+    }),
+    'Copy SVG': button(() => {
+      const stamp = primaryStampRef.current;
+      if (!stamp) {
+        setExport({ copyStatus: 'Copy failed — stamp not ready' });
+        return;
+      }
+      const useThemeVariables = exportOptionsRef.current.themeVariables;
+      setExport({
+        copyStatus: useThemeVariables
+          ? 'Copying SVG (CMS vars)…'
+          : 'Copying SVG (self-contained)…',
+      });
+      void stamp
+        .getSvgString({ preserveThemeVariables: useThemeVariables })
+        .then((svg) => navigator.clipboard.writeText(svg))
+        .then(() => {
+          setExport({
+            copyStatus: useThemeVariables
+              ? 'SVG copied (CMS vars) ✓'
+              : 'SVG copied (self-contained) ✓',
+          });
+          window.setTimeout(() => setExport({ copyStatus: 'Ready' }), 2000);
+        })
+        .catch((error: unknown) => {
+          console.error('[StampSVG copy SVG]', error);
+          setExport({ copyStatus: 'Copy failed — check console' });
+        });
     }),
     'Export PNG': button(() => {
       const stamp = primaryStampRef.current;
@@ -1691,6 +1726,8 @@ function StampSVGPage() {
         });
     }),
   }));
+
+  exportOptionsRef.current.themeVariables = Boolean(exportControls.themeVariables);
 
   const setupOptions = useMemo(() => setupSelectOptions(savedSetups), [savedSetups]);
   const setupOptionsKey = useMemo(

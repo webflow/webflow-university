@@ -15,6 +15,8 @@ import {
   exportStampSvgPng,
   parseFontFamilyList,
   rasterizeStampSvgPng,
+  serializeStampSvg,
+  STAMP_SVG_FALLBACK_IMAGE_URL,
 } from './exportStampSvgPng';
 import { STAMP_FONT_OPTIONS } from './StampSVG.options';
 
@@ -29,8 +31,10 @@ export interface StampSVGProps {
   image?: ImageProp;
   title?: string;
   dateLabel?: string;
-  /** Show the Webflow logo mark above the date */
+  /** Show the logo mark above the date */
   showLogo?: boolean;
+  /** Custom logo image URL — falls back to the built-in Webflow mark when empty */
+  logoUrl?: string;
   /** Logo width in SVG units */
   logoSize?: number;
   width?: string;
@@ -273,9 +277,18 @@ function makePositions(count: number, length: number, start: number): number[] {
   return Array.from({ length: count }, (_, index) => start + ((index + 0.5) * length) / count);
 }
 
+export type GetSvgStringOptions = {
+  /**
+   * When true (default): compact CMS paste with Webflow theme tokens + public image URLs.
+   * When false: self-contained markup (baked colors, inlined images/fonts) for visual match.
+   */
+  preserveThemeVariables?: boolean;
+};
+
 export type StampSVGHandle = {
   exportPng: (filename?: string) => Promise<void>;
   exportPngDataUrl: (pixelRatio?: number) => Promise<string>;
+  getSvgString: (options?: GetSvgStringOptions) => Promise<string>;
 };
 
 const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
@@ -283,6 +296,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
   title = '',
   dateLabel = '16.07.2026',
   showLogo = true,
+  logoUrl,
   logoSize = 70,
   width = '100%',
   aspectRatio = '16 / 9',
@@ -547,6 +561,30 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
         });
       }
     },
+    getSvgString: async (options: GetSvgStringOptions = {}) => {
+      const { preserveThemeVariables = true } = options;
+      const svg = svgRef.current;
+      const root = rootRef.current;
+      if (!svg || !root) {
+        throw new Error('Stamp SVG is not ready to export');
+      }
+
+      // Theme-vars mode: compact CMS paste (site tokens + public image URLs).
+      // Hardcoded mode: self-contained markup that matches the live preview
+      // when pasted into a bare browser page (baked colors, inlined assets).
+      // Keep drop shadows in both — they are part of the stamp filter.
+      return await serializeStampSvg(
+        svg,
+        root,
+        parseFontFamilyList(resolvedFontFamily),
+        {
+          inlineImages: !preserveThemeVariables,
+          embedFonts: !preserveThemeVariables,
+          preserveThemeVariables,
+          fallbackImageUrl: STAMP_SVG_FALLBACK_IMAGE_URL,
+        }
+      );
+    },
   }));
   const resolvedFontWeight = Math.max(100, Math.min(900, Math.round(fontWeight)));
   const resolvedTextOpacity = Math.max(0, Math.min(1, textOpacity));
@@ -558,6 +596,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
   const logoY = dateLabel
     ? dateY - dateFontSize * 0.85 - logoGap - logoHeight
     : dateY - logoHeight;
+  const resolvedLogoSrc = logoUrl?.trim() || webflowLogoWhite;
   const imgDistortAmount = Math.max(0, imageDistortAmount);
   const imgDistortTurbulence = Math.max(0.001, Math.min(0.4, imageDistortTurbulence));
   const imgDistortOctaves = Math.max(1, Math.min(5, Math.round(imageDistortOctaves)));
@@ -1258,6 +1297,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
               style={{ fill: 'var(--stamp-svg-paper)' }}
             />
             <image
+              data-stamp-art=""
               href={imageSrc}
               x={artX}
               y={artY}
@@ -1355,7 +1395,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
                     <g>
                       {showLogo ? (
                         <image
-                          href={webflowLogoWhite}
+                          href={resolvedLogoSrc}
                           x={dateAnchorX - logoWidth}
                           y={logoY}
                           width={logoWidth}
@@ -1418,7 +1458,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
                         <g>
                           {showLogo ? (
                             <image
-                              href={webflowLogoWhite}
+                              href={resolvedLogoSrc}
                               x={dateAnchorX - logoWidth}
                               y={logoY}
                               width={logoWidth}
