@@ -36,7 +36,6 @@
     "@webflow/data-types": "^2.0.0",
     "@webflow/react": "^2.0.0",
     "@webflow/webflow-cli": "^2.2.0",
-    "baseline-browser-mapping": "^2.10.44",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.22",
