@@ -1,0 +1,35 @@
+/* Bundled with the Webflow Code Component so Instrument Serif is available
+   even when the host page has not loaded stamp playground styles. */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
+
+/* Idle breathing — own layer so pointer tilt can compose on top. */
+@keyframes stamp-svg-breathe {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -1.25%, 0) scale(1.012);
+  }
+}
+
+.stamp-svg-breathe {
+  width: 100%;
+  height: 100%;
+  transform-origin: center center;
+  transform-style: preserve-3d;
+  animation: stamp-svg-breathe 7s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Freeze idle motion while interacting; resume from the same point on leave */
+.stamp-svg-root:hover .stamp-svg-breathe {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stamp-svg-breathe {
+    animation: none;
+    will-change: auto;
+  }
+}

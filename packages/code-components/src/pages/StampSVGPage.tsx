@@ -2,6 +2,7 @@ import { button, folder, useControls } from 'leva';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import StampSVG, { type StampSVGHandle } from '../components/Stamps/StampSVG';
 import {
+  formatStampDate,
   STAMP_ASPECT_RATIO_OPTIONS,
   STAMP_FONT_OPTIONS,
 } from '../components/Stamps/StampSVG.options';
@@ -77,8 +78,8 @@ const DEFAULT_PAGE_SETTINGS = {
   interactiveTilt: true,
   tiltAmount: 6,
   course: 'Webflow for Marketers',
-  stampCount: 10,
-  dateLabel: '16.07.2026',
+  stampCount: 1,
+  dateLabel: formatStampDate(),
   fontFamily: STAMP_FONT_OPTIONS['Instrument Serif'],
   fontWeight: 600,
   letterSpacing: 0,
@@ -146,8 +147,8 @@ function setupSelectOptions(setups: SavedSetupsMap): Record<string, string> {
 /** One-click looks — each sets a coherent, intentionally different cluster of controls */
 const STAMP_PRESETS = {
   "Keegan's Fave #1": {
-    lightMode: true,
-    ...THEME_STAMP_CONTROLS.light,
+    lightMode: false,
+    ...THEME_STAMP_CONTROLS.dark,
     stampFrame: true,
     frameDistort: true,
     frameInkDisplacement: 7.7,
@@ -155,13 +156,13 @@ const STAMP_PRESETS = {
     frameInkTurbulence: 0.012,
     frameInkBreaks: 0.02,
     paperTexture: true,
-    paperTextureOpacity: 0.28,
+    paperTextureOpacity: 0.18,
     paperTextureScale: 0.9,
     imageDistort: true,
-    imageDistortAmount: 8,
-    imageDistortTurbulence: 0.03,
+    imageDistortAmount: 2,
+    imageDistortTurbulence: 0.028,
     imageDistortOctaves: 2,
-    imageDistortBlur: 0.3,
+    imageDistortBlur: 0.1,
     imageErode: true,
     imageErodeOverText: true,
     imageErodeAmount: 0.01,
@@ -175,7 +176,7 @@ const STAMP_PRESETS = {
     tiltAmount: 6,
     course: 'Webflow for Marketers',
     stampCount: 10,
-    dateLabel: '16.07.2026',
+    dateLabel: formatStampDate(),
     fontFamily: STAMP_FONT_OPTIONS['Instrument Serif'],
     fontWeight: 400,
     letterSpacing: -0.5,
@@ -1651,8 +1652,15 @@ function StampSVGPage() {
     };
   }, []);
 
-  const [, setExport] = useControls('Export', () => ({
+  const exportOptionsRef = useRef({ themeVariables: true });
+
+  const [exportControls, setExport] = useControls('Export', () => ({
     copyStatus: { value: 'Ready', editable: false, label: 'Status' },
+    themeVariables: {
+      value: true,
+      // ON = CMS paste (Webflow theme tokens). OFF = self-contained visual match.
+      label: 'Theme vars (CMS)',
+    },
     'Copy JSON': button(() => {
       const settings = Object.fromEntries(
         SETTINGS_KEYS.map((key) => [key, controlsRef.current[key]])
@@ -1666,6 +1674,34 @@ function StampSVGPage() {
         () => setExport({ copyStatus: 'Copy failed — check console' })
       );
       console.log('[StampSVG settings]\n' + json);
+    }),
+    'Copy SVG': button(() => {
+      const stamp = primaryStampRef.current;
+      if (!stamp) {
+        setExport({ copyStatus: 'Copy failed — stamp not ready' });
+        return;
+      }
+      const useThemeVariables = exportOptionsRef.current.themeVariables;
+      setExport({
+        copyStatus: useThemeVariables
+          ? 'Copying SVG (CMS vars)…'
+          : 'Copying SVG (self-contained)…',
+      });
+      void stamp
+        .getSvgString({ preserveThemeVariables: useThemeVariables })
+        .then((svg) => navigator.clipboard.writeText(svg))
+        .then(() => {
+          setExport({
+            copyStatus: useThemeVariables
+              ? 'SVG copied (CMS vars) ✓'
+              : 'SVG copied (self-contained) ✓',
+          });
+          window.setTimeout(() => setExport({ copyStatus: 'Ready' }), 2000);
+        })
+        .catch((error: unknown) => {
+          console.error('[StampSVG copy SVG]', error);
+          setExport({ copyStatus: 'Copy failed — check console' });
+        });
     }),
     'Export PNG': button(() => {
       const stamp = primaryStampRef.current;
@@ -1691,6 +1727,8 @@ function StampSVGPage() {
         });
     }),
   }));
+
+  exportOptionsRef.current.themeVariables = Boolean(exportControls.themeVariables);
 
   const setupOptions = useMemo(() => setupSelectOptions(savedSetups), [savedSetups]);
   const setupOptionsKey = useMemo(
@@ -1896,8 +1934,11 @@ function StampSVGPage() {
                 imageErodeVariationScale={controls.imageErodeVariationScale}
                 interactiveTilt={controls.interactiveTilt}
                 tiltAmount={controls.tiltAmount}
-                paperColor="var(--stamp-paper)"
-                outlineColor={controls.outlineColor}
+                paperColor="var(--theme--t_bg-tertiary)"
+                outlineColor="var(--theme--t_bg-secondary)"
+                textColor="var(--theme--t_btn-2-text, white)"
+                shadowColor="var(--theme--t_bg-primary)"
+                lightColor="var(--theme--t_icon-primary)"
                 outlineWidth={controls.outlineWidth}
                 edgeRoughness={controls.edgeRoughness}
                 grainFrequency={controls.grainFrequency}

@@ -61,6 +61,50 @@ function bakeCssVariables(svg: SVGSVGElement, root: HTMLElement) {
   });
 }
 
+/**
+ * Webflow University site theme tokens (from :root on university.webflow.com).
+ * Used when pasting the SVG into CMS / Designer so colors follow light/dark theme.
+ */
+const STAMP_THEME_TOKENS = {
+  paper: 'var(--theme--t_bg-tertiary, #171717)',
+  // Overlay on artwork — keep light across themes (not t_text-primary)
+  text: 'var(--theme--t_btn-2-text, white)',
+  outline: 'var(--theme--t_bg-secondary, #222)',
+  shadow: 'var(--theme--t_bg-primary, #080808)',
+} as const;
+
+/**
+ * Keep colors as theme CSS variables instead of baking to rgb/hex.
+ * Rewrites internal `--stamp-svg-*` bridges and feFlood fills to site tokens.
+ */
+function applyThemeVariables(svg: SVGSVGElement) {
+  const { paper, text, outline, shadow } = STAMP_THEME_TOKENS;
+
+  svg.querySelectorAll<SVGElement>('[style]').forEach((el) => {
+    const style = el.getAttribute('style') ?? '';
+    if (!style.includes('var(--stamp-svg-')) return;
+    el.setAttribute(
+      'style',
+      style
+        .replace(/var\(--stamp-svg-paper\)/g, paper)
+        .replace(/var\(--stamp-svg-text\)/g, text)
+    );
+  });
+
+  svg.querySelectorAll('feFlood').forEach((el) => {
+    const result = el.getAttribute('result') ?? '';
+    let token: string | null = null;
+    if (result === 'paperFill') token = paper;
+    else if (result === 'outlineColor') token = outline;
+    else if (result === 'ambientFlood' || result === 'midFlood' || result === 'contactFlood') {
+      token = shadow;
+    }
+    if (!token) return;
+    el.setAttribute('flood-color', token);
+    el.removeAttribute('floodColor');
+  });
+}
+
 async function inlineImages(svg: SVGSVGElement) {
   const images = Array.from(svg.querySelectorAll('image'));
   await Promise.all(
@@ -77,6 +121,81 @@ async function inlineImages(svg: SVGSVGElement) {
     })
   );
 }
+
+/** Public CDN fallback when stamp artwork is a local/Vite asset (not a shareable URL). */
+export const STAMP_SVG_FALLBACK_IMAGE_URL =
+  'https://cdn.prod.website-files.com/6491b4dd238fa881faab3d5c/6a514df3e397573a9787c75f_WFU%20Thumb%20Placeholder.jpg';
+
+function getImageHref(image: Element): string | null {
+  return (
+    image.getAttribute('href') ||
+    image.getAttributeNS(XLINK_NS, 'href') ||
+    image.getAttribute('xlink:href')
+  );
+}
+
+function setImageHref(image: Element, href: string) {
+  image.setAttribute('href', href);
+  image.removeAttributeNS(XLINK_NS, 'href');
+  image.removeAttribute('xlink:href');
+}
+
+function isPublicHttpUrl(href: string): boolean {
+  try {
+    const url = new URL(href, typeof window !== 'undefined' ? window.location.href : undefined);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+    const host = url.hostname.toLowerCase();
+    if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local')) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Keep image hrefs as URLs (not data:).
+ * Stamp artwork (`[data-stamp-art]`) without a public URL uses `fallbackImageUrl`.
+ * Other images (e.g. logo) are absolutized when possible.
+ */
+function rewriteImageHrefsForClipboard(svg: SVGSVGElement, fallbackImageUrl: string) {
+  svg.querySelectorAll('image').forEach((image) => {
+    const href = getImageHref(image);
+    const isStampArt = image.hasAttribute('data-stamp-art');
+
+    if (isStampArt) {
+      if (href && isPublicHttpUrl(href)) {
+        setImageHref(image, new URL(href, window.location.href).href);
+      } else {
+        setImageHref(image, fallbackImageUrl);
+      }
+      image.removeAttribute('data-stamp-art');
+      return;
+    }
+
+    if (!href || href.startsWith('data:')) return;
+
+    try {
+      setImageHref(image, new URL(href, window.location.href).href);
+    } catch {
+      // leave original href if URL parsing fails
+    }
+  });
+}
+
+export type SerializeStampSvgOptions = {
+  /** Inline remote/local images as data URLs (needed for PNG rasterization). Default true. */
+  inlineImages?: boolean;
+  /** Embed Google Fonts as base64 @font-face rules. Default true. */
+  embedFonts?: boolean;
+  /** Public URL used for stamp artwork when the live src is local/non-public. */
+  fallbackImageUrl?: string;
+  /**
+   * When true, keep Webflow theme CSS variables (compact CMS paste).
+   * When false (default for PNG), bake colors to resolved rgb and callers may
+   * also inline images / embed fonts for a self-contained visual match.
+   */
+  preserveThemeVariables?: boolean;
+};
 
 export function parseFontFamilyList(fontFamily: string): string[] {
   return fontFamily
@@ -221,12 +340,24 @@ function parseViewBox(svg: SVGSVGElement): { width: number; height: number } {
   };
 }
 
-export async function rasterizeStampSvgPng(
+/**
+ * Serialize stamp SVG markup.
+ * Defaults inline images + embed fonts (self-contained, for PNG).
+ * Pass `{ inlineImages: false, embedFonts: false }` for a compact clipboard copy.
+ */
+export async function serializeStampSvg(
   svg: SVGSVGElement,
   root: HTMLElement,
-  pixelRatio = 2,
-  extraFontFamilies: string[] = []
+  extraFontFamilies: string[] = [],
+  options: SerializeStampSvgOptions = {}
 ): Promise<string> {
+  const {
+    inlineImages: shouldInlineImages = true,
+    embedFonts = true,
+    fallbackImageUrl = STAMP_SVG_FALLBACK_IMAGE_URL,
+    preserveThemeVariables = false,
+  } = options;
+
   // Read fonts from the live SVG before cloning — computed styles are unreliable on detached nodes
   const fontFamilies = [
     ...new Set([...collectFontFamiliesFromLiveSvg(svg), ...extraFontFamilies]),
@@ -236,16 +367,40 @@ export async function rasterizeStampSvgPng(
   clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   clone.setAttribute('xmlns:xlink', XLINK_NS);
 
-  bakeCssVariables(clone, root);
-  await inlineImages(clone);
-  await embedUsedFonts(clone, fontFamilies);
+  if (preserveThemeVariables) {
+    applyThemeVariables(clone);
+  } else {
+    bakeCssVariables(clone, root);
+  }
+
+  if (shouldInlineImages) {
+    await inlineImages(clone);
+  } else {
+    rewriteImageHrefsForClipboard(clone, fallbackImageUrl);
+  }
+
+  if (embedFonts) {
+    await embedUsedFonts(clone, fontFamilies);
+  }
 
   const { width, height } = parseViewBox(svg);
   clone.setAttribute('width', String(width));
   clone.setAttribute('height', String(height));
 
-  const serializer = new XMLSerializer();
-  const svgString = serializer.serializeToString(clone);
+  return new XMLSerializer().serializeToString(clone);
+}
+
+export async function rasterizeStampSvgPng(
+  svg: SVGSVGElement,
+  root: HTMLElement,
+  pixelRatio = 2,
+  extraFontFamilies: string[] = []
+): Promise<string> {
+  const svgString = await serializeStampSvg(svg, root, extraFontFamilies, {
+    inlineImages: true,
+    embedFonts: true,
+  });
+  const { width, height } = parseViewBox(svg);
   const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
   const objectUrl = URL.createObjectURL(blob);
 

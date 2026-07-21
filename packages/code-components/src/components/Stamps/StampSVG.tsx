@@ -15,8 +15,11 @@ import {
   exportStampSvgPng,
   parseFontFamilyList,
   rasterizeStampSvgPng,
+  serializeStampSvg,
+  STAMP_SVG_FALLBACK_IMAGE_URL,
 } from './exportStampSvgPng';
-import { STAMP_FONT_OPTIONS } from './StampSVG.options';
+import { ensureStampGoogleFonts, formatStampDate, STAMP_FONT_OPTIONS } from './StampSVG.options';
+import './StampSVG.css';
 
 interface ImageProp {
   src: string;
@@ -29,8 +32,10 @@ export interface StampSVGProps {
   image?: ImageProp;
   title?: string;
   dateLabel?: string;
-  /** Show the Webflow logo mark above the date */
+  /** Show the logo mark above the date */
   showLogo?: boolean;
+  /** Custom logo image URL — falls back to the built-in Webflow mark when empty */
+  logoUrl?: string;
   /** Logo width in SVG units */
   logoSize?: number;
   width?: string;
@@ -38,7 +43,7 @@ export interface StampSVGProps {
   rotation?: number;
   paperColor?: string;
   outlineColor?: string;
-  /** Overlaid on artwork — always defaults to white for contrast */
+  /** Overlaid on artwork — stays light for contrast on photos (not theme text) */
   textColor?: string;
   /** Opacity of title + date overlay (0–1) */
   textOpacity?: number;
@@ -126,6 +131,8 @@ export interface StampSVGProps {
   /** Pointer-driven 3D tilt for tangibility */
   interactiveTilt?: boolean;
   tiltAmount?: number;
+  /** Idle scale/translate breathing loop */
+  breathe?: boolean;
   showShadow?: boolean;
   shadowColor?: string;
   /** Scales the layered table-shadow stack */
@@ -139,6 +146,26 @@ const DEFAULT_IMAGE: ImageProp = {
   src: 'https://placehold.co/1600x900/c8c4b8/5a5a5a?text=StampSVG',
   alt: 'Stamp artwork',
 };
+
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const sync = () => setReduced(mediaQuery.matches);
+    sync();
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', sync);
+      return () => mediaQuery.removeEventListener('change', sync);
+    }
+
+    mediaQuery.addListener(sync);
+    return () => mediaQuery.removeListener(sync);
+  }, []);
+
+  return reduced;
+}
 
 const STAMP_PADDING = 80;
 const STAMP_CONTENT_LONG = 1000;
@@ -164,6 +191,40 @@ function measureTextWidth(
   }
   ctx.font = `${fontWeight} ${fontSize}px ${font}`;
   return ctx.measureText(text).width + Math.max(0, text.length - 1) * letterSpacing;
+}
+
+/**
+ * Pull words up from the previous line so the last line isn't a single orphan
+ * (e.g. "… Webflow" / "MCP" → "… the" / "Webflow MCP") when space allows.
+ */
+function balanceOrphanTitleLines(
+  lines: string[],
+  maxWidth: number,
+  measure: (value: string) => number,
+  minLastLineWords = 2
+): string[] {
+  if (lines.length < 2) return lines;
+  const result = [...lines];
+
+  while (result.length >= 2) {
+    const lastIndex = result.length - 1;
+    const prevIndex = lastIndex - 1;
+    const lastWords = result[lastIndex].split(/\s+/).filter(Boolean);
+    if (lastWords.length >= minLastLineWords) break;
+
+    const prevWords = result[prevIndex].split(/\s+/).filter(Boolean);
+    // Keep at least one word on the previous line
+    if (prevWords.length < 2) break;
+
+    const stolen = prevWords[prevWords.length - 1];
+    const newLast = `${stolen} ${result[lastIndex]}`;
+    if (measure(newLast) > maxWidth) break;
+
+    result[prevIndex] = prevWords.slice(0, -1).join(' ');
+    result[lastIndex] = newLast;
+  }
+
+  return result.filter((line) => line.trim().length > 0);
 }
 
 /** Word-wrap (and hard-break long tokens) to fit a max width in SVG user units. */
@@ -214,7 +275,8 @@ function wrapStampTitleLines(
     }
   }
   if (current) lines.push(current);
-  return lines;
+
+  return balanceOrphanTitleLines(lines, maxWidth, measure);
 }
 
 function parseAspectRatio(aspectRatio: string): number {
@@ -273,23 +335,33 @@ function makePositions(count: number, length: number, start: number): number[] {
   return Array.from({ length: count }, (_, index) => start + ((index + 0.5) * length) / count);
 }
 
+export type GetSvgStringOptions = {
+  /**
+   * When true (default): compact CMS paste with Webflow theme tokens + public image URLs.
+   * When false: self-contained markup (baked colors, inlined images/fonts) for visual match.
+   */
+  preserveThemeVariables?: boolean;
+};
+
 export type StampSVGHandle = {
   exportPng: (filename?: string) => Promise<void>;
   exportPngDataUrl: (pixelRatio?: number) => Promise<string>;
+  getSvgString: (options?: GetSvgStringOptions) => Promise<string>;
 };
 
 const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
   image = DEFAULT_IMAGE,
   title = '',
-  dateLabel = '16.07.2026',
+  dateLabel = formatStampDate(),
   showLogo = true,
+  logoUrl,
   logoSize = 70,
   width = '100%',
   aspectRatio = '16 / 9',
   rotation = -3,
-  paperColor = 'var(--stamp-paper, var(--theme--t_bg-tertiary, var(--swatches--gray-900, #171717)))',
-  outlineColor = 'var(--theme--t_bg-secondary, var(--swatches--gray-800, #222222))',
-  textColor = 'var(--swatches--white, #ffffff)',
+  paperColor = 'var(--theme--t_bg-tertiary, #171717)',
+  outlineColor = 'var(--theme--t_bg-secondary, #222)',
+  textColor = 'var(--theme--t_btn-2-text, white)',
   textOpacity = 1,
   fontFamily = STAMP_FONT_OPTIONS['Instrument Serif'],
   fontWeight = 600,
@@ -340,15 +412,16 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
   specularStrength = 0.08,
   specularExponent = 68,
   highlightOpacity = 0.05,
-  lightColor = '#ffffff',
+  lightColor = 'var(--theme--t_icon-primary, white)',
   lightX = 250,
   lightY = 160,
   lightZ = 1375,
   pointerLight = false,
   interactiveTilt = true,
   tiltAmount = 6,
+  breathe = true,
   showShadow = true,
-  shadowColor = 'var(--swatches--black, #080808)',
+  shadowColor = 'var(--theme--t_bg-primary, #080808)',
   shadowOpacity = 0.55,
   shadowBlur = 26,
   shadowX = 8,
@@ -368,9 +441,16 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
   const rootRef = useRef<HTMLDivElement>(null);
   const tiltLayerRef = useRef<HTMLDivElement>(null);
   const tiltFrameRef = useRef<number | null>(null);
+  const tiltCurrentRef = useRef({ x: 0, y: 0 });
+  const tiltTargetRef = useRef({ x: 0, y: 0 });
+  const tiltHoveringRef = useRef(false);
   const [exportHideShadow, setExportHideShadow] = useState(false);
   const [fontsReadyTick, setFontsReadyTick] = useState(0);
+  const prefersReducedMotion = usePrefersReducedMotion();
   const effectiveShowShadow = showShadow && !exportHideShadow;
+  const effectiveBreathe = breathe && !prefersReducedMotion;
+  const effectiveTilt = interactiveTilt && !prefersReducedMotion;
+  const effectivePointerLight = pointerLight && !prefersReducedMotion;
 
 
   const layout = useMemo(() => computeStampLayout(aspectRatio), [aspectRatio]);
@@ -459,20 +539,29 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
   const titleMaxWidthPx = (artWidth * resolvedTitleMaxWidth) / 100;
 
   useEffect(() => {
-    if (typeof document === 'undefined' || !document.fonts?.load || !title) return;
+    if (typeof document === 'undefined') return;
     let cancelled = false;
-    void document.fonts
-      .load(`${Math.round(fontWeight)} ${titleFontSize}px ${resolvedFontFamily}`)
-      .then(() => {
-        if (!cancelled) setFontsReadyTick((tick) => tick + 1);
-      })
-      .catch(() => {
-        /* ignore load failures — wrapping falls back to estimates */
-      });
+
+    void (async () => {
+      await ensureStampGoogleFonts(resolvedFontFamily);
+      if (cancelled || !document.fonts?.load) return;
+      try {
+        await document.fonts.load(
+          `${Math.round(fontWeight)} ${titleFontSize}px ${resolvedFontFamily}`
+        );
+        await document.fonts.load(
+          `${Math.round(fontWeight)} ${dateFontSize}px ${resolvedFontFamily}`
+        );
+      } catch {
+        /* ignore — wrapping falls back to estimates */
+      }
+      if (!cancelled) setFontsReadyTick((tick) => tick + 1);
+    })();
+
     return () => {
       cancelled = true;
     };
-  }, [fontWeight, resolvedFontFamily, title, titleFontSize]);
+  }, [dateFontSize, fontWeight, resolvedFontFamily, titleFontSize]);
 
   const titleLines = useMemo(() => {
     // Re-measure after webfonts load (tick is a cache-buster, not a value input).
@@ -547,6 +636,30 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
         });
       }
     },
+    getSvgString: async (options: GetSvgStringOptions = {}) => {
+      const { preserveThemeVariables = true } = options;
+      const svg = svgRef.current;
+      const root = rootRef.current;
+      if (!svg || !root) {
+        throw new Error('Stamp SVG is not ready to export');
+      }
+
+      // Theme-vars mode: compact CMS paste (site tokens + public image URLs).
+      // Hardcoded mode: self-contained markup that matches the live preview
+      // when pasted into a bare browser page (baked colors, inlined assets).
+      // Keep drop shadows in both — they are part of the stamp filter.
+      return await serializeStampSvg(
+        svg,
+        root,
+        parseFontFamilyList(resolvedFontFamily),
+        {
+          inlineImages: !preserveThemeVariables,
+          embedFonts: !preserveThemeVariables,
+          preserveThemeVariables,
+          fallbackImageUrl: STAMP_SVG_FALLBACK_IMAGE_URL,
+        }
+      );
+    },
   }));
   const resolvedFontWeight = Math.max(100, Math.min(900, Math.round(fontWeight)));
   const resolvedTextOpacity = Math.max(0, Math.min(1, textOpacity));
@@ -558,6 +671,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
   const logoY = dateLabel
     ? dateY - dateFontSize * 0.85 - logoGap - logoHeight
     : dateY - logoHeight;
+  const resolvedLogoSrc = logoUrl?.trim() || webflowLogoWhite;
   const imgDistortAmount = Math.max(0, imageDistortAmount);
   const imgDistortTurbulence = Math.max(0.001, Math.min(0.4, imageDistortTurbulence));
   const imgDistortOctaves = Math.max(1, Math.min(5, Math.round(imageDistortOctaves)));
@@ -577,7 +691,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
     imageErode && imgErodeAmount > 0.001 && imgErodeOpacity > 0.001;
 
   useEffect(() => {
-    if (!pointerLight) return;
+    if (!effectivePointerLight) return;
 
     return subscribeToGlobalPointerLight((clientX, clientY) => {
       const svg = svgRef.current;
@@ -591,7 +705,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
       pointLight.setAttribute('x', String(Math.round(x)));
       pointLight.setAttribute('y', String(Math.round(y)));
     });
-  }, [pointerLight]);
+  }, [effectivePointerLight]);
 
   useEffect(() => {
     return () => {
@@ -608,8 +722,37 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
     tiltLayer.style.setProperty('--stamp-tilt-y', `${rotateY}deg`);
   };
 
+  const tickTilt = () => {
+    const current = tiltCurrentRef.current;
+    const target = tiltTargetRef.current;
+    // Snappier while tracking the pointer; slower ease when returning to rest
+    const lerp = tiltHoveringRef.current ? 0.22 : 0.1;
+    current.x += (target.x - current.x) * lerp;
+    current.y += (target.y - current.y) * lerp;
+    setTilt(current.x, current.y);
+
+    const settled =
+      Math.abs(target.x - current.x) < 0.015 && Math.abs(target.y - current.y) < 0.015;
+
+    if (settled) {
+      current.x = target.x;
+      current.y = target.y;
+      setTilt(current.x, current.y);
+      tiltFrameRef.current = null;
+      return;
+    }
+
+    tiltFrameRef.current = requestAnimationFrame(tickTilt);
+  };
+
+  const ensureTiltLoop = () => {
+    if (tiltFrameRef.current === null) {
+      tiltFrameRef.current = requestAnimationFrame(tickTilt);
+    }
+  };
+
   const handleTiltMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!interactiveTilt || tiltAmount <= 0) return;
+    if (!effectiveTilt || tiltAmount <= 0) return;
     // Use the stable hit target (not the tilting layer) so edge hover doesn't oscillate
     const hitTarget = rootRef.current;
     if (!hitTarget) return;
@@ -620,23 +763,35 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
     const rotateY = (px - 0.5) * tiltAmount * 2;
     const rotateX = (0.5 - py) * tiltAmount * 2;
 
-    if (tiltFrameRef.current !== null) {
-      cancelAnimationFrame(tiltFrameRef.current);
-    }
-    tiltFrameRef.current = requestAnimationFrame(() => setTilt(rotateX, rotateY));
+    tiltHoveringRef.current = true;
+    tiltTargetRef.current = { x: rotateX, y: rotateY };
+    ensureTiltLoop();
   };
 
   const handleTiltLeave = () => {
-    if (!interactiveTilt) return;
+    if (!effectiveTilt) return;
+    tiltHoveringRef.current = false;
+    tiltTargetRef.current = { x: 0, y: 0 };
+    ensureTiltLoop();
+  };
+
+  // If reduced motion turns on mid-session, flatten any active tilt
+  useEffect(() => {
+    if (!prefersReducedMotion) return;
     if (tiltFrameRef.current !== null) {
       cancelAnimationFrame(tiltFrameRef.current);
+      tiltFrameRef.current = null;
     }
-    tiltFrameRef.current = requestAnimationFrame(() => setTilt(0, 0));
-  };
+    tiltHoveringRef.current = false;
+    tiltCurrentRef.current = { x: 0, y: 0 };
+    tiltTargetRef.current = { x: 0, y: 0 };
+    setTilt(0, 0);
+  }, [prefersReducedMotion]);
 
   return (
     <div
       ref={rootRef}
+      className="stamp-svg-root"
       onPointerMove={handleTiltMove}
       onPointerLeave={handleTiltLeave}
       style={
@@ -656,6 +811,15 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
       }
     >
       <div
+        className={effectiveBreathe ? 'stamp-svg-breathe' : undefined}
+        style={{
+          width: '100%',
+          height: '100%',
+          transformStyle: 'preserve-3d',
+          transformOrigin: 'center center',
+        }}
+      >
+      <div
         ref={tiltLayerRef}
         style={
           {
@@ -666,7 +830,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
             '--stamp-tilt-x': '0deg',
             '--stamp-tilt-y': '0deg',
             transform: 'rotateX(var(--stamp-tilt-x)) rotateY(var(--stamp-tilt-y))',
-            willChange: interactiveTilt ? 'transform' : undefined,
+            willChange: effectiveTilt ? 'transform' : undefined,
           } as CSSProperties
         }
       >
@@ -1258,6 +1422,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
               style={{ fill: 'var(--stamp-svg-paper)' }}
             />
             <image
+              data-stamp-art=""
               href={imageSrc}
               x={artX}
               y={artY}
@@ -1355,7 +1520,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
                     <g>
                       {showLogo ? (
                         <image
-                          href={webflowLogoWhite}
+                          href={resolvedLogoSrc}
                           x={dateAnchorX - logoWidth}
                           y={logoY}
                           width={logoWidth}
@@ -1418,7 +1583,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
                         <g>
                           {showLogo ? (
                             <image
-                              href={webflowLogoWhite}
+                              href={resolvedLogoSrc}
                               x={dateAnchorX - logoWidth}
                               y={logoY}
                               width={logoWidth}
@@ -1465,6 +1630,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
           </g>
         </g>
       </svg>
+      </div>
       </div>
     </div>
   );
