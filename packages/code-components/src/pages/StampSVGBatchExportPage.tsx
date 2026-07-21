@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import StampSVG, { type StampSVGHandle } from '../components/Stamps/StampSVG';
 import {
-  formatStampDate,
   STAMP_ASPECT_RATIO_OPTIONS,
   STAMP_FONT_OPTIONS,
 } from '../components/Stamps/StampSVG.options';

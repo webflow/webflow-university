@@ -230,8 +230,7 @@ function stampMatchesExpected(island: HTMLElement, expected: StampSvgIslandProps
   }
 
   const titleOk =
-    expectsTitle &&
-    normalizeText(root.textContent || '').includes(normalizeText(expected.title!));
+    expectsTitle && normalizeText(root.textContent || '').includes(normalizeText(expected.title!));
 
   const imageOk =
     expectsImage &&
@@ -306,11 +305,12 @@ function waitForStampMounted(island: HTMLElement): Promise<void> {
  * Keep the scrim up until the federation runtime has rendered the updated stamp
  * (and ideally painted it), so the fade doesn't expose the Designer defaults.
  */
-function waitForStampReady(
-  island: HTMLElement,
-  expected: StampSvgIslandProps
-): Promise<void> {
-  return observeIsland(island, () => stampMatchesExpected(island, expected), STAMP_READY_TIMEOUT_MS);
+function waitForStampReady(island: HTMLElement, expected: StampSvgIslandProps): Promise<void> {
+  return observeIsland(
+    island,
+    () => stampMatchesExpected(island, expected),
+    STAMP_READY_TIMEOUT_MS
+  );
 }
 
 async function preloadStampImage(imageUrl: string | undefined): Promise<void> {

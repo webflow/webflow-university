@@ -56,7 +56,7 @@ export function ensureStampGoogleFonts(fontFamilyStack: string): Promise<void> {
   );
   for (const link of existing) {
     if (link.href === href || link.getAttribute('href') === href) {
-      return document.fonts?.ready ?? Promise.resolve();
+      return document.fonts?.ready.then(() => undefined) ?? Promise.resolve();
     }
   }
 
