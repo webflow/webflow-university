@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { props } from '@webflow/data-types';
 import { declareComponent } from '@webflow/react';
-import StampSVG, { type StampSVGProps } from './StampSVG';
+import StampSVG, { DEFAULT_STAMP_PADDING, type StampSVGProps } from './StampSVG';
 import { formatStampDate } from './StampSVG.options';
 import './StampSVG.css';
 
@@ -88,15 +88,23 @@ type StampSVGWebflowProps = {
   imageUrl?: string;
   logoUrl?: string;
   title?: string;
-  padding?: number;
+  horizontalPadding?: number;
+  verticalPadding?: number;
+  interactionIntensity?: number;
+  rotation?: number;
 };
 
-function StampSVGForWebflow({ imageUrl, logoUrl, title, padding }: StampSVGWebflowProps) {
-  // Client-only date avoids publish-time SSR text vs "today" on the visitor's machine (#418).
-  const [dateLabel, setDateLabel] = useState('');
-  useEffect(() => {
-    setDateLabel(formatStampDate());
-  }, []);
+function StampSVGForWebflow({
+  imageUrl,
+  logoUrl,
+  title,
+  horizontalPadding = DEFAULT_STAMP_PADDING,
+  verticalPadding = DEFAULT_STAMP_PADDING,
+  interactionIntensity = KEEGAN_FAVE_STYLE.tiltAmount,
+  rotation = KEEGAN_FAVE_STYLE.rotation,
+}: StampSVGWebflowProps) {
+  // The component is client-only, so initialize "today" directly without an effect (#418).
+  const [dateLabel] = useState(() => formatStampDate());
 
   const trimmedImage = imageUrl?.trim();
   const trimmedLogo = logoUrl?.trim();
@@ -112,7 +120,10 @@ function StampSVGForWebflow({ imageUrl, logoUrl, title, padding }: StampSVGWebfl
       }}
       logoUrl={trimmedLogo || undefined}
       title={courseTitle}
-      padding={padding}
+      horizontalPadding={horizontalPadding}
+      verticalPadding={verticalPadding}
+      tiltAmount={interactionIntensity}
+      rotation={rotation}
     />
   );
 }
@@ -146,14 +157,41 @@ const StampSVGWebflow = declareComponent(StampSVGForWebflow, {
       defaultValue: 'Course title',
       group: 'Content',
     }),
-    padding: props.Number({
-      name: 'Padding',
-      defaultValue: 80,
+    horizontalPadding: props.Number({
+      name: 'Horizontal Padding',
+      defaultValue: DEFAULT_STAMP_PADDING,
       min: 0,
       max: 500,
       decimals: 0,
       group: 'Layout',
-      tooltip: 'Space between the stamp edges and the component bounds',
+      tooltip: 'Space between the left/right stamp edges and component bounds',
+    }),
+    verticalPadding: props.Number({
+      name: 'Vertical Padding',
+      defaultValue: DEFAULT_STAMP_PADDING,
+      min: 0,
+      max: 500,
+      decimals: 0,
+      group: 'Layout',
+      tooltip: 'Space between the top/bottom stamp edges and component bounds',
+    }),
+    rotation: props.Number({
+      name: 'Rotation Amount',
+      defaultValue: KEEGAN_FAVE_STYLE.rotation,
+      min: -15,
+      max: 15,
+      decimals: 1,
+      group: 'Layout',
+      tooltip: 'Static stamp rotation in degrees',
+    }),
+    interactionIntensity: props.Number({
+      name: 'Interaction Intensity',
+      defaultValue: KEEGAN_FAVE_STYLE.tiltAmount,
+      min: 0,
+      max: 18,
+      decimals: 1,
+      group: 'Interaction',
+      tooltip: 'Maximum pointer-driven tilt in degrees',
     }),
   },
 });
