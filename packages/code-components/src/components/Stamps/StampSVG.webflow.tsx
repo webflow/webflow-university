@@ -88,9 +88,10 @@ type StampSVGWebflowProps = {
   imageUrl?: string;
   logoUrl?: string;
   title?: string;
+  padding?: number;
 };
 
-function StampSVGForWebflow({ imageUrl, logoUrl, title }: StampSVGWebflowProps) {
+function StampSVGForWebflow({ imageUrl, logoUrl, title, padding }: StampSVGWebflowProps) {
   // Client-only date avoids publish-time SSR text vs "today" on the visitor's machine (#418).
   const [dateLabel, setDateLabel] = useState('');
   useEffect(() => {
@@ -111,6 +112,7 @@ function StampSVGForWebflow({ imageUrl, logoUrl, title }: StampSVGWebflowProps) 
       }}
       logoUrl={trimmedLogo || undefined}
       title={courseTitle}
+      padding={padding}
     />
   );
 }
@@ -143,6 +145,15 @@ const StampSVGWebflow = declareComponent(StampSVGForWebflow, {
       name: 'Course Title',
       defaultValue: 'Course title',
       group: 'Content',
+    }),
+    padding: props.Number({
+      name: 'Padding',
+      defaultValue: 80,
+      min: 0,
+      max: 500,
+      decimals: 0,
+      group: 'Layout',
+      tooltip: 'Space between the stamp edges and the component bounds',
     }),
   },
 });
