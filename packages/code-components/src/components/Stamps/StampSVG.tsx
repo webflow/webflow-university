@@ -40,6 +40,10 @@ export interface StampSVGProps {
   logoSize?: number;
   width?: string;
   aspectRatio?: string;
+  /** Horizontal space between the stamp edges and component bounds, in SVG units */
+  horizontalPadding?: number;
+  /** Vertical space between the stamp edges and component bounds, in SVG units */
+  verticalPadding?: number;
   rotation?: number;
   paperColor?: string;
   outlineColor?: string;
@@ -167,7 +171,7 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
-const STAMP_PADDING = 80;
+export const DEFAULT_STAMP_PADDING = 80;
 const STAMP_CONTENT_LONG = 1000;
 
 let wrapMeasureCanvas: HTMLCanvasElement | null = null;
@@ -289,18 +293,30 @@ function parseAspectRatio(aspectRatio: string): number {
   return Number.isFinite(numeric) && numeric > 0 ? numeric : 16 / 9;
 }
 
-function computeStampLayout(aspectRatio: string) {
+function computeStampLayout(
+  aspectRatio: string,
+  horizontalPadding: number,
+  verticalPadding: number
+) {
   const ratio = parseAspectRatio(aspectRatio);
+  const safeHorizontalPadding =
+    Number.isFinite(horizontalPadding) && horizontalPadding >= 0
+      ? horizontalPadding
+      : DEFAULT_STAMP_PADDING;
+  const safeVerticalPadding =
+    Number.isFinite(verticalPadding) && verticalPadding >= 0
+      ? verticalPadding
+      : DEFAULT_STAMP_PADDING;
   const stampWidth =
     ratio >= 1 ? STAMP_CONTENT_LONG : Math.round(STAMP_CONTENT_LONG * ratio);
   const stampHeight =
     ratio >= 1 ? Math.round(STAMP_CONTENT_LONG / ratio) : STAMP_CONTENT_LONG;
 
   return {
-    viewBoxWidth: stampWidth + STAMP_PADDING * 2,
-    viewBoxHeight: stampHeight + STAMP_PADDING * 2,
-    stampX: STAMP_PADDING,
-    stampY: STAMP_PADDING,
+    viewBoxWidth: stampWidth + safeHorizontalPadding * 2,
+    viewBoxHeight: stampHeight + safeVerticalPadding * 2,
+    stampX: safeHorizontalPadding,
+    stampY: safeVerticalPadding,
     stampWidth,
     stampHeight,
   };
@@ -358,6 +374,8 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
   logoSize = 70,
   width = '100%',
   aspectRatio = '16 / 9',
+  horizontalPadding = DEFAULT_STAMP_PADDING,
+  verticalPadding = DEFAULT_STAMP_PADDING,
   rotation = -3,
   paperColor = 'var(--theme--t_bg-tertiary, #171717)',
   outlineColor = 'var(--theme--t_bg-secondary, #222)',
@@ -453,7 +471,10 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
   const effectivePointerLight = pointerLight && !prefersReducedMotion;
 
 
-  const layout = useMemo(() => computeStampLayout(aspectRatio), [aspectRatio]);
+  const layout = useMemo(
+    () => computeStampLayout(aspectRatio, horizontalPadding, verticalPadding),
+    [aspectRatio, horizontalPadding, verticalPadding]
+  );
   const {
     viewBoxWidth,
     viewBoxHeight,
@@ -799,17 +820,22 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
           width,
           aspectRatio,
           position: 'relative',
-          overflow: 'visible',
+          overflow: 'hidden',
           perspective: '900px',
-          transformStyle: 'preserve-3d',
           '--stamp-svg-paper': paperColor,
           '--stamp-svg-text': textColor,
-          // Static rotation only — tilt lives on an inner layer so the hit box stays put
-          transform: `rotate(${rotation}deg)`,
-          transformOrigin: 'center center',
         } as CSSProperties
       }
     >
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          transform: `rotate(${rotation}deg)`,
+          transformStyle: 'preserve-3d',
+          transformOrigin: 'center center',
+        }}
+      >
       <div
         className={effectiveBreathe ? 'stamp-svg-breathe' : undefined}
         style={{
@@ -1630,6 +1656,7 @@ const StampSVG = forwardRef<StampSVGHandle, StampSVGProps>(function StampSVG({
           </g>
         </g>
       </svg>
+      </div>
       </div>
       </div>
     </div>
