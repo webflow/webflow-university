@@ -8,6 +8,7 @@ import ProSpherePage from './pages/ProSpherePage';
 import ConcentricShapePage from './pages/ConcentricShapePage';
 import StampSVGPage from './pages/StampSVGPage';
 import StampSVGBatchExportPage from './pages/StampSVGBatchExportPage';
+import ThemeIconPage from './pages/ThemeIconPage';
 import CalendarCMSFromFlatlist from './components/CalendarCMS/CalendarCMSFromFlatlist';
 import TimeSlotsAndRegistration from './components/TimeSlotsAndRegistration/TimeSlotsAndRegistration';
 
@@ -127,6 +128,7 @@ function Navigation() {
     { to: '/prosphere', label: 'ProSphere' },
     { to: '/concentric-shape', label: 'ConcentricShape' },
     { to: '/stamp-svg', label: 'StampSVG' },
+    { to: '/theme-icon', label: 'Theme Icon' },
   ];
 
   return (
@@ -207,6 +209,7 @@ function App() {
           <Route path="/concentric-shape" element={<ConcentricShapePage />} />
           <Route path="/stamp-svg" element={<StampSVGPage />} />
           <Route path="/stamp-svg-batch-export" element={<StampSVGBatchExportPage />} />
+          <Route path="/theme-icon" element={<ThemeIconPage />} />
         </Routes>
       </div>
     </>

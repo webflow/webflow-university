@@ -1,0 +1,12 @@
+.theme-icon {
+  display: inline-flex;
+  line-height: 0;
+  color: inherit;
+}
+
+.theme-icon > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+}

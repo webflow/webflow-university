@@ -1,0 +1,88 @@
+.theme-icon-page {
+  --theme--t_bg-primary: #080808;
+  --theme--t_bg-secondary: #222;
+  --theme--t_bg-tertiary: #171717;
+  --theme--t_border-primary: #363636;
+  --theme--t_text-primary: white;
+  --theme--t_text-secondary: #ababab;
+  --theme--t_text-tertiary: #5a5a5a;
+  --theme--t_icon-primary: white;
+
+  min-height: 100vh;
+  padding: 2rem;
+  color: var(--theme--t_text-secondary);
+  background: linear-gradient(160deg, #080808 0%, #171717 100%);
+  font-family: var(--typography--font_text, ui-sans-serif, system-ui, sans-serif);
+}
+
+.theme-icon-page__header {
+  max-width: 42rem;
+  margin-bottom: 1.75rem;
+}
+
+.theme-icon-page__eyebrow {
+  margin: 0 0 0.35rem;
+  color: var(--theme--t_text-tertiary);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.theme-icon-page__title {
+  margin: 0 0 0.6rem;
+  color: var(--theme--t_text-primary);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.theme-icon-page__lede {
+  margin: 0;
+  max-width: 38rem;
+  line-height: 1.55;
+}
+
+.theme-icon-page__label {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: var(--theme--t_text-tertiary);
+  font-size: 0.75rem;
+}
+
+.theme-icon-page__input {
+  display: block;
+  width: min(42rem, 100%);
+  margin: 0 0 2rem;
+  padding: 0.85rem;
+  border: 1px solid var(--theme--t_border-primary);
+  border-radius: 8px;
+  color: var(--theme--t_text-primary);
+  background: var(--theme--t_bg-tertiary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.theme-icon-page__section {
+  margin-bottom: 2rem;
+}
+
+.theme-icon-page__section-title {
+  margin: 0 0 0.75rem;
+  color: var(--theme--t_text-primary);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.theme-icon-page__stage {
+  display: grid;
+  place-items: center;
+  width: fit-content;
+  min-width: 7rem;
+  min-height: 7rem;
+  padding: 1.25rem;
+  border: 1px solid var(--theme--t_border-primary);
+  border-radius: 8px;
+  background: var(--theme--t_bg-secondary);
+}

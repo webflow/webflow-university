@@ -131,6 +131,16 @@ function HomePage() {
               specular lighting, and optional pointer light. No canvas or heavy rendering library.
             </p>
           </div>
+
+          <div style={cardStyle}>
+            <Link to="/theme-icon" style={linkStyle}>
+              Theme Icon →
+            </Link>
+            <p style={cardDescriptionStyle}>
+              Convert Figma &quot;Copy as SVG&quot; markup into icons that use WFU theme CSS
+              variables. Includes a preview tool with copyable themed SVG source.
+            </p>
+          </div>
         </div>
       </section>
     </div>
