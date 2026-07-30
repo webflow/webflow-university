@@ -519,10 +519,19 @@
     /* Opacity only. A transform on an ancestor of the input mispositions the caret. */
     animation: sm-fade 160ms var(--sm-ease) !important;
   }
-  /* Lighter than the 6px desktop blur: blurring a full-screen backdrop costs frames while
-     the list scrolls, and that scroll is the one thing here that must stay smooth. */
+  /* A backdrop-filter covers the whole screen and is re-evaluated whenever anything painting
+     over it changes, which on a phone is what a scrolling list of results costs frames to. Once
+     results are showing the panel has grown to the bottom of the window and left only the 8px
+     frame around it visible, so the blur is paying full price for something barely on screen. */
   [data-sm-modal] .g_search-close-bg,
   [data-sm-modal] .sm-ovl__bd {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  /* Empty state is where it is worth having: the panel is only as tall as the Popular list, so
+     most of the backdrop is visible, and that list is short enough that it never scrolls. */
+  [data-sm-modal].is-empty .g_search-close-bg,
+  [data-sm-modal].is-empty .sm-ovl__bd {
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
   }

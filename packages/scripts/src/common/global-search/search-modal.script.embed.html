@@ -12,6 +12,7 @@
   var scrollFrame = 0;
   var heightFrame = 0;
   var viewportFrame = 0;
+  var selectionFrame = 0;
   var contentObserver = null;
   var observedAutocomplete = null;
 
@@ -259,6 +260,17 @@
     }
   }
 
+  // Swiftype stamps its active class onto whatever row a finger passes over, so during a drag
+  // these arrive in bursts and each pass walks every row. One pass per frame is enough to keep
+  // ARIA current, and keeps the rest off the critical path of the scroll.
+  function scheduleSelectionSync() {
+    if (selectionFrame) return;
+    selectionFrame = window.requestAnimationFrame(function () {
+      selectionFrame = 0;
+      syncSelectionState();
+    });
+  }
+
   function scheduleActiveScroll() {
     syncSelectionState();
     if (scrollFrame) window.cancelAnimationFrame(scrollFrame);
@@ -499,7 +511,10 @@
       return;
     }
 
-    root.style.top = Math.round(window.visualViewport.offsetTop) + 'px';
+    // Only when it actually changes: this element is the whole overlay, so a redundant write
+    // still invalidates it and everything painting behind it.
+    var top = Math.round(window.visualViewport.offsetTop) + 'px';
+    if (root.style.top !== top) root.style.top = top;
   }
 
   function scheduleOverlayViewport() {
@@ -542,7 +557,7 @@
       // Mirror the selection into ARIA only. Scrolling it into view belongs solely to the
       // arrow-key handlers: Swiftype also stamps this class onto the row under a finger, so
       // scrolling here fights the drag and leaves the list only able to move one way.
-      if (selectionChanged) syncSelectionState();
+      if (selectionChanged) scheduleSelectionSync();
     });
     contentObserver.observe(autocomplete, {
       childList: true,
@@ -571,50 +586,52 @@
     });
   }
 
+  // A touchmove listener has to be non-passive to be able to cancel a pan, and WebKit will not
+  // scroll until a non-passive listener has run — so this one sits directly on the critical path
+  // of every frame of a drag and must not touch the DOM. Everything it needs is measured once
+  // here instead. Measuring at touchstart is exactly equivalent to measuring on the first move:
+  // nothing has scrolled yet by then.
   var panStartY = 0;
+  var panArmed = false;
+  var panRoomUp = false;
+  var panRoomDown = false;
 
-  function panScroller(target) {
-    if (!target || !target.closest) return null;
-    return target.closest('.sm-popular, .st-query-present');
-  }
-
-  // Only to give the first move a direction to compare against.
   function onPanStart(event) {
-    if (!event.touches || event.touches.length !== 1) return;
-    panStartY = event.touches[0].clientY;
-  }
-
-  // Companion to the touch-action rules above, covering the gaps they cannot reach: the panel
-  // itself is an ancestor of the lists, so it cannot carry touch-action without disabling
-  // them. A touchmove keeps the target the touch started on, so a drag that began inside a
-  // list stays exempt for its whole run even once the finger leaves the list.
-  function blockViewportPan(event) {
+    panArmed = false;
     var modal = getModal();
     if (!modal || !modal.classList.contains('active')) return;
-    // Two fingers is a pinch, which must keep working for zoom.
-    if (event.touches && event.touches.length > 1) return;
-    // Only the first move of a gesture is cancelable. Once the browser has committed to
-    // scrolling something, every later move reports cancelable: false and preventDefault is a
-    // no-op — so the whole decision has to be made here, while nothing has moved yet and
-    // scrollTop still reads the position the finger landed on.
-    if (!event.cancelable) return;
+    // A second finger landing re-runs this and leaves the gesture disarmed, so pinch-zoom is
+    // never cancelled.
+    if (!event.touches || event.touches.length !== 1) return;
 
     var target = event.target;
     if (!target || !target.closest) return;
     // The input is exempt so dragging still moves the caret and selects text.
     if (target.closest('#g-search')) return;
 
-    // A list only earns an exemption if it can travel the way the finger is going. Exempting it
-    // while it sits at that limit is what hands the gesture to the browser to pan the overlay
-    // with. A list that runs out of room mid-gesture cannot be caught here at all, which is what
-    // overscroll-behavior: none in the stylesheet is for.
-    var scroller = panScroller(target);
-    if (scroller) {
-      var max = scroller.scrollHeight - scroller.clientHeight;
-      var touch = event.touches && event.touches[0];
-      var goingDown = (touch ? touch.clientY : panStartY) > panStartY;
-      if (max > 0 && (goingDown ? scroller.scrollTop > 0 : scroller.scrollTop < max)) return;
-    }
+    panArmed = true;
+    panStartY = event.touches[0].clientY;
+
+    // A list earns an exemption only for the direction it still has room to travel. Both stay
+    // false for everything else, so a drag on the backdrop, or on a list short enough to fit, is
+    // cancelled outright rather than handed to the browser to pan the overlay with.
+    var scroller = target.closest('.sm-popular, .st-query-present');
+    var max = scroller ? scroller.scrollHeight - scroller.clientHeight : 0;
+    panRoomDown = max > 0 && scroller.scrollTop > 0;
+    panRoomUp = max > 0 && scroller.scrollTop < max;
+  }
+
+  // Companion to the touch-action rules above, covering the gaps they cannot reach: the panel
+  // itself is an ancestor of the lists, so it cannot carry touch-action without disabling them.
+  // Only the first move of a gesture is cancelable — by the second, WebKit has committed to
+  // scrolling and preventDefault is a no-op — so a list that runs out of room mid-drag is past
+  // reach here, and overscroll-behavior: none in the stylesheet covers that case instead.
+  function blockViewportPan(event) {
+    if (!panArmed || !event.cancelable) return;
+
+    var touch = event.touches && event.touches[0];
+    var goingDown = (touch ? touch.clientY : panStartY) > panStartY;
+    if (goingDown ? panRoomDown : panRoomUp) return;
 
     event.preventDefault();
   }
