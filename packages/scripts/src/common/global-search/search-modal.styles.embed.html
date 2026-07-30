@@ -1,0 +1,640 @@
+<!-- Search Modal styles (split from script for 50k embed limit) -->
+<style>
+[data-sm-modal] {
+  --sm-fg-1: var(--theme--t_text-primary, #fff);
+  --sm-fg-2: var(--theme--t_text-secondary, #ababab);
+  --sm-fg-3: var(--theme--t_text-tertiary, #5a5a5a);
+  --sm-bg-1: var(--theme--t_bg-primary, #080808);
+  --sm-border: var(--theme--t_border-primary, #363636);
+  --sm-overlay: var(--theme--t_bg-overlay, rgba(0, 0, 0, .8));
+  --sm-blue: var(--swatches--blue, #146ef5);
+  --sm-font: var(--typography--font_text, "WF Visual Sans Text"), sans-serif;
+  --sm-heading: var(--typography--font_headings, "WF Visual Sans"), sans-serif;
+  --sm-mono: var(--typography--font_mono, "WF Visual Sans Text"), ui-monospace, Menlo, monospace;
+  --sm-radius: var(--radius--r_main, 4px);
+  --sm-radius-sm: var(--radius--r_sm, 2px);
+  /* Hoisted so the two glyphs are stored once each: -webkit-mask and mask need the same
+     value, and two copies of a data URI drift apart the moment one gets edited. */
+  --sm-icon-search: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M21 21l-4.3-4.3'/%3E%3C/svg%3E");
+  --sm-icon-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6'/%3E%3C/svg%3E");
+  --sm-ease: cubic-bezier(.165, .84, .44, 1);
+  font-family: var(--sm-font);
+  background: transparent !important;
+  /* .g_search-wrapper sets backdrop-filter: blur(5px) — that would make this a containing
+     block for the fixed panel below. Must stay none. */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  -webkit-font-smoothing: antialiased;
+}
+[data-sm-modal],
+[data-sm-modal] * { box-sizing: border-box; }
+[data-sm-modal].active { display: block; }
+
+[data-sm-modal] .sm-ovl-root { position: fixed; inset: 0; }
+[data-sm-modal] .g_search-close-bg,
+[data-sm-modal] .sm-ovl__bd {
+  position: absolute;
+  inset: 0;
+  background: var(--sm-overlay);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: sm-fade 200ms var(--sm-ease);
+}
+[data-sm-modal] .sm-ovl__panel {
+  position: relative;
+  z-index: 1;
+  width: min(37.5rem, 92vw);
+  margin: 12vh auto 0;
+  overflow: hidden;
+  color: var(--sm-fg-1);
+  background: var(--sm-bg-1);
+  border: 1px solid var(--sm-border);
+  border-radius: var(--radius--r_lg);
+  box-shadow: 0 40px 90px rgba(0, 21, 53, .6), 0 12px 24px rgba(0, 0, 0, .5);
+  animation: sm-rise 300ms var(--sm-ease);
+}
+[data-sm-modal] .sm-ovl__field {
+  display: flex;
+  align-items: center;
+  gap: var(--space--gap--g_sm);
+  padding: var(--size--fixed--fs_1) var(--size--fixed--fs_2) !important;
+  border: 0 !important;
+  border-radius: calc(.75rem - 1px) calc(.75rem - 1px) 0 0;
+  outline: 0;
+}
+[data-sm-modal] .sm-ovl__field:focus-within { 
+  box-shadow: inset 0 0 0 2px var(--sm-blue);
+  border-radius: var(--radius--r_main);
+}
+[data-sm-modal] .sm-ovl__field::before {
+  content: "";
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+  background: var(--sm-fg-2) !important;
+  -webkit-mask: var(--sm-icon-search) center / contain no-repeat;
+  mask: var(--sm-icon-search) center / contain no-repeat;
+}
+[data-sm-modal] .sm-ovl__field .input.st-default-search-input,
+[data-sm-modal] .sm-ovl__field input#g-search {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: var(--sm-fg-1) !important;
+  font-family: var(--sm-font) !important;
+  font-size: 1rem !important;
+  font-weight: 400 !important;
+  line-height: 1.3 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+[data-sm-modal] .sm-ovl__field input#g-search::placeholder { color: var(--sm-fg-3) !important; }
+[data-sm-modal] .sm-kbd {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  padding: var(--size--fixed--fs_0-5) var(--size--fixed--fs_0-75);
+  color: var(--sm-fg-2);
+  font-family: var(--sm-mono);
+  font-size: .72rem;
+  line-height: 1;
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid var(--sm-border);
+  border-radius: var(--sm-radius-sm);
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+[data-sm-modal] .sm-kbd:focus-visible {
+  outline: 2px solid var(--sm-blue);
+  outline-offset: 2px;
+}
+
+/* Empty-query state: linked Popular content. */
+[data-sm-modal] .sm-popular {
+  width: 100%;
+  padding: var(--size--fixed--fs_1) 0;
+  background: var(--sm-bg-1);
+  border-top: 1px solid var(--sm-border);
+}
+[data-sm-modal] .sm-popular[hidden],
+[data-sm-modal]:not(.is-empty) .sm-popular { display: none !important; }
+[data-sm-modal] .sm-popular__group,
+[data-sm-modal] .sm-results-heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space--gap--g_sm);
+  padding: var(--size--responsive--rs_2) var(--size--fixed--fs_1-75);
+  color: var(--sm-fg-3);
+  font-family: var(--sm-mono);
+  font-size: .68rem;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+/* Sits inside the scroller and carries the panel background behind its text. */
+[data-sm-modal] .sm-results-heading {
+  background: var(--sm-bg-1);
+}
+[data-sm-modal] .sm-results-heading__count {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+[data-sm-modal] .sm-popular__row {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr) 1.25rem;
+  align-items: center;
+  gap: var(--space--gap--g_sm);
+  width: 100%;
+  min-height: var(--size--fixed--fs_5);
+  padding: var(--size--fixed--fs_1-25) var(--size--fixed--fs_1-5);
+  color: var(--sm-fg-1);
+  font-family: var(--sm-heading);
+  font-size: .9375rem;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  text-decoration: none;
+}
+[data-sm-modal] .sm-popular__row:hover,
+[data-sm-modal] .sm-popular__row:focus-visible,
+[data-sm-modal] .sm-popular__row.is-keyboard-active {
+  color: var(--sm-fg-1);
+  background: var(--theme--t_bg-tertiary);
+  outline: 0;
+}
+[data-sm-modal] .sm-popular__text {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  min-width: 0;
+}
+[data-sm-modal] .sm-popular__icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+[data-sm-modal] .sm-popular__icon--course {
+  background-image: url("https://cdn.prod.website-files.com/6491b4dd238fa881faab3d5c/69989ff71c4ca1c4e42d35c0_Search%20icon_Courses-on%20dark.svg");
+}
+[data-sm-modal] .sm-popular__icon--video {
+  background-image: url("https://cdn.prod.website-files.com/6491b4dd238fa881faab3d5c/6998a0006fdcc10789cd4f87_Search%20icon_Video-on%20dark.svg");
+}
+[data-theme="light"] [data-sm-modal] .sm-popular__icon--course {
+  background-image: url("https://cdn.prod.website-files.com/6491b4dd238fa881faab3d5c/69989ffc32e80d1b6c3327ed_Search%20icon_Courses-on%20light.svg");
+}
+[data-theme="light"] [data-sm-modal] .sm-popular__icon--video {
+  background-image: url("https://cdn.prod.website-files.com/6491b4dd238fa881faab3d5c/6998a0040f0dcb95415495ce_Search%20icon_Video-on%20light.svg");
+}
+[data-sm-modal] .sm-popular__arrow,
+[data-sm-modal] .st-default-autocomplete .st-ui-result::after {
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+  background: var(--sm-fg-3) !important;
+  -webkit-mask: var(--sm-icon-arrow) center / 1.125rem 1.125rem no-repeat;
+  mask: var(--sm-icon-arrow) center / 1.125rem 1.125rem no-repeat;
+}
+[data-sm-modal] .sm-popular__arrow {
+  justify-self: end;
+  color: transparent;
+  font-size: 0;
+}
+[data-sm-modal] .sm-popular__row:hover .sm-popular__arrow,
+[data-sm-modal] .sm-popular__row:focus-visible .sm-popular__arrow,
+[data-sm-modal] .sm-popular__row.is-keyboard-active .sm-popular__arrow { background: var(--sm-blue) !important; }
+
+/* Swiftype's instant autocomplete becomes the same panel body. */
+[data-sm-modal] .sm-ovl__panel > .st-default-autocomplete,
+[data-sm-modal] .st-default-autocomplete,
+[data-sm-modal] .st-default-autocomplete .st-ui-autocomplete {
+  position: static !important;
+  inset: auto !important;
+  z-index: auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+  font-family: var(--sm-heading) !important;
+}
+[data-sm-modal].is-empty .st-default-autocomplete,
+[data-sm-modal] .st-default-autocomplete .st-query-not-present { display: none !important; }
+[data-sm-modal].active:not(.is-empty) .st-default-autocomplete,
+[data-sm-modal].active:not(.is-empty) .st-default-autocomplete .st-ui-autocomplete,
+[data-sm-modal].active:not(.is-empty) .st-default-autocomplete .st-query-present {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+[data-sm-modal] .st-default-autocomplete .st-query-present {
+  position: static !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  max-height: min(60vh, 480px) !important;
+  /* Swiftype sets content-box, which adds this padding on top of any cap. */
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  /* Zero kills Swiftype's own padding. */
+  padding: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  background: var(--sm-bg-1) !important;
+  border: 0 !important;
+  border-top: 1px solid var(--sm-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  /* none, not contain: contain stops the scroll chaining to ancestors but still allows this
+     element its own rubber-band, which on iOS reads as the whole overlay sliding. */
+  overscroll-behavior: none;
+  /* auto, not smooth: arrow-key nav scrolls this programmatically, and smooth makes
+     rapid keypresses fight each other. */
+  scroll-behavior: auto !important;
+}
+/* Both lists are the touch scroller on a phone. WebKit does not reliably hand a drag to a
+   scroller that became scrollable only after being moved into an already-composited fixed
+   subtree — exactly how Swiftype's list arrives here — so opt in explicitly. */
+[data-sm-modal] .sm-popular,
+[data-sm-modal] .st-default-autocomplete .st-query-present {
+  /* pinch-zoom stays in the list so the declaration does not cost page zoom. */
+  touch-action: pan-y pinch-zoom;
+  -webkit-overflow-scrolling: touch;
+  will-change: scroll-position;
+}
+/* The page behind is locked, but with the keyboard up iOS keeps the layout viewport at full
+   height and reads a drag on anything non-scrolling as a pan of the visual viewport inside it,
+   sliding the panel off the top. Only the lists may pan. These are all siblings of the lists,
+   never ancestors: touch-action on an ancestor would hit the lists too and kill the scrolling
+   fixed above. */
+[data-sm-modal] .sm-ovl__bd,
+[data-sm-modal] .sm-search-footer {
+  touch-action: none;
+}
+[data-sm-modal] .st-default-autocomplete .st-query-present::before {
+  content: none !important;
+  display: none !important;
+}
+[data-sm-modal] .st-default-autocomplete .st-ui-result {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: var(--size--fixed--fs_5) !important;
+  margin: 0 !important;
+  padding: 1rem 2.75rem 1rem .75rem !important;
+  overflow: hidden !important;
+  color: var(--sm-fg-1) !important;
+  text-align: left;
+  text-decoration: none !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-left: 2px solid transparent !important;
+}
+[data-sm-modal] .st-default-autocomplete .st-ui-result.st-ui-image { padding-left: 2.75rem !important; }
+[data-sm-modal] .st-default-autocomplete .st-ui-result:hover,
+[data-sm-modal] .st-default-autocomplete .st-ui-result:focus-visible,
+[data-sm-modal] .st-default-autocomplete .st-ui-result.st-keyboard-active-item {
+  color: var(--sm-fg-1) !important;
+  background: var(--theme--t_bg-tertiary) !important;
+  outline: 0 !important;
+  border-left: 2px solid var(--sm-blue) !important;
+}
+[data-sm-modal] .st-default-autocomplete .st-ui-result::before { display: none !important; }
+[data-sm-modal] .st-default-autocomplete .st-ui-result::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 50% !important;
+  right: .75rem !important;
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 0 !important;
+  transform: translateY(-50%) !important;
+}
+[data-sm-modal] .st-default-autocomplete .st-ui-result:hover::after,
+[data-sm-modal] .st-default-autocomplete .st-ui-result:focus-visible::after,
+[data-sm-modal] .st-default-autocomplete .st-ui-result.st-keyboard-active-item::after {
+  display: block !important;
+}
+[data-sm-modal] .st-default-autocomplete .st-ui-type-heading,
+[data-sm-modal] .st-default-autocomplete div.st-ui-autocomplete div.st-query-present a.st-ui-result .st-ui-type-heading {
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--space--gap--g_sm) !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  color: var(--sm-fg-1) !important;
+  font-family: var(--sm-heading) !important;
+  font-size: .9375rem !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
+  white-space: normal !important;
+}
+[data-sm-modal] .st-ui-autocomplete div.st-query-present a.st-ui-result:first-of-type,
+[data-sm-modal] .st-ui-autocomplete div.st-query-present a.st-ui-result:last-of-type {
+  border-radius: 0;
+}
+[data-sm-modal] .sm-result-title-text,
+[data-sm-modal] .sm-popular__title {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-sm-modal] .sm-popular__title {
+  flex: 1;
+}
+[data-sm-modal] .sm-result-title-text {
+  flex: 0 1 auto;
+}
+[data-sm-modal] .sm-result-type {
+  display: inline-flex;
+  flex: none;
+  order: 1;
+  align-items: center;
+  min-height: var(--size--fixed--fs_2-25);
+  padding: var(--size--fixed--fs_0-25) .3125rem;
+  margin-top: var(--size--fixed--fs_0-25);
+  color: var(--sm-fg-3);
+  font-family: var(--sm-mono);
+  font-size: .625rem;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, .035);
+  border: 1px solid var(--sm-border);
+  border-radius: var(--sm-radius-sm);
+}
+[data-sm-modal] .st-ui-result .sm-result-type {
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--sm-fg-3);
+  border-radius: 0;
+}
+[data-sm-modal] .st-ui-result:hover .sm-result-type,
+[data-sm-modal] .st-ui-result:focus-visible .sm-result-type,
+[data-sm-modal] .st-ui-result.st-keyboard-active-item .sm-result-type { color: var(--sm-fg-3); }
+[data-sm-modal] .sm-popular__row:is(:hover,:focus-visible,.is-keyboard-active) .sm-result-type { color: var(--sm-fg-2); }
+[data-sm-modal] .st-default-autocomplete .st-ui-result .st-ui-type-detail {
+  position: static !important;
+  display: -webkit-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  max-height: none !important;
+  margin: var(--size--fixed--fs_0-5) 0 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  color: var(--sm-fg-2) !important;
+  font-family: var(--sm-font) !important;
+  font-size: .8125rem !important;
+  font-weight: 400 !important;
+  line-height: 1.35 !important;
+  letter-spacing: normal !important;
+  text-overflow: ellipsis !important;
+  white-space: normal !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+[data-sm-modal] .st-default-autocomplete .st-ui-result .st-ui-type-detail:empty { display: none !important; }
+[data-sm-modal] .st-default-autocomplete .st-ui-result .st-ui-type-detail-bold {
+  display: inline !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: inherit !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  font-weight: 600 !important;
+  line-height: inherit !important;
+  background: transparent !important;
+}
+[data-sm-modal] .st-default-autocomplete .st-ui-result .st-ui-thumbnail {
+  position: absolute !important;
+  top: 1rem !important;
+  left: .75rem !important;
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+[data-sm-modal] .st-default-autocomplete .st-ui-result .st-ui-thumbnail img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain;
+}
+[data-sm-modal] .st-default-autocomplete .st-ui-result em,
+[data-sm-modal] .st-default-autocomplete div.st-ui-autocomplete div.st-query-present a.st-ui-result em {
+  padding: 0 .075rem !important;
+  color: var(--sm-fg-1) !important;
+  background: rgb(20 110 245 / 0.20) !important;
+  box-shadow: none;
+}
+
+/* Keyboard help remains part of the single modal UI. */
+[data-sm-modal] .sm-search-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space--gap--g_sm);
+  width: 100%;
+  min-height: var(--size--fixed--fs_5);
+  padding: var(--size--fixed--fs_1-5);
+  color: var(--theme--t_text-tertiary);
+  font-family: var(--sm-font);
+  font-size: .75rem;
+  line-height: 1;
+  background: var(--sm-bg-1);
+  border-top: 1px solid var(--sm-border);
+}
+[data-sm-modal] .sm-search-footer__hint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size--fixed--fs_0-75);
+  white-space: nowrap;
+}
+[data-sm-modal] .sm-search-footer__key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--size--fixed--fs_3);
+  padding: var(--size--fixed--fs_0-5) var(--size--fixed--fs_1);
+  color: var(--sm-fg-2);
+  font-family: var(--sm-mono);
+  font-size: .7rem;
+  line-height: 1;
+  background: var(--theme--t_bg-secondary);
+  border-radius: var(--sm-radius);
+  box-shadow: none;
+}
+
+/* The full-page Swiftype results view is hidden but deliberately left in the DOM, so
+   jsDelivr's initGlobalSearch observer can find .st-ui-overlay and disconnect. */
+.st-ui-overlay,
+.st-ui-container-overlay,
+.st-ui-injected-overlay-container {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+@keyframes sm-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sm-rise {
+  from { opacity: 0; transform: translateY(14px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Mobile: a compact dropdown anchored near the top, matching production. The panel is sized
+   by its content; the list is capped by --sm-list-max, derived from visualViewport.height — an
+   absolute measure of the visible area. That is the point of this shape: the previous
+   full-screen sheet had to infer the keyboard's height as (layout viewport - visual viewport)
+   and subtract it, and on real iOS that overshoots — the sheet collapsed and left a dead band
+   of page showing through beneath it. A direct measurement cannot overshoot. */
+@media (max-width: 767px) {
+  [data-sm-modal] .sm-ovl__panel {
+    /* absolute, not fixed: .sm-ovl-root is already fixed at inset 0, so these offsets land
+       on the same pixels either way, and a third nested fixed layer stops iOS handing
+       touch drags to the list inside. */
+    position: absolute !important;
+    top: max(8px, env(safe-area-inset-top)) !important;
+    right: 8px !important;
+    left: 8px !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    /* Opacity only. A transform on an ancestor of the input mispositions the caret. */
+    animation: sm-fade 160ms var(--sm-ease) !important;
+  }
+  /* Lighter than the 6px desktop blur: blurring a full-screen backdrop costs frames while
+     the list scrolls, and that scroll is the one thing here that must stay smooth. */
+  [data-sm-modal] .g_search-close-bg,
+  [data-sm-modal] .sm-ovl__bd {
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+  }
+  [data-sm-modal] .sm-ovl__field { padding: var(--size--fixed--fs_1-25) var(--size--fixed--fs_1-75) !important; }
+  /* 16px keeps iOS Safari from zooming the page when the field takes focus. */
+  [data-sm-modal] .sm-ovl__field input#g-search { font-size: 16px !important; }
+  /* --sm-list-max is the room left below where the list starts, so the list runs to just above
+     the keyboard — and to just above the bottom of the window once it is dismissed. Transitioned
+     because that dismissal is a large jump for one frame; max-height only, so a list too short
+     to fill the space does not stretch. */
+  [data-sm-modal] .sm-popular,
+  [data-sm-modal].active:not(.is-empty) .st-default-autocomplete .st-query-present {
+    height: auto !important;
+    max-height: var(--sm-list-max, 40vh) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: none;
+    transition: max-height 280ms var(--sm-ease);
+  }
+}
+
+@media (max-width: 410px) {
+  [data-sm-modal] .sm-search-footer { justify-content: space-between; gap: .625rem; padding-inline: var(--size--fixed--fs_1-5); }
+  [data-sm-modal] .sm-search-footer__hint span { display: none; }
+}
+
+/* Touch: the Esc chip becomes a round close button. */
+@media (max-width: 767px), (hover: none) {
+  [data-sm-modal] .sm-kbd {
+    position: relative;
+    width: 2rem;
+    min-width: 2rem;
+    height: 2rem;
+    min-height: 2rem;
+    padding: 0 !important;
+    overflow: hidden;
+    color: transparent !important;
+    font-size: 0 !important;
+    border-radius: 50%;
+  }
+  [data-sm-modal] .sm-kbd::before,
+  [data-sm-modal] .sm-kbd::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: .875rem;
+    height: 1.5px;
+    background: var(--sm-fg-2);
+    border-radius: 999px;
+  }
+  [data-sm-modal] .sm-kbd::before { transform: translate(-50%, -50%) rotate(45deg); }
+  [data-sm-modal] .sm-kbd::after { transform: translate(-50%, -50%) rotate(-45deg); }
+}
+
+@media (pointer: coarse) {
+  [data-sm-modal] .sm-popular__row,
+  [data-sm-modal] .st-default-autocomplete .st-ui-result {
+    min-height: 3rem !important;
+    -webkit-tap-highlight-color: transparent;
+    /* Rows are anchors, and WebKit's drag machinery claims a touch that starts on one
+       before the scroller ever sees it. */
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+  }
+}
+
+/* With no hovering pointer there is nothing for a row highlight to track, so all of these
+   states can only misfire — Swiftype stamps its active class onto whatever row a finger passes
+   over while scrolling. :active is here too: it paints while the finger is down, so it flashes
+   on the row being dragged. Rows stay unhighlighted on touch. */
+@media (hover: none) {
+  [data-sm-modal] .sm-ovl__field:focus-within { box-shadow: none !important; }
+  [data-sm-modal] .sm-search-footer { display: none !important; }
+  [data-sm-modal] .sm-popular__row:hover,
+  [data-sm-modal] .sm-popular__row:focus,
+  [data-sm-modal] .sm-popular__row:focus-visible,
+  [data-sm-modal] .sm-popular__row:active,
+  [data-sm-modal] .sm-popular__row.is-keyboard-active,
+  [data-sm-modal] .st-default-autocomplete .st-ui-result:hover,
+  [data-sm-modal] .st-default-autocomplete .st-ui-result:focus,
+  [data-sm-modal] .st-default-autocomplete .st-ui-result:focus-visible,
+  [data-sm-modal] .st-default-autocomplete .st-ui-result:active,
+  [data-sm-modal] .st-default-autocomplete .st-ui-result.st-keyboard-active-item {
+    background: transparent !important;
+    outline: 0 !important;
+    /* The blue left edge is part of the same highlight, so it flashes with it. */
+    border-left-color: transparent !important;
+  }
+  [data-sm-modal] .sm-popular__row:hover .sm-popular__arrow,
+  [data-sm-modal] .sm-popular__row:focus-visible .sm-popular__arrow,
+  [data-sm-modal] .sm-popular__row:active .sm-popular__arrow,
+  [data-sm-modal] .sm-popular__row.is-keyboard-active .sm-popular__arrow,
+  [data-sm-modal] .st-default-autocomplete .st-ui-result:hover::after,
+  [data-sm-modal] .st-default-autocomplete .st-ui-result:focus-visible::after,
+  [data-sm-modal] .st-default-autocomplete .st-ui-result:active::after,
+  [data-sm-modal] .st-default-autocomplete .st-ui-result.st-keyboard-active-item::after {
+    background: var(--sm-fg-3) !important;
+  }
+  /* The chip brightens with its row, and iOS leaves :hover stuck on whatever was last tapped,
+     so it flashes on touch. Pin it to its rest colour like everything else here. :is() only
+     for its length: the rule it overrides is not !important, so its lower specificity is fine. */
+  [data-sm-modal] :is(.sm-popular__row, .st-ui-result):is(:hover, :focus, :focus-visible, :active, .is-keyboard-active, .st-keyboard-active-item) .sm-result-type {
+    color: var(--sm-fg-3) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-sm-modal] * {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}
+</style>
