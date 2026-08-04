@@ -33,7 +33,7 @@ const KEEGAN_FAVE_1_BASE = {
   imageErodeVariationScale: 0.3,
   interactiveTilt: false,
   tiltAmount: 6,
-  fontFamily: STAMP_FONT_OPTIONS['Instrument Serif'],
+  fontFamily: STAMP_FONT_OPTIONS['WF Mono'],
   fontWeight: 400,
   letterSpacing: -0.5,
   titleFontSize: 40,

@@ -1,3 +1,5 @@
+import wfVisualSansMonoUrl from '../../assets/fonts/WFVisualSans-RegularMono.woff2';
+
 const XLINK_NS = 'http://www.w3.org/1999/xlink';
 
 const GENERIC_FONT =
@@ -5,6 +7,10 @@ const GENERIC_FONT =
 
 const GOOGLE_FONT =
   /^(Instrument Serif|Instrument Sans|Playfair Display|DM Serif Display|Libre Baskerville|Space Grotesk|IBM Plex Mono|BioRhyme|Big Shoulders Display|Dela Gothic One|Fraunces|Syne)$/i;
+
+const LOCAL_FONT_FACES: Record<string, { url: string; weight: number }> = {
+  'WF Visual Sans Mono': { url: wfVisualSansMonoUrl, weight: 400 },
+};
 
 async function fetchAsDataUrl(url: string): Promise<string> {
   const response = await fetch(url);
@@ -297,6 +303,25 @@ async function buildGoogleFontFaceCss(families: string[]): Promise<string> {
   return cssText;
 }
 
+async function buildLocalFontFaceCss(families: string[]): Promise<string> {
+  const rules: string[] = [];
+
+  for (const family of families) {
+    const face = LOCAL_FONT_FACES[family];
+    if (!face) continue;
+    try {
+      const dataUrl = await fetchAsDataUrl(face.url);
+      rules.push(
+        `@font-face{font-family:'${family}';src:url(${dataUrl}) format('woff2');font-weight:${face.weight};font-style:normal;font-display:swap;}`
+      );
+    } catch (error) {
+      console.warn('[StampSVG export] Failed to inline local font', family, error);
+    }
+  }
+
+  return rules.join('\n');
+}
+
 async function embedUsedFonts(svg: SVGSVGElement, families: string[]) {
   await document.fonts.ready;
 
@@ -313,7 +338,12 @@ async function embedUsedFonts(svg: SVGSVGElement, families: string[]) {
   );
 
   try {
-    const cssText = await buildGoogleFontFaceCss(families);
+    const cssText = [
+      await buildLocalFontFaceCss(families),
+      await buildGoogleFontFaceCss(families),
+    ]
+      .filter(Boolean)
+      .join('\n');
     if (!cssText) return;
 
     const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');

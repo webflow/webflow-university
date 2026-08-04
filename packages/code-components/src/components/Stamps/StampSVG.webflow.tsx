@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { props } from '@webflow/data-types';
 import { declareComponent } from '@webflow/react';
 import StampSVG, { DEFAULT_STAMP_PADDING, type StampSVGProps } from './StampSVG';
-import { formatStampDate } from './StampSVG.options';
+import { formatStampDate, STAMP_FONT_OPTIONS } from './StampSVG.options';
 import './StampSVG.css';
 
 /** Public fallback used when Image URL is empty in Designer */
@@ -22,7 +22,7 @@ const KEEGAN_FAVE_STYLE = {
   // Always light — title/date sit on the course image, not the paper
   textColor: 'var(--theme--t_btn-2-text, white)',
   textOpacity: 1,
-  fontFamily: "'Instrument Serif', Georgia, 'Times New Roman', serif",
+  fontFamily: STAMP_FONT_OPTIONS['WF Mono'],
   fontWeight: 400,
   letterSpacing: -0.5,
   titleFontSize: 40,

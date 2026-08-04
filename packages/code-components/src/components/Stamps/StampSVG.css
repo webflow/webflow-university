@@ -2,6 +2,15 @@
    even when the host page has not loaded stamp playground styles. */
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
 
+/* Bundled WF Visual Sans Mono (Regular) — host site may only ship ExtraLight. */
+@font-face {
+  font-family: 'WF Visual Sans Mono';
+  src: url('../../assets/fonts/WFVisualSans-RegularMono.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Idle breathing — own layer so pointer tilt can compose on top. */
 @keyframes stamp-svg-breathe {
   0%,

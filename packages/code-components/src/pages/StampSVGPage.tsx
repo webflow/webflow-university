@@ -177,7 +177,7 @@ const STAMP_PRESETS = {
     course: 'Webflow for Marketers',
     stampCount: 10,
     dateLabel: formatStampDate(),
-    fontFamily: STAMP_FONT_OPTIONS['Instrument Serif'],
+    fontFamily: STAMP_FONT_OPTIONS['WF Mono'],
     fontWeight: 400,
     letterSpacing: -0.5,
     titleFontSize: 40,

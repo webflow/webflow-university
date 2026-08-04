@@ -90,7 +90,8 @@ export const STAMP_FONT_OPTIONS = {
   'Instrument Sans': "'Instrument Sans', system-ui, sans-serif",
   'WF Sans': "var(--typography--font_headings, 'WF Visual Sans', system-ui, sans-serif)",
   'WF Text': "var(--typography--font_text, 'WF Visual Sans Text', system-ui, sans-serif)",
-  'WF Mono': "var(--typography--font_mono, 'WF Visual Sans Text', ui-monospace, monospace)",
+  /** Bundled Regular Mono — do not use --typography--font_mono (site maps that to Text). */
+  'WF Mono': "'WF Visual Sans Mono', ui-monospace, monospace",
   'Playfair Display': "'Playfair Display', Georgia, serif",
   'DM Serif Display': "'DM Serif Display', Georgia, serif",
   'Libre Baskerville': "'Libre Baskerville', Georgia, serif",
