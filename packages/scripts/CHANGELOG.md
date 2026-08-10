@@ -1,5 +1,11 @@
 # scripts
 
+## 2.4.1
+
+### Patch Changes
+
+- 62f2ecb: Fix sidebar cookie domain on `*.webflow.io` hosts (including branch previews) so auto-collapse below 1296px works outside production.
+
 ## 2.4.0
 
 ### Minor Changes
