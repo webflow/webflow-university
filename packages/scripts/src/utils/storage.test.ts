@@ -38,6 +38,12 @@ describe('storage utilities', () => {
     expect(getCurrentDomain()).toBe('wfu3.webflow.io');
   });
 
+  it('uses the branch preview host as its cookie domain', () => {
+    setHostname('branch--seo-checklist-wfu3-d88214.webflow.io');
+
+    expect(getCurrentDomain()).toBe('branch--seo-checklist-wfu3-d88214.webflow.io');
+  });
+
   it('uses the shared Webflow domain for other hostnames', () => {
     setHostname('university.webflow.com');
 

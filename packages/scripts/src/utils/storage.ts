@@ -7,7 +7,16 @@
  * @returns The domain string to use for cookies
  */
 export function getCurrentDomain(): string {
-  return window.location.hostname === 'wfu3.webflow.io' ? 'wfu3.webflow.io' : '.webflow.com';
+  const { hostname } = window.location;
+
+  // Branch / staging hosts live on *.webflow.io (e.g. wfu3.webflow.io,
+  // branch--seo-checklist-wfu3-….webflow.io). Cookies must use that host —
+  // `.webflow.com` is invalid there and silently fails, which breaks sidebar state.
+  if (hostname === 'webflow.io' || hostname.endsWith('.webflow.io')) {
+    return hostname;
+  }
+
+  return '.webflow.com';
 }
 
 /**
