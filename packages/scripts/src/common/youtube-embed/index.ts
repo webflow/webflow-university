@@ -1,6 +1,6 @@
 /**
  * YouTube embed failure detection for course-lesson and video pages.
- * Shows a Watch-on-YouTube fallback and reports anonymously to Zapier → Slack.
+ * Reports anonymously to Zapier → Slack (no on-page banner).
  *
  * Webhook URL is supplied at runtime from Webflow (not committed):
  *   window.WFU_YT_ZAPIER_WEBHOOK = '<catch-hook-url>'
@@ -8,7 +8,6 @@
  */
 
 export const PLAYER_ELEMENT_ID = 'wfu-yt-player';
-export const FALLBACK_ELEMENT_ID = 'wfu-yt-fallback';
 export const READY_TIMEOUT_MS = 7000;
 export const FORCE_FAIL_PARAM = 'wfu_yt_force_fail';
 export const REPORT_SOURCE = 'wfu-youtube-embed';
@@ -64,11 +63,10 @@ export type YoutubeEmbedFailurePayload = {
   forced: boolean;
 };
 
-const STYLE_ELEMENT_ID = 'wfu-yt-fallback-styles';
 const YT_API_SRC = 'https://www.youtube.com/iframe_api';
 
 let hasReported = false;
-let hasShownFallback = false;
+let hasHandledFailure = false;
 let readyTimeoutId: ReturnType<typeof setTimeout> | null = null;
 let sawYoutubeCspViolation = false;
 let cspMonitoringStarted = false;
@@ -544,88 +542,8 @@ export function postToZapierViaForm(webhookUrl: string, payload: YoutubeEmbedFai
   }
 }
 
-function ensureFallbackStyles(): void {
-  if (document.getElementById(STYLE_ELEMENT_ID)) {
-    return;
-  }
-
-  const style = document.createElement('style');
-  style.id = STYLE_ELEMENT_ID;
-  style.textContent = `
-#${FALLBACK_ELEMENT_ID} {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 1.25rem 1.5rem;
-  margin: 0 0 1rem;
-  border: 1px solid currentColor;
-  border-radius: 0.5rem;
-  background: color-mix(in srgb, currentColor 6%, transparent);
-  font-size: 1rem;
-  line-height: 1.4;
-}
-#${FALLBACK_ELEMENT_ID}[hidden] {
-  display: none !important;
-}
-#${FALLBACK_ELEMENT_ID} a {
-  text-decoration: underline;
-  font-weight: 600;
-}
-.cc_video.is-yt-fallback-active,
-#${PLAYER_ELEMENT_ID}.is-yt-fallback-hidden {
-  display: none !important;
-}
-`;
-  document.head.appendChild(style);
-}
-
 /**
- * Hides the broken player and shows a Watch-on-YouTube fallback.
- */
-export function showWatchOnYoutubeFallback(iframe: HTMLIFrameElement, videoId: string): void {
-  if (hasShownFallback) {
-    return;
-  }
-  hasShownFallback = true;
-  ensureFallbackStyles();
-
-  const wrapper = iframe.closest('.cc_video');
-  if (wrapper) {
-    wrapper.classList.add('is-yt-fallback-active');
-  } else {
-    iframe.classList.add('is-yt-fallback-hidden');
-  }
-
-  let fallback = document.getElementById(FALLBACK_ELEMENT_ID);
-  if (!fallback) {
-    fallback = document.createElement('div');
-    fallback.id = FALLBACK_ELEMENT_ID;
-    fallback.setAttribute('role', 'status');
-
-    const message = document.createElement('p');
-    message.textContent =
-      'Having trouble loading this video? You can watch it directly on YouTube.';
-
-    const link = document.createElement('a');
-    link.href = videoId
-      ? `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`
-      : 'https://www.youtube.com/';
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.textContent = 'Watch on YouTube';
-
-    fallback.append(message, link);
-
-    const insertTarget = wrapper ?? iframe.parentElement ?? iframe;
-    insertTarget.insertAdjacentElement('afterend', fallback);
-  }
-
-  fallback.hidden = false;
-}
-
-/**
- * Handles a detected embed failure: UI + Zapier report.
+ * Handles a detected embed failure: Zapier report only (no on-page UI).
  */
 export function handleEmbedFailure(options: {
   iframe: HTMLIFrameElement;
@@ -634,8 +552,11 @@ export function handleEmbedFailure(options: {
   errorCode?: string | number | null;
   forced?: boolean;
 }): void {
+  if (hasHandledFailure) {
+    return;
+  }
+  hasHandledFailure = true;
   clearReadyTimeout();
-  showWatchOnYoutubeFallback(options.iframe, options.videoId);
   reportEmbedFailure(
     buildFailurePayload({
       trigger: options.trigger,
@@ -760,7 +681,7 @@ function attachPlayer(iframe: HTMLIFrameElement, videoId: string): void {
  */
 export function resetYoutubeEmbedStateForTests(): void {
   hasReported = false;
-  hasShownFallback = false;
+  hasHandledFailure = false;
   sawYoutubeCspViolation = false;
   cspMonitoringStarted = false;
   clearReadyTimeout();
@@ -793,8 +714,8 @@ export function initYoutubeEmbedFallback(): void {
 
   void loadYoutubeIframeApi()
     .then(() => {
-      // Force-fail or a prior failure may have already run.
-      if (hasShownFallback) return;
+      // A prior failure may have already been reported.
+      if (hasHandledFailure) return;
       attachPlayer(iframe, videoId);
     })
     .catch(() => {

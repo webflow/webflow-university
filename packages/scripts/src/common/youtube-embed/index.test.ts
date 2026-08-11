@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildFailurePayload,
   describeErrorCode,
-  FALLBACK_ELEMENT_ID,
   getForceFailMode,
   getZapierWebhookUrl,
   handleEmbedFailure,
@@ -21,7 +20,6 @@ import {
   reportEmbedFailure,
   resetYoutubeEmbedStateForTests,
   resolveVideoId,
-  showWatchOnYoutubeFallback,
 } from './index';
 
 function setLocation(pathWithSearch: string): void {
@@ -268,20 +266,28 @@ describe('youtube embed fallback', () => {
     expect(normalizeCookieValue('')).toBe('');
   });
 
-  it('injects the Watch on YouTube fallback once', () => {
-    const iframe = mountPlayer({ videoId: 'vid123', src: '' });
-    showWatchOnYoutubeFallback(iframe, 'vid123');
-    showWatchOnYoutubeFallback(iframe, 'vid123');
+  it('does not inject an on-page Watch on YouTube banner', () => {
+    const sendBeacon = vi.fn().mockReturnValue(true);
+    Object.defineProperty(navigator, 'sendBeacon', {
+      configurable: true,
+      value: sendBeacon,
+    });
 
-    const fallback = document.getElementById(FALLBACK_ELEMENT_ID);
-    expect(fallback).not.toBeNull();
-    expect(document.querySelectorAll(`#${FALLBACK_ELEMENT_ID}`)).toHaveLength(1);
-    expect(fallback?.querySelector('a')?.getAttribute('href')).toBe(
-      'https://www.youtube.com/watch?v=vid123'
-    );
-    expect(document.querySelector('.cc_video')?.classList.contains('is-yt-fallback-active')).toBe(
-      true
-    );
+    const iframe = mountPlayer({ videoId: 'vid123', src: '' });
+    handleEmbedFailure({
+      iframe,
+      videoId: 'vid123',
+      trigger: 'timeout',
+    });
+    handleEmbedFailure({
+      iframe,
+      videoId: 'vid123',
+      trigger: 'timeout',
+    });
+
+    expect(document.getElementById('wfu-yt-fallback')).toBeNull();
+    expect(document.body.textContent).not.toContain('Having trouble loading this video');
+    expect(sendBeacon).toHaveBeenCalledTimes(1);
   });
 
   it('reports to Zapier only once per page load', () => {
@@ -354,9 +360,14 @@ describe('youtube embed fallback', () => {
   });
 
   it('exits early when the player iframe is missing', () => {
+    const sendBeacon = vi.fn().mockReturnValue(true);
+    Object.defineProperty(navigator, 'sendBeacon', {
+      configurable: true,
+      value: sendBeacon,
+    });
     document.body.innerHTML = '<div>no player</div>';
     initYoutubeEmbedFallback();
-    expect(document.getElementById(FALLBACK_ELEMENT_ID)).toBeNull();
+    expect(sendBeacon).not.toHaveBeenCalled();
   });
 
   it('force-fails immediately via query param', () => {
@@ -371,14 +382,14 @@ describe('youtube embed fallback', () => {
 
     initYoutubeEmbedFallback();
 
-    expect(document.getElementById(FALLBACK_ELEMENT_ID)).not.toBeNull();
+    expect(document.getElementById('wfu-yt-fallback')).toBeNull();
     expect(sendBeacon).toHaveBeenCalledTimes(1);
 
     const body = sendBeacon.mock.calls[0]?.[1] as Blob;
     expect(body).toBeInstanceOf(Blob);
   });
 
-  it('handleEmbedFailure shows UI and reports', () => {
+  it('handleEmbedFailure reports without showing UI', () => {
     const sendBeacon = vi.fn().mockReturnValue(true);
     Object.defineProperty(navigator, 'sendBeacon', {
       configurable: true,
@@ -393,7 +404,7 @@ describe('youtube embed fallback', () => {
       errorCode: 150,
     });
 
-    expect(document.getElementById(FALLBACK_ELEMENT_ID)).not.toBeNull();
+    expect(document.getElementById('wfu-yt-fallback')).toBeNull();
     expect(sendBeacon).toHaveBeenCalledTimes(1);
   });
 
@@ -422,7 +433,7 @@ describe('youtube embed fallback', () => {
 
     await vi.advanceTimersByTimeAsync(READY_TIMEOUT_MS);
 
-    expect(document.getElementById(FALLBACK_ELEMENT_ID)).not.toBeNull();
+    expect(document.getElementById('wfu-yt-fallback')).toBeNull();
     expect(sendBeacon).toHaveBeenCalledTimes(1);
   });
 
@@ -448,7 +459,6 @@ describe('youtube embed fallback', () => {
 
     await vi.advanceTimersByTimeAsync(READY_TIMEOUT_MS + 1000);
 
-    expect(document.getElementById(FALLBACK_ELEMENT_ID)).toBeNull();
     expect(sendBeacon).not.toHaveBeenCalled();
   });
 });

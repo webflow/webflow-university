@@ -2,4 +2,4 @@
 'scripts': patch
 ---
 
-Improve YouTube embed failure alerts: soft cause hints (CSP / third-party blocked / YouTube-side), and fix Zapier reporting blocked by credentialed CORS (airgap) via text/plain no-cors + form fallback.
+Improve YouTube embed failure alerts: soft cause hints, Zapier CORS fix (airgap-safe reporting), and remove the on-page "Having trouble loading this video" banner (Slack-only).
