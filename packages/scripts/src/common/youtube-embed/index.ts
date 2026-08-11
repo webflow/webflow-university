@@ -16,11 +16,28 @@ export const WEBHOOK_META_NAME = 'wfu-yt-zapier-webhook';
 
 export type FailureTrigger = 'error' | 'timeout' | 'force';
 export type ForceFailMode = 'timeout' | 'error';
+/** Soft triage hint — not a definitive diagnosis. */
+export type LikelyCauseHint =
+  | 'youtube-side'
+  | 'third-party-blocked'
+  | 'csp'
+  | 'qa-force'
+  | 'unknown';
+export type YoutubeResourceName = 'iframe_api' | 'embed';
 
 export type YoutubeEmbedFailurePayload = {
   source: typeof REPORT_SOURCE;
   trigger: FailureTrigger;
   errorCode: string;
+  /** Human-readable note for known YouTube / loader error codes. */
+  errorDetail: string;
+  /**
+   * Soft hint for Slack triage. Cannot distinguish ad blocker vs corporate firewall;
+   * both surface as `third-party-blocked`.
+   */
+  likelyCauseHint: LikelyCauseHint;
+  /** Comma-separated missing/failed YouTube resources, e.g. `iframe_api,embed`. */
+  blockedResources: string;
   videoId: string;
   pageUrl: string;
   path: string;
@@ -53,6 +70,8 @@ const YT_API_SRC = 'https://www.youtube.com/iframe_api';
 let hasReported = false;
 let hasShownFallback = false;
 let readyTimeoutId: ReturnType<typeof setTimeout> | null = null;
+let sawYoutubeCspViolation = false;
+let cspMonitoringStarted = false;
 
 /**
  * Resolves the Zapier Catch Hook URL from a Webflow-provided runtime config.
@@ -227,6 +246,155 @@ export function readSessionContext(): {
 }
 
 /**
+ * Starts listening for CSP violations that mention YouTube.
+ */
+export function startYoutubeCspMonitoring(): void {
+  if (cspMonitoringStarted || typeof window === 'undefined') {
+    return;
+  }
+  cspMonitoringStarted = true;
+
+  window.addEventListener('securitypolicyviolation', (event) => {
+    try {
+      const haystack = [
+        event.blockedURI,
+        event.violatedDirective,
+        event.effectiveDirective,
+        event.sourceFile,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      if (/youtube|youtu\.be|ytimg/i.test(haystack)) {
+        sawYoutubeCspViolation = true;
+      }
+    } catch {
+      // Ignore CSP event access issues.
+    }
+  });
+}
+
+/**
+ * Maps known YouTube / loader error codes to a short detail string.
+ */
+export function describeErrorCode(errorCode: string): string {
+  switch (errorCode) {
+    case 'none':
+      return '';
+    case '2':
+      return 'Invalid video parameter';
+    case '5':
+      return 'HTML5 player error';
+    case '100':
+      return 'Video not found / private';
+    case '101':
+    case '150':
+      return 'Embedding disabled by owner';
+    case 'api-load':
+      return 'YouTube IFrame API script failed to load';
+    case 'api-missing':
+      return 'YouTube IFrame API missing after load';
+    case 'player-init':
+      return 'YT.Player failed to initialize';
+    case 'timeout':
+      return 'QA force-fail timeout';
+    case 'error':
+      return 'QA force-fail error';
+    default:
+      return errorCode ? `Code ${errorCode}` : '';
+  }
+}
+
+function findResourceEntry(matcher: RegExp): PerformanceResourceTiming | undefined {
+  try {
+    const entries = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
+    return entries.find((entry) => matcher.test(entry.name));
+  } catch {
+    return undefined;
+  }
+}
+
+function classifyResourceEntry(
+  entry: PerformanceResourceTiming | undefined
+): 'ok' | 'failed' | 'missing' {
+  if (!entry) {
+    return 'missing';
+  }
+
+  const status = (entry as PerformanceResourceTiming & { responseStatus?: number }).responseStatus;
+  if (typeof status === 'number') {
+    if (status >= 400) return 'failed';
+    if (status > 0) return 'ok';
+  }
+
+  // Cross-origin successes often report transferSize 0; treat a completed timing as ok.
+  if (entry.duration > 0 || entry.responseEnd > 0) {
+    return 'ok';
+  }
+
+  return 'failed';
+}
+
+/**
+ * Inspects Performance resource timings for YouTube API + embed requests.
+ */
+export function inspectYoutubeResources(): {
+  iframeApi: 'ok' | 'failed' | 'missing';
+  embed: 'ok' | 'failed' | 'missing';
+  blockedResources: YoutubeResourceName[];
+} {
+  const iframeApi = classifyResourceEntry(findResourceEntry(/youtube\.com\/iframe_api/i));
+  const embed = classifyResourceEntry(findResourceEntry(/youtube(?:-nocookie)?\.com\/embed\//i));
+
+  const blockedResources: YoutubeResourceName[] = [];
+  if (iframeApi === 'missing' || iframeApi === 'failed') {
+    blockedResources.push('iframe_api');
+  }
+  if (embed === 'missing' || embed === 'failed') {
+    blockedResources.push('embed');
+  }
+
+  return { iframeApi, embed, blockedResources };
+}
+
+/**
+ * Soft triage hint for Slack. Not a definitive ad-blocker vs firewall label.
+ */
+export function inferLikelyCauseHint(options: {
+  trigger: FailureTrigger;
+  errorCode: string;
+  forced?: boolean;
+  blockedResources: YoutubeResourceName[];
+  cspViolation?: boolean;
+}): LikelyCauseHint {
+  if (options.forced || options.trigger === 'force') {
+    return 'qa-force';
+  }
+
+  if (options.cspViolation ?? sawYoutubeCspViolation) {
+    return 'csp';
+  }
+
+  if (options.trigger === 'error') {
+    return 'youtube-side';
+  }
+
+  if (
+    options.errorCode === 'api-load' ||
+    options.errorCode === 'api-missing' ||
+    options.blockedResources.length > 0
+  ) {
+    return 'third-party-blocked';
+  }
+
+  if (options.trigger === 'timeout') {
+    // Timeout with no resource evidence — still usually third-party blocked, but softer.
+    return 'third-party-blocked';
+  }
+
+  return 'unknown';
+}
+
+/**
  * Builds the Zapier payload for a failed embed.
  */
 export function buildFailurePayload(options: {
@@ -238,14 +406,26 @@ export function buildFailurePayload(options: {
 }): YoutubeEmbedFailurePayload {
   const wrapper = options.iframe?.closest('.cc_video') ?? null;
   const session = readSessionContext();
+  const errorCode =
+    options.errorCode === null || options.errorCode === undefined || options.errorCode === ''
+      ? 'none'
+      : String(options.errorCode);
+  const resources = inspectYoutubeResources();
+  const likelyCauseHint = inferLikelyCauseHint({
+    trigger: options.trigger,
+    errorCode,
+    forced: options.forced,
+    blockedResources: resources.blockedResources,
+    cspViolation: sawYoutubeCspViolation,
+  });
 
   return {
     source: REPORT_SOURCE,
     trigger: options.trigger,
-    errorCode:
-      options.errorCode === null || options.errorCode === undefined || options.errorCode === ''
-        ? 'none'
-        : String(options.errorCode),
+    errorCode,
+    errorDetail: describeErrorCode(errorCode),
+    likelyCauseHint,
+    blockedResources: resources.blockedResources.join(','),
     videoId: options.videoId || 'unknown',
     pageUrl: window.location.href,
     path: window.location.pathname,
@@ -521,6 +701,8 @@ function attachPlayer(iframe: HTMLIFrameElement, videoId: string): void {
 export function resetYoutubeEmbedStateForTests(): void {
   hasReported = false;
   hasShownFallback = false;
+  sawYoutubeCspViolation = false;
+  cspMonitoringStarted = false;
   clearReadyTimeout();
 }
 
@@ -532,6 +714,8 @@ export function initYoutubeEmbedFallback(): void {
   if (!(iframe instanceof HTMLIFrameElement)) {
     return;
   }
+
+  startYoutubeCspMonitoring();
 
   const videoId = resolveVideoId(iframe);
   const forceMode = getForceFailMode();

@@ -5,10 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   buildFailurePayload,
+  describeErrorCode,
   FALLBACK_ELEMENT_ID,
   getForceFailMode,
   getZapierWebhookUrl,
   handleEmbedFailure,
+  inferLikelyCauseHint,
   initYoutubeEmbedFallback,
   normalizeCookieValue,
   parseVideoIdFromSrc,
@@ -173,7 +175,58 @@ describe('youtube embed fallback', () => {
     expect(payload.anonymousId).toBe('dcfbff14-a4fe-4fd7-af2a-04e0ba5b3bf8');
     expect(payload.referralSource).toBe('www.google.com');
     expect(payload.sessionLandingPage).toBe('https://university.webflow.com/');
+    expect(payload.likelyCauseHint).toBe('third-party-blocked');
     expect(payload.forced).toBe(false);
+  });
+
+  it('infers likely cause hints', () => {
+    expect(
+      inferLikelyCauseHint({
+        trigger: 'error',
+        errorCode: '150',
+        blockedResources: [],
+      })
+    ).toBe('youtube-side');
+
+    expect(
+      inferLikelyCauseHint({
+        trigger: 'timeout',
+        errorCode: 'api-load',
+        blockedResources: [],
+      })
+    ).toBe('third-party-blocked');
+
+    expect(
+      inferLikelyCauseHint({
+        trigger: 'timeout',
+        errorCode: 'none',
+        blockedResources: ['iframe_api', 'embed'],
+      })
+    ).toBe('third-party-blocked');
+
+    expect(
+      inferLikelyCauseHint({
+        trigger: 'timeout',
+        errorCode: 'none',
+        blockedResources: [],
+        cspViolation: true,
+      })
+    ).toBe('csp');
+
+    expect(
+      inferLikelyCauseHint({
+        trigger: 'force',
+        errorCode: 'timeout',
+        forced: true,
+        blockedResources: [],
+      })
+    ).toBe('qa-force');
+  });
+
+  it('describes known YouTube error codes', () => {
+    expect(describeErrorCode('150')).toBe('Embedding disabled by owner');
+    expect(describeErrorCode('api-load')).toBe('YouTube IFrame API script failed to load');
+    expect(describeErrorCode('none')).toBe('');
   });
 
   it('omits identity cookies gracefully when missing', () => {
