@@ -13,6 +13,7 @@ import {
   normalizeCookieValue,
   parseVideoIdFromSrc,
   PLAYER_ELEMENT_ID,
+  readLocalStorageValue,
   READY_TIMEOUT_MS,
   REPORT_SOURCE,
   reportEmbedFailure,
@@ -86,6 +87,7 @@ describe('youtube embed fallback', () => {
     document.body.innerHTML = '';
     setLocation('/course-lesson/example');
     setWebhookUrl('https://hooks.example.test/catch/test');
+    window.localStorage.clear();
     vi.restoreAllMocks();
   });
 
@@ -99,6 +101,7 @@ describe('youtube embed fallback', () => {
     delete window.WFU_YT_ZAPIER_WEBHOOK;
     // Restore default cookie accessor if a test overrode it.
     Reflect.deleteProperty(document, 'cookie');
+    window.localStorage.clear();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -148,6 +151,8 @@ describe('youtube embed fallback', () => {
         'sessionLandingPage=https://university.webflow.com/',
       ].join('; ')
     );
+    window.localStorage.setItem('ajs_anonymous_id', '"dcfbff14-a4fe-4fd7-af2a-04e0ba5b3bf8"');
+    window.localStorage.setItem('ajs_user_id', 'null');
 
     const iframe = mountPlayer({ videoId: 'vid123', src: '' });
     const payload = buildFailurePayload({
@@ -164,7 +169,8 @@ describe('youtube embed fallback', () => {
     expect(payload.lessonTitle).toBe('Design review & accessibility');
     expect(payload.courseId).toBe('site-build');
     expect(payload.wfUserId).toBe('6761bdd58547141fa6cbc7f9');
-    expect(payload.anonymousId).toBe('ad6ec947-2ae5-4aa7-b459-5a4933ea879e');
+    expect(payload.ajsUserId).toBe('');
+    expect(payload.anonymousId).toBe('dcfbff14-a4fe-4fd7-af2a-04e0ba5b3bf8');
     expect(payload.referralSource).toBe('www.google.com');
     expect(payload.sessionLandingPage).toBe('https://university.webflow.com/');
     expect(payload.forced).toBe(false);
@@ -172,6 +178,7 @@ describe('youtube embed fallback', () => {
 
   it('omits identity cookies gracefully when missing', () => {
     setDocumentCookies('');
+    window.localStorage.clear();
     const payload = buildFailurePayload({
       trigger: 'error',
       errorCode: 100,
@@ -179,9 +186,27 @@ describe('youtube embed fallback', () => {
     });
 
     expect(payload.wfUserId).toBe('');
+    expect(payload.ajsUserId).toBe('');
     expect(payload.anonymousId).toBe('');
     expect(payload.referralSource).toBe('');
     expect(payload.sessionLandingPage).toBe('');
+  });
+
+  it('reads Segment ids from localStorage and treats null as empty', () => {
+    window.localStorage.setItem('ajs_user_id', '"user-123"');
+    window.localStorage.setItem('ajs_anonymous_id', 'null');
+    expect(readLocalStorageValue('ajs_user_id')).toBe('user-123');
+    expect(readLocalStorageValue('ajs_anonymous_id')).toBe('');
+  });
+
+  it('falls back to cb_anonymous_id when Segment anonymous id is missing', () => {
+    window.localStorage.clear();
+    setDocumentCookies('cb_anonymous_id=%22cb-only-id%22');
+    const payload = buildFailurePayload({
+      trigger: 'timeout',
+      videoId: 'vid123',
+    });
+    expect(payload.anonymousId).toBe('cb-only-id');
   });
 
   it('normalizes encoded/quoted cookie values', () => {

@@ -29,7 +29,12 @@ export type YoutubeEmbedFailurePayload = {
   lessonId: string;
   /** Webflow logged-in user id from `wf_user` cookie; empty when absent. */
   wfUserId: string;
-  /** Segment/customer.io anonymous id from `cb_anonymous_id`; empty when absent. */
+  /** Segment user id from `ajs_user_id` localStorage; empty when null/absent. */
+  ajsUserId: string;
+  /**
+   * Best-effort anonymous id: `ajs_anonymous_id` (localStorage) then
+   * `cb_anonymous_id` (cookie/localStorage).
+   */
   anonymousId: string;
   /** Referral host from `sa-r-source` (falls back to `sa-u-source`). */
   referralSource: string;
@@ -159,19 +164,64 @@ export function normalizeCookieValue(raw: string): string {
 }
 
 /**
- * Collects optional identity/context cookies for Slack debugging.
+ * Safely reads a localStorage value. Handles JSON-encoded strings/null.
+ * Never throws; returns '' when missing or unusable.
+ */
+export function readLocalStorageValue(key: string): string {
+  try {
+    const raw = window.localStorage?.getItem(key);
+    if (raw === null || raw === undefined) {
+      return '';
+    }
+
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed === 'null' || trimmed === 'undefined') {
+      return '';
+    }
+
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      if (parsed === null || parsed === undefined) {
+        return '';
+      }
+      if (typeof parsed === 'string') {
+        return parsed.trim();
+      }
+      if (typeof parsed === 'number' || typeof parsed === 'boolean') {
+        return String(parsed);
+      }
+      // Objects/arrays are not useful identity values for Slack.
+      return '';
+    } catch {
+      return normalizeCookieValue(trimmed);
+    }
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Collects optional identity/context from cookies + localStorage.
  * All fields are empty strings when unavailable.
  */
-export function readSessionContextCookies(): {
+export function readSessionContext(): {
   wfUserId: string;
+  ajsUserId: string;
   anonymousId: string;
   referralSource: string;
   sessionLandingPage: string;
 } {
+  const ajsAnonymousId = readLocalStorageValue('ajs_anonymous_id');
+  const cbAnonymousId = readCookie('cb_anonymous_id') || readLocalStorageValue('cb_anonymous_id');
+
   return {
     wfUserId: readCookie('wf_user'),
-    anonymousId: readCookie('cb_anonymous_id'),
-    referralSource: readCookie('sa-r-source') || readCookie('sa-u-source'),
+    ajsUserId: readLocalStorageValue('ajs_user_id'),
+    anonymousId: ajsAnonymousId || cbAnonymousId,
+    referralSource:
+      readCookie('sa-r-source') ||
+      readCookie('sa-u-source') ||
+      readLocalStorageValue('sa-r-source'),
     sessionLandingPage: readCookie('sessionLandingPage'),
   };
 }
@@ -187,7 +237,7 @@ export function buildFailurePayload(options: {
   forced?: boolean;
 }): YoutubeEmbedFailurePayload {
   const wrapper = options.iframe?.closest('.cc_video') ?? null;
-  const session = readSessionContextCookies();
+  const session = readSessionContext();
 
   return {
     source: REPORT_SOURCE,
@@ -203,6 +253,7 @@ export function buildFailurePayload(options: {
     courseId: wrapper?.getAttribute('data-course-id') ?? '',
     lessonId: wrapper?.getAttribute('data-lesson-id') ?? '',
     wfUserId: session.wfUserId,
+    ajsUserId: session.ajsUserId,
     anonymousId: session.anonymousId,
     referralSource: session.referralSource,
     sessionLandingPage: session.sessionLandingPage,
