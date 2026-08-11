@@ -1,5 +1,11 @@
 # scripts
 
+## 2.5.1
+
+### Patch Changes
+
+- 753f801: Improve YouTube embed failure alerts: soft cause hints, Zapier CORS fix, remove on-page banner, and skip rich-text lessons whose `.cc_video` is `w-condition-invisible` / empty embed src.
+
 ## 2.5.0
 
 ### Minor Changes
