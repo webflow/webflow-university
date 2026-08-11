@@ -10,6 +10,7 @@ import {
   getZapierWebhookUrl,
   handleEmbedFailure,
   initYoutubeEmbedFallback,
+  normalizeCookieValue,
   parseVideoIdFromSrc,
   PLAYER_ELEMENT_ID,
   READY_TIMEOUT_MS,
@@ -26,6 +27,16 @@ function setLocation(pathWithSearch: string): void {
 
 function setWebhookUrl(url: string): void {
   window.WFU_YT_ZAPIER_WEBHOOK = url;
+}
+
+function setDocumentCookies(cookies: string): void {
+  Object.defineProperty(document, 'cookie', {
+    configurable: true,
+    get: () => cookies,
+    set: () => {
+      // Ignore writes in tests.
+    },
+  });
 }
 
 function mountPlayer(options?: {
@@ -86,6 +97,8 @@ describe('youtube embed fallback', () => {
     delete window.YT;
     delete window.onYouTubeIframeAPIReady;
     delete window.WFU_YT_ZAPIER_WEBHOOK;
+    // Restore default cookie accessor if a test overrode it.
+    Reflect.deleteProperty(document, 'cookie');
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -126,7 +139,16 @@ describe('youtube embed fallback', () => {
     expect(resolveVideoId(emptySrc)).toBe('fromDataAttr');
   });
 
-  it('builds an anonymous failure payload', () => {
+  it('builds a failure payload with optional cookie context', () => {
+    setDocumentCookies(
+      [
+        'wf_user=6761bdd58547141fa6cbc7f9',
+        'cb_anonymous_id=%22ad6ec947-2ae5-4aa7-b459-5a4933ea879e%22',
+        'sa-r-source=www.google.com',
+        'sessionLandingPage=https://university.webflow.com/',
+      ].join('; ')
+    );
+
     const iframe = mountPlayer({ videoId: 'vid123', src: '' });
     const payload = buildFailurePayload({
       trigger: 'timeout',
@@ -141,7 +163,31 @@ describe('youtube embed fallback', () => {
     expect(payload.path).toBe('/course-lesson/example');
     expect(payload.lessonTitle).toBe('Design review & accessibility');
     expect(payload.courseId).toBe('site-build');
+    expect(payload.wfUserId).toBe('6761bdd58547141fa6cbc7f9');
+    expect(payload.anonymousId).toBe('ad6ec947-2ae5-4aa7-b459-5a4933ea879e');
+    expect(payload.referralSource).toBe('www.google.com');
+    expect(payload.sessionLandingPage).toBe('https://university.webflow.com/');
     expect(payload.forced).toBe(false);
+  });
+
+  it('omits identity cookies gracefully when missing', () => {
+    setDocumentCookies('');
+    const payload = buildFailurePayload({
+      trigger: 'error',
+      errorCode: 100,
+      videoId: 'vid123',
+    });
+
+    expect(payload.wfUserId).toBe('');
+    expect(payload.anonymousId).toBe('');
+    expect(payload.referralSource).toBe('');
+    expect(payload.sessionLandingPage).toBe('');
+  });
+
+  it('normalizes encoded/quoted cookie values', () => {
+    expect(normalizeCookieValue('%22abc-123%22')).toBe('abc-123');
+    expect(normalizeCookieValue('"plain"')).toBe('plain');
+    expect(normalizeCookieValue('')).toBe('');
   });
 
   it('injects the Watch on YouTube fallback once', () => {

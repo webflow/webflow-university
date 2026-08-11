@@ -27,6 +27,14 @@ export type YoutubeEmbedFailurePayload = {
   lessonTitle: string;
   courseId: string;
   lessonId: string;
+  /** Webflow logged-in user id from `wf_user` cookie; empty when absent. */
+  wfUserId: string;
+  /** Segment/customer.io anonymous id from `cb_anonymous_id`; empty when absent. */
+  anonymousId: string;
+  /** Referral host from `sa-r-source` (falls back to `sa-u-source`). */
+  referralSource: string;
+  /** First page of the session from `sessionLandingPage`. */
+  sessionLandingPage: string;
   userAgent: string;
   viewportWidth: number;
   viewportHeight: number;
@@ -95,7 +103,81 @@ export function resolveVideoId(iframe: HTMLIFrameElement): string {
 }
 
 /**
- * Builds the anonymous Zapier payload for a failed embed.
+ * Safely reads a cookie value. Never throws; returns '' when missing.
+ */
+export function readCookie(name: string): string {
+  try {
+    if (typeof Cookies !== 'undefined' && typeof Cookies.get === 'function') {
+      const fromLib = Cookies.get(name);
+      if (typeof fromLib === 'string' && fromLib.trim()) {
+        return normalizeCookieValue(fromLib);
+      }
+    }
+  } catch {
+    // Fall through to document.cookie.
+  }
+
+  try {
+    const encodedName = encodeURIComponent(name);
+    const parts = document.cookie ? document.cookie.split(';') : [];
+    for (const part of parts) {
+      const trimmed = part.trim();
+      if (!trimmed.startsWith(`${encodedName}=`) && !trimmed.startsWith(`${name}=`)) {
+        continue;
+      }
+      const raw = trimmed.slice(trimmed.indexOf('=') + 1);
+      return normalizeCookieValue(raw);
+    }
+  } catch {
+    // Ignore cookie access errors (privacy mode, etc.).
+  }
+
+  return '';
+}
+
+/**
+ * Decodes and cleans a cookie value (URI-encoding + surrounding quotes).
+ */
+export function normalizeCookieValue(raw: string): string {
+  let value = raw.trim();
+  if (!value) return '';
+
+  try {
+    value = decodeURIComponent(value);
+  } catch {
+    // Keep the raw value if it is not URI-encoded.
+  }
+
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    value = value.slice(1, -1);
+  }
+
+  return value.trim();
+}
+
+/**
+ * Collects optional identity/context cookies for Slack debugging.
+ * All fields are empty strings when unavailable.
+ */
+export function readSessionContextCookies(): {
+  wfUserId: string;
+  anonymousId: string;
+  referralSource: string;
+  sessionLandingPage: string;
+} {
+  return {
+    wfUserId: readCookie('wf_user'),
+    anonymousId: readCookie('cb_anonymous_id'),
+    referralSource: readCookie('sa-r-source') || readCookie('sa-u-source'),
+    sessionLandingPage: readCookie('sessionLandingPage'),
+  };
+}
+
+/**
+ * Builds the Zapier payload for a failed embed.
  */
 export function buildFailurePayload(options: {
   trigger: FailureTrigger;
@@ -105,6 +187,7 @@ export function buildFailurePayload(options: {
   forced?: boolean;
 }): YoutubeEmbedFailurePayload {
   const wrapper = options.iframe?.closest('.cc_video') ?? null;
+  const session = readSessionContextCookies();
 
   return {
     source: REPORT_SOURCE,
@@ -119,6 +202,10 @@ export function buildFailurePayload(options: {
     lessonTitle: wrapper?.getAttribute('data-lesson-title') ?? '',
     courseId: wrapper?.getAttribute('data-course-id') ?? '',
     lessonId: wrapper?.getAttribute('data-lesson-id') ?? '',
+    wfUserId: session.wfUserId,
+    anonymousId: session.anonymousId,
+    referralSource: session.referralSource,
+    sessionLandingPage: session.sessionLandingPage,
     userAgent: navigator.userAgent,
     viewportWidth: window.innerWidth,
     viewportHeight: window.innerHeight,
