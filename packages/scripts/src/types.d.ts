@@ -12,6 +12,21 @@ declare global {
       courseName: string | null;
       completedCoursesCount: number | null;
     }) => void;
+    /** Minimal YouTube IFrame Player API surface used by embed fallback. */
+    YT?: {
+      Player: new (
+        elementId: string,
+        options?: {
+          events?: {
+            onReady?: (event: unknown) => void;
+            onError?: (event: { data: number }) => void;
+          };
+        }
+      ) => unknown;
+    };
+    onYouTubeIframeAPIReady?: () => void;
+    /** Zapier Catch Hook URL for YouTube embed failure reports (set in Webflow). */
+    WFU_YT_ZAPIER_WEBHOOK?: string;
   }
 
   // js-cookie library types
