@@ -9,6 +9,7 @@ import {
   getForceFailMode,
   getZapierWebhookUrl,
   handleEmbedFailure,
+  hasYoutubeEmbedToMonitor,
   inferLikelyCauseHint,
   initYoutubeEmbedFallback,
   normalizeCookieValue,
@@ -365,7 +366,36 @@ describe('youtube embed fallback', () => {
       configurable: true,
       value: sendBeacon,
     });
-    document.body.innerHTML = '<div>no player</div>';
+    document.body.innerHTML = '<div class="docs_rich-text">rich text only</div>';
+    expect(hasYoutubeEmbedToMonitor()).toBeNull();
+    initYoutubeEmbedFallback();
+    expect(sendBeacon).not.toHaveBeenCalled();
+  });
+
+  it('exits early when the player has no video id (empty embed)', () => {
+    const sendBeacon = vi.fn().mockReturnValue(true);
+    Object.defineProperty(navigator, 'sendBeacon', {
+      configurable: true,
+      value: sendBeacon,
+    });
+    document.body.innerHTML = `
+      <div class="cc_video">
+        <iframe id="${PLAYER_ELEMENT_ID}" src="https://www.youtube-nocookie.com/embed/?enablejsapi=1"></iframe>
+      </div>
+    `;
+    expect(hasYoutubeEmbedToMonitor()).toBeNull();
+    initYoutubeEmbedFallback();
+    expect(sendBeacon).not.toHaveBeenCalled();
+  });
+
+  it('does not report on rich-text lessons even with force-fail query', () => {
+    const sendBeacon = vi.fn().mockReturnValue(true);
+    Object.defineProperty(navigator, 'sendBeacon', {
+      configurable: true,
+      value: sendBeacon,
+    });
+    document.body.innerHTML = '<div class="docs_rich-text cc_course-lesson-rtf">no video</div>';
+    setLocation('/course-lesson/get-started-mcp-activity-resources?wfu_yt_force_fail=timeout');
     initYoutubeEmbedFallback();
     expect(sendBeacon).not.toHaveBeenCalled();
   });

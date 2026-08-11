@@ -688,11 +688,32 @@ export function resetYoutubeEmbedStateForTests(): void {
 }
 
 /**
- * Initializes YouTube embed monitoring when #wfu-yt-player is present.
+ * True when this page has a real YouTube lesson/video embed to monitor.
+ * Easiest signal: `#wfu-yt-player` with a non-empty `/embed/{id}` src.
+ * Rich-text-only lessons omit the player from the DOM — we no-op.
+ */
+export function hasYoutubeEmbedToMonitor(root: ParentNode = document): HTMLIFrameElement | null {
+  const el = root.querySelector(`#${PLAYER_ELEMENT_ID}`);
+  if (!(el instanceof HTMLIFrameElement)) {
+    return null;
+  }
+
+  const videoId = resolveVideoId(el);
+  if (!videoId) {
+    return null;
+  }
+
+  return el;
+}
+
+/**
+ * Initializes YouTube embed monitoring when a real video embed is present.
+ * Does nothing on rich-text-only lessons (no `#wfu-yt-player` / empty ID).
+ * Zapier is only contacted from handleEmbedFailure (error / timeout / QA force).
  */
 export function initYoutubeEmbedFallback(): void {
-  const iframe = document.getElementById(PLAYER_ELEMENT_ID);
-  if (!(iframe instanceof HTMLIFrameElement)) {
+  const iframe = hasYoutubeEmbedToMonitor();
+  if (!iframe) {
     return;
   }
 
