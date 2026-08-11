@@ -447,6 +447,10 @@ export function buildFailurePayload(options: {
 
 /**
  * Posts failure details to Zapier once per page load.
+ *
+ * Uses text/plain + no-cors / credentials omit so privacy layers (e.g. Transcend
+ * airgap) that force credentials:include don't trip Zapier's ACAO: * CORS response.
+ * Falls back to a hidden form POST, which does not require CORS.
  */
 export function reportEmbedFailure(payload: YoutubeEmbedFailurePayload): void {
   if (hasReported) {
@@ -462,26 +466,82 @@ export function reportEmbedFailure(payload: YoutubeEmbedFailurePayload): void {
   }
 
   hasReported = true;
+  postToZapier(webhookUrl, payload);
+}
 
+/**
+ * Best-effort POST to a Zapier Catch Hook from the browser.
+ */
+export function postToZapier(webhookUrl: string, payload: YoutubeEmbedFailurePayload): void {
   const body = JSON.stringify(payload);
+  const plainBlob = new Blob([body], { type: 'text/plain;charset=UTF-8' });
 
   try {
-    if (navigator.sendBeacon?.(webhookUrl, new Blob([body], { type: 'application/json' }))) {
+    if (navigator.sendBeacon?.(webhookUrl, plainBlob)) {
       return;
     }
   } catch {
-    // Fall through to fetch.
+    // Fall through.
   }
 
-  void fetch(webhookUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body,
-    keepalive: true,
-    mode: 'cors',
-  }).catch(() => {
-    // Fire-and-forget; ignore network errors.
-  });
+  try {
+    void fetch(webhookUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      credentials: 'omit',
+      keepalive: true,
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+      body,
+    }).catch(() => {
+      postToZapierViaForm(webhookUrl, payload);
+    });
+    return;
+  } catch {
+    // Fall through to form POST.
+  }
+
+  postToZapierViaForm(webhookUrl, payload);
+}
+
+/**
+ * CORS-proof fallback: submit a hidden form into a disposable iframe.
+ */
+export function postToZapierViaForm(webhookUrl: string, payload: YoutubeEmbedFailurePayload): void {
+  try {
+    const iframeName = `wfu-yt-zapier-${Date.now()}`;
+    const iframe = document.createElement('iframe');
+    iframe.name = iframeName;
+    iframe.title = 'wfu-yt-zapier';
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.cssText = 'display:none;width:0;height:0;border:0;';
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = webhookUrl;
+    form.target = iframeName;
+    form.acceptCharset = 'UTF-8';
+    form.style.display = 'none';
+    // text/plain keeps this a "simple" request; Zapier still receives the fields.
+    form.enctype = 'application/x-www-form-urlencoded';
+
+    for (const [key, value] of Object.entries(payload)) {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      input.value = value === null || value === undefined ? '' : String(value);
+      form.appendChild(input);
+    }
+
+    document.body.append(iframe, form);
+    form.submit();
+
+    window.setTimeout(() => {
+      form.remove();
+      iframe.remove();
+    }, 5000);
+  } catch {
+    // Last-resort path failed; nothing else we can do client-side.
+  }
 }
 
 function ensureFallbackStyles(): void {

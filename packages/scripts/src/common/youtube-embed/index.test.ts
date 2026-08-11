@@ -302,6 +302,35 @@ describe('youtube embed fallback', () => {
 
     expect(sendBeacon).toHaveBeenCalledTimes(1);
     expect(sendBeacon.mock.calls[0]?.[0]).toBe('https://hooks.example.test/catch/test');
+    const blob = sendBeacon.mock.calls[0]?.[1] as Blob;
+    expect(blob.type).toContain('text/plain');
+  });
+
+  it('falls back to a hidden form POST when beacon/fetch are unavailable', () => {
+    Object.defineProperty(navigator, 'sendBeacon', {
+      configurable: true,
+      value: undefined,
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => {
+        throw new Error('blocked');
+      })
+    );
+
+    const payload = buildFailurePayload({
+      trigger: 'timeout',
+      videoId: 'vid123',
+    });
+
+    reportEmbedFailure(payload);
+
+    const form = document.querySelector('form[action="https://hooks.example.test/catch/test"]');
+    expect(form).not.toBeNull();
+    expect(form?.querySelector('input[name="source"]')).not.toBeNull();
+    expect((form?.querySelector('input[name="source"]') as HTMLInputElement).value).toBe(
+      REPORT_SOURCE
+    );
   });
 
   it('skips reporting when webhook URL is missing', () => {
