@@ -688,9 +688,11 @@ export function resetYoutubeEmbedStateForTests(): void {
 }
 
 /**
- * True when this page has a real YouTube lesson/video embed to monitor.
- * Easiest signal: `#wfu-yt-player` with a non-empty `/embed/{id}` src.
- * Rich-text-only lessons omit the player from the DOM — we no-op.
+ * True when this page has a real, visible YouTube lesson/video embed to monitor.
+ *
+ * Rich-text lessons still render `.cc_video` + `#wfu-yt-player` for platform
+ * progress metadata, but Webflow marks the wrapper `w-condition-invisible` and
+ * leaves an empty embed src (`/embed/?…`). Those must not be monitored.
  */
 export function hasYoutubeEmbedToMonitor(root: ParentNode = document): HTMLIFrameElement | null {
   const el = root.querySelector(`#${PLAYER_ELEMENT_ID}`);
@@ -698,7 +700,14 @@ export function hasYoutubeEmbedToMonitor(root: ParentNode = document): HTMLIFram
     return null;
   }
 
-  const videoId = resolveVideoId(el);
+  const wrapper = el.closest('.cc_video');
+  if (wrapper?.classList.contains('w-condition-invisible')) {
+    return null;
+  }
+
+  // Require a real ID in the iframe src — do not treat empty embeds as video lessons
+  // even if other data attrs exist on the wrapper.
+  const videoId = parseVideoIdFromSrc(el.getAttribute('src'));
   if (!videoId) {
     return null;
   }
@@ -708,7 +717,7 @@ export function hasYoutubeEmbedToMonitor(root: ParentNode = document): HTMLIFram
 
 /**
  * Initializes YouTube embed monitoring when a real video embed is present.
- * Does nothing on rich-text-only lessons (no `#wfu-yt-player` / empty ID).
+ * Skips rich-text lessons (hidden `.cc_video` / empty embed src).
  * Zapier is only contacted from handleEmbedFailure (error / timeout / QA force).
  */
 export function initYoutubeEmbedFallback(): void {

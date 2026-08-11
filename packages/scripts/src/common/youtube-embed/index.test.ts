@@ -379,11 +379,36 @@ describe('youtube embed fallback', () => {
       value: sendBeacon,
     });
     document.body.innerHTML = `
-      <div class="cc_video">
-        <iframe id="${PLAYER_ELEMENT_ID}" src="https://www.youtube-nocookie.com/embed/?enablejsapi=1"></iframe>
+      <div class="cc_video" data-lesson-id="" data-text-lesson-id="get-started-mcp-writing-a-prompt-that-works">
+        <iframe id="${PLAYER_ELEMENT_ID}" src="https://www.youtube-nocookie.com/embed/?enablejsapi=1&autoplay=0&rel=0"></iframe>
       </div>
     `;
     expect(hasYoutubeEmbedToMonitor()).toBeNull();
+    initYoutubeEmbedFallback();
+    expect(sendBeacon).not.toHaveBeenCalled();
+  });
+
+  it('exits early when .cc_video is w-condition-invisible (rich-text lesson)', () => {
+    const sendBeacon = vi.fn().mockReturnValue(true);
+    Object.defineProperty(navigator, 'sendBeacon', {
+      configurable: true,
+      value: sendBeacon,
+    });
+    // Even if a stale video id somehow appeared in src, invisible wrapper means no monitor.
+    document.body.innerHTML = `
+      <div
+        class="cc_video cc_video--offset w-condition-invisible w-embed w-iframe"
+        data-course-id="get-started-mcp"
+        data-lesson-id=""
+        data-text-lesson-id="get-started-mcp-writing-a-prompt-that-works"
+      >
+        <iframe id="${PLAYER_ELEMENT_ID}" class="responsive-video-iframe" src="https://www.youtube-nocookie.com/embed/?enablejsapi=1&autoplay=0&rel=0"></iframe>
+      </div>
+    `;
+    expect(hasYoutubeEmbedToMonitor()).toBeNull();
+    setLocation(
+      '/course-lesson/get-started-mcp-writing-a-prompt-that-works?wfu_yt_force_fail=timeout'
+    );
     initYoutubeEmbedFallback();
     expect(sendBeacon).not.toHaveBeenCalled();
   });
@@ -400,6 +425,19 @@ describe('youtube embed fallback', () => {
     expect(sendBeacon).not.toHaveBeenCalled();
   });
 
+  it('monitors visible embeds with a real video id', () => {
+    mountPlayer({ videoId: 'KC2plnRX7PE' });
+    expect(hasYoutubeEmbedToMonitor()?.id).toBe(PLAYER_ELEMENT_ID);
+  });
+
+  it('does not monitor when src has no id even if data-lesson-id is set', () => {
+    mountPlayer({
+      videoId: 'staleFromDataAttr',
+      src: 'https://www.youtube-nocookie.com/embed/?enablejsapi=1&autoplay=0&rel=0',
+    });
+    expect(hasYoutubeEmbedToMonitor()).toBeNull();
+  });
+
   it('force-fails immediately via query param', () => {
     const sendBeacon = vi.fn().mockReturnValue(true);
     Object.defineProperty(navigator, 'sendBeacon', {
@@ -407,7 +445,7 @@ describe('youtube embed fallback', () => {
       value: sendBeacon,
     });
 
-    mountPlayer({ videoId: 'forceVid', src: '' });
+    mountPlayer({ videoId: 'forceVid' });
     setLocation('/course-lesson/example?wfu_yt_force_fail=timeout');
 
     initYoutubeEmbedFallback();
@@ -458,7 +496,7 @@ describe('youtube embed fallback', () => {
 
     window.YT = { Player: MockPlayer } as Window['YT'];
 
-    mountPlayer({ videoId: 'slowVid', src: '' });
+    mountPlayer({ videoId: 'slowVid' });
     initYoutubeEmbedFallback();
 
     await vi.advanceTimersByTimeAsync(READY_TIMEOUT_MS);
@@ -484,7 +522,7 @@ describe('youtube embed fallback', () => {
 
     window.YT = { Player: MockPlayer } as Window['YT'];
 
-    mountPlayer({ videoId: 'readyVid', src: '' });
+    mountPlayer({ videoId: 'readyVid' });
     initYoutubeEmbedFallback();
 
     await vi.advanceTimersByTimeAsync(READY_TIMEOUT_MS + 1000);
