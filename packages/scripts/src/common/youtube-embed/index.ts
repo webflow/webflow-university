@@ -1,6 +1,6 @@
 /**
  * YouTube embed failure detection for course-lesson and video pages.
- * Shows a Watch-on-YouTube fallback and reports anonymously to Zapier → Slack.
+ * Reports anonymously to Zapier → Slack (no on-page banner).
  *
  * Webhook URL is supplied at runtime from Webflow (not committed):
  *   window.WFU_YT_ZAPIER_WEBHOOK = '<catch-hook-url>'
@@ -8,7 +8,6 @@
  */
 
 export const PLAYER_ELEMENT_ID = 'wfu-yt-player';
-export const FALLBACK_ELEMENT_ID = 'wfu-yt-fallback';
 export const READY_TIMEOUT_MS = 7000;
 export const FORCE_FAIL_PARAM = 'wfu_yt_force_fail';
 export const REPORT_SOURCE = 'wfu-youtube-embed';
@@ -16,11 +15,28 @@ export const WEBHOOK_META_NAME = 'wfu-yt-zapier-webhook';
 
 export type FailureTrigger = 'error' | 'timeout' | 'force';
 export type ForceFailMode = 'timeout' | 'error';
+/** Soft triage hint — not a definitive diagnosis. */
+export type LikelyCauseHint =
+  | 'youtube-side'
+  | 'third-party-blocked'
+  | 'csp'
+  | 'qa-force'
+  | 'unknown';
+export type YoutubeResourceName = 'iframe_api' | 'embed';
 
 export type YoutubeEmbedFailurePayload = {
   source: typeof REPORT_SOURCE;
   trigger: FailureTrigger;
   errorCode: string;
+  /** Human-readable note for known YouTube / loader error codes. */
+  errorDetail: string;
+  /**
+   * Soft hint for Slack triage. Cannot distinguish ad blocker vs corporate firewall;
+   * both surface as `third-party-blocked`.
+   */
+  likelyCauseHint: LikelyCauseHint;
+  /** Comma-separated missing/failed YouTube resources, e.g. `iframe_api,embed`. */
+  blockedResources: string;
   videoId: string;
   pageUrl: string;
   path: string;
@@ -47,12 +63,13 @@ export type YoutubeEmbedFailurePayload = {
   forced: boolean;
 };
 
-const STYLE_ELEMENT_ID = 'wfu-yt-fallback-styles';
 const YT_API_SRC = 'https://www.youtube.com/iframe_api';
 
 let hasReported = false;
-let hasShownFallback = false;
+let hasHandledFailure = false;
 let readyTimeoutId: ReturnType<typeof setTimeout> | null = null;
+let sawYoutubeCspViolation = false;
+let cspMonitoringStarted = false;
 
 /**
  * Resolves the Zapier Catch Hook URL from a Webflow-provided runtime config.
@@ -227,6 +244,155 @@ export function readSessionContext(): {
 }
 
 /**
+ * Starts listening for CSP violations that mention YouTube.
+ */
+export function startYoutubeCspMonitoring(): void {
+  if (cspMonitoringStarted || typeof window === 'undefined') {
+    return;
+  }
+  cspMonitoringStarted = true;
+
+  window.addEventListener('securitypolicyviolation', (event) => {
+    try {
+      const haystack = [
+        event.blockedURI,
+        event.violatedDirective,
+        event.effectiveDirective,
+        event.sourceFile,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      if (/youtube|youtu\.be|ytimg/i.test(haystack)) {
+        sawYoutubeCspViolation = true;
+      }
+    } catch {
+      // Ignore CSP event access issues.
+    }
+  });
+}
+
+/**
+ * Maps known YouTube / loader error codes to a short detail string.
+ */
+export function describeErrorCode(errorCode: string): string {
+  switch (errorCode) {
+    case 'none':
+      return '';
+    case '2':
+      return 'Invalid video parameter';
+    case '5':
+      return 'HTML5 player error';
+    case '100':
+      return 'Video not found / private';
+    case '101':
+    case '150':
+      return 'Embedding disabled by owner';
+    case 'api-load':
+      return 'YouTube IFrame API script failed to load';
+    case 'api-missing':
+      return 'YouTube IFrame API missing after load';
+    case 'player-init':
+      return 'YT.Player failed to initialize';
+    case 'timeout':
+      return 'QA force-fail timeout';
+    case 'error':
+      return 'QA force-fail error';
+    default:
+      return errorCode ? `Code ${errorCode}` : '';
+  }
+}
+
+function findResourceEntry(matcher: RegExp): PerformanceResourceTiming | undefined {
+  try {
+    const entries = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
+    return entries.find((entry) => matcher.test(entry.name));
+  } catch {
+    return undefined;
+  }
+}
+
+function classifyResourceEntry(
+  entry: PerformanceResourceTiming | undefined
+): 'ok' | 'failed' | 'missing' {
+  if (!entry) {
+    return 'missing';
+  }
+
+  const status = (entry as PerformanceResourceTiming & { responseStatus?: number }).responseStatus;
+  if (typeof status === 'number') {
+    if (status >= 400) return 'failed';
+    if (status > 0) return 'ok';
+  }
+
+  // Cross-origin successes often report transferSize 0; treat a completed timing as ok.
+  if (entry.duration > 0 || entry.responseEnd > 0) {
+    return 'ok';
+  }
+
+  return 'failed';
+}
+
+/**
+ * Inspects Performance resource timings for YouTube API + embed requests.
+ */
+export function inspectYoutubeResources(): {
+  iframeApi: 'ok' | 'failed' | 'missing';
+  embed: 'ok' | 'failed' | 'missing';
+  blockedResources: YoutubeResourceName[];
+} {
+  const iframeApi = classifyResourceEntry(findResourceEntry(/youtube\.com\/iframe_api/i));
+  const embed = classifyResourceEntry(findResourceEntry(/youtube(?:-nocookie)?\.com\/embed\//i));
+
+  const blockedResources: YoutubeResourceName[] = [];
+  if (iframeApi === 'missing' || iframeApi === 'failed') {
+    blockedResources.push('iframe_api');
+  }
+  if (embed === 'missing' || embed === 'failed') {
+    blockedResources.push('embed');
+  }
+
+  return { iframeApi, embed, blockedResources };
+}
+
+/**
+ * Soft triage hint for Slack. Not a definitive ad-blocker vs firewall label.
+ */
+export function inferLikelyCauseHint(options: {
+  trigger: FailureTrigger;
+  errorCode: string;
+  forced?: boolean;
+  blockedResources: YoutubeResourceName[];
+  cspViolation?: boolean;
+}): LikelyCauseHint {
+  if (options.forced || options.trigger === 'force') {
+    return 'qa-force';
+  }
+
+  if (options.cspViolation ?? sawYoutubeCspViolation) {
+    return 'csp';
+  }
+
+  if (options.trigger === 'error') {
+    return 'youtube-side';
+  }
+
+  if (
+    options.errorCode === 'api-load' ||
+    options.errorCode === 'api-missing' ||
+    options.blockedResources.length > 0
+  ) {
+    return 'third-party-blocked';
+  }
+
+  if (options.trigger === 'timeout') {
+    // Timeout with no resource evidence — still usually third-party blocked, but softer.
+    return 'third-party-blocked';
+  }
+
+  return 'unknown';
+}
+
+/**
  * Builds the Zapier payload for a failed embed.
  */
 export function buildFailurePayload(options: {
@@ -238,14 +404,26 @@ export function buildFailurePayload(options: {
 }): YoutubeEmbedFailurePayload {
   const wrapper = options.iframe?.closest('.cc_video') ?? null;
   const session = readSessionContext();
+  const errorCode =
+    options.errorCode === null || options.errorCode === undefined || options.errorCode === ''
+      ? 'none'
+      : String(options.errorCode);
+  const resources = inspectYoutubeResources();
+  const likelyCauseHint = inferLikelyCauseHint({
+    trigger: options.trigger,
+    errorCode,
+    forced: options.forced,
+    blockedResources: resources.blockedResources,
+    cspViolation: sawYoutubeCspViolation,
+  });
 
   return {
     source: REPORT_SOURCE,
     trigger: options.trigger,
-    errorCode:
-      options.errorCode === null || options.errorCode === undefined || options.errorCode === ''
-        ? 'none'
-        : String(options.errorCode),
+    errorCode,
+    errorDetail: describeErrorCode(errorCode),
+    likelyCauseHint,
+    blockedResources: resources.blockedResources.join(','),
     videoId: options.videoId || 'unknown',
     pageUrl: window.location.href,
     path: window.location.pathname,
@@ -267,6 +445,10 @@ export function buildFailurePayload(options: {
 
 /**
  * Posts failure details to Zapier once per page load.
+ *
+ * Uses text/plain + no-cors / credentials omit so privacy layers (e.g. Transcend
+ * airgap) that force credentials:include don't trip Zapier's ACAO: * CORS response.
+ * Falls back to a hidden form POST, which does not require CORS.
  */
 export function reportEmbedFailure(payload: YoutubeEmbedFailurePayload): void {
   if (hasReported) {
@@ -282,110 +464,86 @@ export function reportEmbedFailure(payload: YoutubeEmbedFailurePayload): void {
   }
 
   hasReported = true;
+  postToZapier(webhookUrl, payload);
+}
 
+/**
+ * Best-effort POST to a Zapier Catch Hook from the browser.
+ */
+export function postToZapier(webhookUrl: string, payload: YoutubeEmbedFailurePayload): void {
   const body = JSON.stringify(payload);
+  const plainBlob = new Blob([body], { type: 'text/plain;charset=UTF-8' });
 
   try {
-    if (navigator.sendBeacon?.(webhookUrl, new Blob([body], { type: 'application/json' }))) {
+    if (navigator.sendBeacon?.(webhookUrl, plainBlob)) {
       return;
     }
   } catch {
-    // Fall through to fetch.
+    // Fall through.
   }
 
-  void fetch(webhookUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body,
-    keepalive: true,
-    mode: 'cors',
-  }).catch(() => {
-    // Fire-and-forget; ignore network errors.
-  });
-}
-
-function ensureFallbackStyles(): void {
-  if (document.getElementById(STYLE_ELEMENT_ID)) {
+  try {
+    void fetch(webhookUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      credentials: 'omit',
+      keepalive: true,
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+      body,
+    }).catch(() => {
+      postToZapierViaForm(webhookUrl, payload);
+    });
     return;
+  } catch {
+    // Fall through to form POST.
   }
 
-  const style = document.createElement('style');
-  style.id = STYLE_ELEMENT_ID;
-  style.textContent = `
-#${FALLBACK_ELEMENT_ID} {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 1.25rem 1.5rem;
-  margin: 0 0 1rem;
-  border: 1px solid currentColor;
-  border-radius: 0.5rem;
-  background: color-mix(in srgb, currentColor 6%, transparent);
-  font-size: 1rem;
-  line-height: 1.4;
-}
-#${FALLBACK_ELEMENT_ID}[hidden] {
-  display: none !important;
-}
-#${FALLBACK_ELEMENT_ID} a {
-  text-decoration: underline;
-  font-weight: 600;
-}
-.cc_video.is-yt-fallback-active,
-#${PLAYER_ELEMENT_ID}.is-yt-fallback-hidden {
-  display: none !important;
-}
-`;
-  document.head.appendChild(style);
+  postToZapierViaForm(webhookUrl, payload);
 }
 
 /**
- * Hides the broken player and shows a Watch-on-YouTube fallback.
+ * CORS-proof fallback: submit a hidden form into a disposable iframe.
  */
-export function showWatchOnYoutubeFallback(iframe: HTMLIFrameElement, videoId: string): void {
-  if (hasShownFallback) {
-    return;
+export function postToZapierViaForm(webhookUrl: string, payload: YoutubeEmbedFailurePayload): void {
+  try {
+    const iframeName = `wfu-yt-zapier-${Date.now()}`;
+    const iframe = document.createElement('iframe');
+    iframe.name = iframeName;
+    iframe.title = 'wfu-yt-zapier';
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.cssText = 'display:none;width:0;height:0;border:0;';
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = webhookUrl;
+    form.target = iframeName;
+    form.acceptCharset = 'UTF-8';
+    form.style.display = 'none';
+    // text/plain keeps this a "simple" request; Zapier still receives the fields.
+    form.enctype = 'application/x-www-form-urlencoded';
+
+    for (const [key, value] of Object.entries(payload)) {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      input.value = value === null || value === undefined ? '' : String(value);
+      form.appendChild(input);
+    }
+
+    document.body.append(iframe, form);
+    form.submit();
+
+    window.setTimeout(() => {
+      form.remove();
+      iframe.remove();
+    }, 5000);
+  } catch {
+    // Last-resort path failed; nothing else we can do client-side.
   }
-  hasShownFallback = true;
-  ensureFallbackStyles();
-
-  const wrapper = iframe.closest('.cc_video');
-  if (wrapper) {
-    wrapper.classList.add('is-yt-fallback-active');
-  } else {
-    iframe.classList.add('is-yt-fallback-hidden');
-  }
-
-  let fallback = document.getElementById(FALLBACK_ELEMENT_ID);
-  if (!fallback) {
-    fallback = document.createElement('div');
-    fallback.id = FALLBACK_ELEMENT_ID;
-    fallback.setAttribute('role', 'status');
-
-    const message = document.createElement('p');
-    message.textContent =
-      'Having trouble loading this video? You can watch it directly on YouTube.';
-
-    const link = document.createElement('a');
-    link.href = videoId
-      ? `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`
-      : 'https://www.youtube.com/';
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.textContent = 'Watch on YouTube';
-
-    fallback.append(message, link);
-
-    const insertTarget = wrapper ?? iframe.parentElement ?? iframe;
-    insertTarget.insertAdjacentElement('afterend', fallback);
-  }
-
-  fallback.hidden = false;
 }
 
 /**
- * Handles a detected embed failure: UI + Zapier report.
+ * Handles a detected embed failure: Zapier report only (no on-page UI).
  */
 export function handleEmbedFailure(options: {
   iframe: HTMLIFrameElement;
@@ -394,8 +552,11 @@ export function handleEmbedFailure(options: {
   errorCode?: string | number | null;
   forced?: boolean;
 }): void {
+  if (hasHandledFailure) {
+    return;
+  }
+  hasHandledFailure = true;
   clearReadyTimeout();
-  showWatchOnYoutubeFallback(options.iframe, options.videoId);
   reportEmbedFailure(
     buildFailurePayload({
       trigger: options.trigger,
@@ -520,18 +681,52 @@ function attachPlayer(iframe: HTMLIFrameElement, videoId: string): void {
  */
 export function resetYoutubeEmbedStateForTests(): void {
   hasReported = false;
-  hasShownFallback = false;
+  hasHandledFailure = false;
+  sawYoutubeCspViolation = false;
+  cspMonitoringStarted = false;
   clearReadyTimeout();
 }
 
 /**
- * Initializes YouTube embed monitoring when #wfu-yt-player is present.
+ * True when this page has a real, visible YouTube lesson/video embed to monitor.
+ *
+ * Rich-text lessons still render `.cc_video` + `#wfu-yt-player` for platform
+ * progress metadata, but Webflow marks the wrapper `w-condition-invisible` and
+ * leaves an empty embed src (`/embed/?…`). Those must not be monitored.
+ */
+export function hasYoutubeEmbedToMonitor(root: ParentNode = document): HTMLIFrameElement | null {
+  const el = root.querySelector(`#${PLAYER_ELEMENT_ID}`);
+  if (!(el instanceof HTMLIFrameElement)) {
+    return null;
+  }
+
+  const wrapper = el.closest('.cc_video');
+  if (wrapper?.classList.contains('w-condition-invisible')) {
+    return null;
+  }
+
+  // Require a real ID in the iframe src — do not treat empty embeds as video lessons
+  // even if other data attrs exist on the wrapper.
+  const videoId = parseVideoIdFromSrc(el.getAttribute('src'));
+  if (!videoId) {
+    return null;
+  }
+
+  return el;
+}
+
+/**
+ * Initializes YouTube embed monitoring when a real video embed is present.
+ * Skips rich-text lessons (hidden `.cc_video` / empty embed src).
+ * Zapier is only contacted from handleEmbedFailure (error / timeout / QA force).
  */
 export function initYoutubeEmbedFallback(): void {
-  const iframe = document.getElementById(PLAYER_ELEMENT_ID);
-  if (!(iframe instanceof HTMLIFrameElement)) {
+  const iframe = hasYoutubeEmbedToMonitor();
+  if (!iframe) {
     return;
   }
+
+  startYoutubeCspMonitoring();
 
   const videoId = resolveVideoId(iframe);
   const forceMode = getForceFailMode();
@@ -549,8 +744,8 @@ export function initYoutubeEmbedFallback(): void {
 
   void loadYoutubeIframeApi()
     .then(() => {
-      // Force-fail or a prior failure may have already run.
-      if (hasShownFallback) return;
+      // A prior failure may have already been reported.
+      if (hasHandledFailure) return;
       attachPlayer(iframe, videoId);
     })
     .catch(() => {
