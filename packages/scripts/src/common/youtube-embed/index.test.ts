@@ -10,9 +10,11 @@ import {
   getZapierWebhookUrl,
   handleEmbedFailure,
   hasYoutubeEmbedToMonitor,
+  inferFailureKind,
   inferLikelyCauseHint,
   initYoutubeEmbedFallback,
   isLikelyBot,
+  isLikelyThirdPartyBlock,
   normalizeCookieValue,
   parseVideoIdFromSrc,
   PLAYER_ELEMENT_ID,
@@ -88,6 +90,39 @@ function mountPlayer(options?: {
   }
 
   return document.getElementById(PLAYER_ELEMENT_ID) as HTMLIFrameElement;
+}
+
+function mockYoutubeResourceTimings(
+  entries: Array<{
+    name: string;
+    duration?: number;
+    responseEnd?: number;
+    responseStatus?: number;
+  }>
+): void {
+  vi.spyOn(performance, 'getEntriesByType').mockReturnValue(
+    entries.map((entry) => ({
+      name: entry.name,
+      duration: entry.duration ?? 0,
+      responseEnd: entry.responseEnd ?? 0,
+      responseStatus: entry.responseStatus,
+    })) as PerformanceResourceTiming[]
+  );
+}
+
+function mockEmbedLoaded(): void {
+  mockYoutubeResourceTimings([
+    { name: 'https://www.youtube.com/iframe_api', duration: 12, responseEnd: 12 },
+    {
+      name: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+      duration: 40,
+      responseEnd: 40,
+    },
+  ]);
+}
+
+function mockEmbedBlocked(): void {
+  mockYoutubeResourceTimings([]);
 }
 
 describe('youtube embed fallback', () => {
@@ -188,6 +223,7 @@ describe('youtube embed fallback', () => {
     expect(payload.referralSource).toBe('www.google.com');
     expect(payload.sessionLandingPage).toBe('https://university.webflow.com/');
     expect(payload.likelyCauseHint).toBe('youtube-side');
+    expect(payload.failureKind).toBe('youtube-player');
     expect(payload.forced).toBe(false);
   });
 
@@ -241,6 +277,25 @@ describe('youtube embed fallback', () => {
         blockedResources: [],
       })
     ).toBe('qa-force');
+
+    expect(
+      inferFailureKind({
+        trigger: 'error',
+      })
+    ).toBe('youtube-player');
+
+    expect(
+      inferFailureKind({
+        trigger: 'timeout',
+      })
+    ).toBe('viewer-blocked');
+
+    expect(
+      inferFailureKind({
+        trigger: 'force',
+        forced: true,
+      })
+    ).toBe('qa-force');
   });
 
   it('detects likely bots and reportable triggers', () => {
@@ -248,13 +303,25 @@ describe('youtube embed fallback', () => {
     expect(isLikelyBot('Mozilla/5.0 (compatible; Googlebot/2.1)')).toBe(true);
     expect(
       isLikelyBot(
+        'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm) Chrome/136.0.0.0 Safari/537.36'
+      )
+    ).toBe(true);
+    expect(
+      isLikelyBot(
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36'
       )
     ).toBe(false);
     expect(shouldReportFailure('error')).toBe(true);
     expect(shouldReportFailure('force')).toBe(true);
-    expect(shouldReportFailure('timeout')).toBe(false);
+    expect(shouldReportFailure('timeout')).toBe(true);
     expect(shouldReportFailure('timeout', true)).toBe(true);
+  });
+
+  it('treats a missing/failed embed as a third-party block', () => {
+    expect(isLikelyThirdPartyBlock({ embed: 'missing' })).toBe(true);
+    expect(isLikelyThirdPartyBlock({ embed: 'failed' })).toBe(true);
+    expect(isLikelyThirdPartyBlock({ embed: 'ok' })).toBe(false);
+    expect(isLikelyThirdPartyBlock({ embed: 'ok', cspViolation: true })).toBe(true);
   });
 
   it('describes known YouTube error codes', () => {
@@ -313,14 +380,14 @@ describe('youtube embed fallback', () => {
     handleEmbedFailure({
       iframe,
       videoId: 'vid123',
-      trigger: 'error',
-      errorCode: 150,
+      trigger: 'timeout',
+      errorCode: 'api-load',
     });
     handleEmbedFailure({
       iframe,
       videoId: 'vid123',
-      trigger: 'error',
-      errorCode: 150,
+      trigger: 'timeout',
+      errorCode: 'api-load',
     });
 
     expect(document.getElementById('wfu-yt-fallback')).toBeNull();
@@ -328,7 +395,26 @@ describe('youtube embed fallback', () => {
     expect(sendBeacon).toHaveBeenCalledTimes(1);
   });
 
-  it('does not report timeout-class failures via handleEmbedFailure', () => {
+  it('reports timeout-class failures when the embed looks blocked', () => {
+    const sendBeacon = vi.fn().mockReturnValue(true);
+    Object.defineProperty(navigator, 'sendBeacon', {
+      configurable: true,
+      value: sendBeacon,
+    });
+
+    const iframe = mountPlayer({ videoId: 'vid123', src: '' });
+    handleEmbedFailure({
+      iframe,
+      videoId: 'vid123',
+      trigger: 'timeout',
+      errorCode: 'api-load',
+    });
+
+    expect(sendBeacon).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not report timeout when the embed iframe itself loaded', () => {
+    mockEmbedLoaded();
     const sendBeacon = vi.fn().mockReturnValue(true);
     Object.defineProperty(navigator, 'sendBeacon', {
       configurable: true,
@@ -511,7 +597,7 @@ describe('youtube embed fallback', () => {
     expect(body).toBeInstanceOf(Blob);
   });
 
-  it('handleEmbedFailure reports YouTube onError without showing UI', () => {
+  it('handleEmbedFailure reports YouTube onError as youtube-player', () => {
     const sendBeacon = vi.fn().mockReturnValue(true);
     Object.defineProperty(navigator, 'sendBeacon', {
       configurable: true,
@@ -530,7 +616,7 @@ describe('youtube embed fallback', () => {
     expect(sendBeacon).toHaveBeenCalledTimes(1);
   });
 
-  it('does not report onError from likely bots', () => {
+  it('does not report blocked embeds from likely bots', () => {
     setUserAgent('SEBot-WA');
     const sendBeacon = vi.fn().mockReturnValue(true);
     Object.defineProperty(navigator, 'sendBeacon', {
@@ -542,8 +628,8 @@ describe('youtube embed fallback', () => {
     handleEmbedFailure({
       iframe,
       videoId: 'OLWSh7VZIRU',
-      trigger: 'error',
-      errorCode: 150,
+      trigger: 'timeout',
+      errorCode: 'api-load',
     });
 
     expect(sendBeacon).not.toHaveBeenCalled();
@@ -595,8 +681,9 @@ describe('youtube embed fallback', () => {
     });
   });
 
-  it('does not report when onReady never fires (timeout is silent)', async () => {
+  it('does not report when onReady never fires but the embed loaded', async () => {
     vi.useFakeTimers();
+    mockEmbedLoaded();
 
     const sendBeacon = vi.fn().mockReturnValue(true);
     Object.defineProperty(navigator, 'sendBeacon', {
@@ -622,6 +709,64 @@ describe('youtube embed fallback', () => {
 
     expect(document.getElementById('wfu-yt-fallback')).toBeNull();
     expect(sendBeacon).not.toHaveBeenCalled();
+  });
+
+  it('reports after timeout when YouTube resources look blocked', async () => {
+    vi.useFakeTimers();
+    mockEmbedBlocked();
+
+    const sendBeacon = vi.fn().mockReturnValue(true);
+    Object.defineProperty(navigator, 'sendBeacon', {
+      configurable: true,
+      value: sendBeacon,
+    });
+
+    class MockPlayer {
+      constructor(
+        _id: string,
+        _options?: { events?: { onReady?: (e: unknown) => void; onError?: (e: unknown) => void } }
+      ) {
+        // Intentionally never call onReady.
+      }
+    }
+
+    window.YT = { Player: MockPlayer } as Window['YT'];
+
+    mountPlayer({ videoId: 'blockedVid' });
+    initYoutubeEmbedFallback();
+
+    await vi.advanceTimersByTimeAsync(READY_TIMEOUT_MS);
+
+    expect(sendBeacon).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports immediately when the IFrame API fails and the embed is already failed', async () => {
+    mockYoutubeResourceTimings([
+      {
+        name: 'https://www.youtube-nocookie.com/embed/blockedVid',
+        duration: 0,
+        responseEnd: 0,
+      },
+    ]);
+
+    const sendBeacon = vi.fn().mockReturnValue(true);
+    Object.defineProperty(navigator, 'sendBeacon', {
+      configurable: true,
+      value: sendBeacon,
+    });
+
+    mountPlayer({ videoId: 'blockedVid' });
+    initYoutubeEmbedFallback();
+
+    const script = document.querySelector<HTMLScriptElement>(
+      'script[src="https://www.youtube.com/iframe_api"]'
+    );
+    expect(script).not.toBeNull();
+    script?.onerror?.(new Event('error'));
+
+    await vi.waitFor(() => {
+      expect(sendBeacon).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('clears the timeout when onReady fires', async () => {
