@@ -1,6 +1,7 @@
 /**
  * YouTube embed failure detection for course-lesson and video pages.
- * Reports anonymously to Zapier → Slack (no on-page banner).
+ * Reports anonymously to Zapier → Slack on true YouTube player errors only
+ * (plus QA force-fail). Ready timeouts are not reported.
  *
  * Webhook URL is supplied at runtime from Webflow (not committed):
  *   window.WFU_YT_ZAPIER_WEBHOOK = '<catch-hook-url>'
@@ -356,6 +357,7 @@ export function inspectYoutubeResources(): {
 
 /**
  * Soft triage hint for Slack. Not a definitive ad-blocker vs firewall label.
+ * Timeouts are not reported to Zapier; hints below apply to reported payloads.
  */
 export function inferLikelyCauseHint(options: {
   trigger: FailureTrigger;
@@ -384,12 +386,25 @@ export function inferLikelyCauseHint(options: {
     return 'third-party-blocked';
   }
 
-  if (options.trigger === 'timeout') {
-    // Timeout with no resource evidence — still usually third-party blocked, but softer.
-    return 'third-party-blocked';
-  }
-
   return 'unknown';
+}
+
+/**
+ * True for obvious non-browser / crawler user agents.
+ * Used to skip monitoring and drop bot onError noise from Slack.
+ */
+export function isLikelyBot(userAgent: string = navigator.userAgent): boolean {
+  if (!userAgent) return false;
+  return /bot|crawler|spider|slurp|SEBot|HeadlessChrome|GPTBot|ClaudeBot|Bytespider|PetalBot|YandexBot|BingPreview|facebookexternalhit|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|Applebot|Baiduspider|DuckDuckBot|ia_archiver/i.test(
+    userAgent
+  );
+}
+
+/**
+ * Zapier/Slack only for YouTube onError and QA force-fail — not ready timeouts.
+ */
+export function shouldReportFailure(trigger: FailureTrigger, forced?: boolean): boolean {
+  return trigger === 'error' || trigger === 'force' || Boolean(forced);
 }
 
 /**
@@ -543,7 +558,8 @@ export function postToZapierViaForm(webhookUrl: string, payload: YoutubeEmbedFai
 }
 
 /**
- * Handles a detected embed failure: Zapier report only (no on-page UI).
+ * Handles a detected embed failure: Zapier report only for true errors / QA force.
+ * Ready timeouts and API load failures are observed silently (no Slack).
  */
 export function handleEmbedFailure(options: {
   iframe: HTMLIFrameElement;
@@ -552,11 +568,21 @@ export function handleEmbedFailure(options: {
   errorCode?: string | number | null;
   forced?: boolean;
 }): void {
+  clearReadyTimeout();
+
+  if (!shouldReportFailure(options.trigger, options.forced)) {
+    return;
+  }
+
+  // Drop bot onError noise; QA force-fail still reports for verification.
+  if (!options.forced && options.trigger !== 'force' && isLikelyBot()) {
+    return;
+  }
+
   if (hasHandledFailure) {
     return;
   }
   hasHandledFailure = true;
-  clearReadyTimeout();
   reportEmbedFailure(
     buildFailurePayload({
       trigger: options.trigger,
@@ -613,40 +639,16 @@ export function loadYoutubeIframeApi(): Promise<YoutubeApi> {
   });
 }
 
-function ensureOriginOnIframe(iframe: HTMLIFrameElement): void {
-  const src = iframe.getAttribute('src');
-  if (!src) return;
-
-  try {
-    const url = new URL(src, window.location.href);
-    if (!url.searchParams.has('origin')) {
-      url.searchParams.set('origin', window.location.origin);
-      iframe.setAttribute('src', url.toString());
-    }
-  } catch {
-    // Leave src unchanged if it cannot be parsed.
-  }
-}
-
 function attachPlayer(iframe: HTMLIFrameElement, videoId: string): void {
-  ensureOriginOnIframe(iframe);
-
+  // Ready timeout is observational only — does not Slack (avoids false positives
+  // when the native iframe plays but onReady never fires).
   readyTimeoutId = setTimeout(() => {
-    handleEmbedFailure({
-      iframe,
-      videoId,
-      trigger: 'timeout',
-    });
+    clearReadyTimeout();
   }, READY_TIMEOUT_MS);
 
   const Player = window.YT?.Player;
   if (!Player) {
-    handleEmbedFailure({
-      iframe,
-      videoId,
-      trigger: 'timeout',
-      errorCode: 'api-missing',
-    });
+    clearReadyTimeout();
     return;
   }
 
@@ -667,12 +669,8 @@ function attachPlayer(iframe: HTMLIFrameElement, videoId: string): void {
       },
     });
   } catch {
-    handleEmbedFailure({
-      iframe,
-      videoId,
-      trigger: 'error',
-      errorCode: 'player-init',
-    });
+    // Player init failures are not reported — often race/API noise, not embed ownership errors.
+    clearReadyTimeout();
   }
 }
 
@@ -717,8 +715,8 @@ export function hasYoutubeEmbedToMonitor(root: ParentNode = document): HTMLIFram
 
 /**
  * Initializes YouTube embed monitoring when a real video embed is present.
- * Skips rich-text lessons (hidden `.cc_video` / empty embed src).
- * Zapier is only contacted from handleEmbedFailure (error / timeout / QA force).
+ * Skips rich-text lessons and likely bots.
+ * Zapier only for YouTube onError and QA force-fail (not ready timeouts).
  */
 export function initYoutubeEmbedFallback(): void {
   const iframe = hasYoutubeEmbedToMonitor();
@@ -726,10 +724,15 @@ export function initYoutubeEmbedFallback(): void {
     return;
   }
 
+  const forceMode = getForceFailMode();
+  // Bots skip monitoring, but QA force-fail still reports for verification.
+  if (isLikelyBot() && !forceMode) {
+    return;
+  }
+
   startYoutubeCspMonitoring();
 
   const videoId = resolveVideoId(iframe);
-  const forceMode = getForceFailMode();
 
   if (forceMode) {
     handleEmbedFailure({
@@ -749,11 +752,7 @@ export function initYoutubeEmbedFallback(): void {
       attachPlayer(iframe, videoId);
     })
     .catch(() => {
-      handleEmbedFailure({
-        iframe,
-        videoId,
-        trigger: 'timeout',
-        errorCode: 'api-load',
-      });
+      // API load failures are silent — not Slack (avoids blocker/privacy false positives).
+      clearReadyTimeout();
     });
 }

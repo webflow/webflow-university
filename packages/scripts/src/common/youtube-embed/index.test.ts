@@ -12,6 +12,7 @@ import {
   hasYoutubeEmbedToMonitor,
   inferLikelyCauseHint,
   initYoutubeEmbedFallback,
+  isLikelyBot,
   normalizeCookieValue,
   parseVideoIdFromSrc,
   PLAYER_ELEMENT_ID,
@@ -21,6 +22,7 @@ import {
   reportEmbedFailure,
   resetYoutubeEmbedStateForTests,
   resolveVideoId,
+  shouldReportFailure,
 } from './index';
 
 function setLocation(pathWithSearch: string): void {
@@ -29,6 +31,13 @@ function setLocation(pathWithSearch: string): void {
 
 function setWebhookUrl(url: string): void {
   window.WFU_YT_ZAPIER_WEBHOOK = url;
+}
+
+function setUserAgent(ua: string): void {
+  Object.defineProperty(navigator, 'userAgent', {
+    configurable: true,
+    get: () => ua,
+  });
 }
 
 function setDocumentCookies(cookies: string): void {
@@ -102,6 +111,8 @@ describe('youtube embed fallback', () => {
     delete window.WFU_YT_ZAPIER_WEBHOOK;
     // Restore default cookie accessor if a test overrode it.
     Reflect.deleteProperty(document, 'cookie');
+    // Restore UA if a bot test overrode it (happy-dom default is not a bot).
+    Reflect.deleteProperty(navigator, 'userAgent');
     window.localStorage.clear();
     vi.useRealTimers();
     vi.restoreAllMocks();
@@ -157,14 +168,16 @@ describe('youtube embed fallback', () => {
 
     const iframe = mountPlayer({ videoId: 'vid123', src: '' });
     const payload = buildFailurePayload({
-      trigger: 'timeout',
+      trigger: 'error',
+      errorCode: 150,
       videoId: 'vid123',
       iframe,
     });
 
     expect(payload.source).toBe(REPORT_SOURCE);
-    expect(payload.trigger).toBe('timeout');
-    expect(payload.errorCode).toBe('none');
+    expect(payload.trigger).toBe('error');
+    expect(payload.errorCode).toBe('150');
+    expect(payload.errorDetail).toBe('Embedding disabled by owner');
     expect(payload.videoId).toBe('vid123');
     expect(payload.path).toBe('/course-lesson/example');
     expect(payload.lessonTitle).toBe('Design review & accessibility');
@@ -174,7 +187,7 @@ describe('youtube embed fallback', () => {
     expect(payload.anonymousId).toBe('dcfbff14-a4fe-4fd7-af2a-04e0ba5b3bf8');
     expect(payload.referralSource).toBe('www.google.com');
     expect(payload.sessionLandingPage).toBe('https://university.webflow.com/');
-    expect(payload.likelyCauseHint).toBe('third-party-blocked');
+    expect(payload.likelyCauseHint).toBe('youtube-side');
     expect(payload.forced).toBe(false);
   });
 
@@ -208,6 +221,14 @@ describe('youtube embed fallback', () => {
         trigger: 'timeout',
         errorCode: 'none',
         blockedResources: [],
+      })
+    ).toBe('unknown');
+
+    expect(
+      inferLikelyCauseHint({
+        trigger: 'timeout',
+        errorCode: 'none',
+        blockedResources: [],
         cspViolation: true,
       })
     ).toBe('csp');
@@ -220,6 +241,20 @@ describe('youtube embed fallback', () => {
         blockedResources: [],
       })
     ).toBe('qa-force');
+  });
+
+  it('detects likely bots and reportable triggers', () => {
+    expect(isLikelyBot('SEBot-WA')).toBe(true);
+    expect(isLikelyBot('Mozilla/5.0 (compatible; Googlebot/2.1)')).toBe(true);
+    expect(
+      isLikelyBot(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36'
+      )
+    ).toBe(false);
+    expect(shouldReportFailure('error')).toBe(true);
+    expect(shouldReportFailure('force')).toBe(true);
+    expect(shouldReportFailure('timeout')).toBe(false);
+    expect(shouldReportFailure('timeout', true)).toBe(true);
   });
 
   it('describes known YouTube error codes', () => {
@@ -278,17 +313,36 @@ describe('youtube embed fallback', () => {
     handleEmbedFailure({
       iframe,
       videoId: 'vid123',
-      trigger: 'timeout',
+      trigger: 'error',
+      errorCode: 150,
     });
+    handleEmbedFailure({
+      iframe,
+      videoId: 'vid123',
+      trigger: 'error',
+      errorCode: 150,
+    });
+
+    expect(document.getElementById('wfu-yt-fallback')).toBeNull();
+    expect(document.body.textContent).not.toContain('Having trouble loading this video');
+    expect(sendBeacon).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not report timeout-class failures via handleEmbedFailure', () => {
+    const sendBeacon = vi.fn().mockReturnValue(true);
+    Object.defineProperty(navigator, 'sendBeacon', {
+      configurable: true,
+      value: sendBeacon,
+    });
+
+    const iframe = mountPlayer({ videoId: 'vid123', src: '' });
     handleEmbedFailure({
       iframe,
       videoId: 'vid123',
       trigger: 'timeout',
     });
 
-    expect(document.getElementById('wfu-yt-fallback')).toBeNull();
-    expect(document.body.textContent).not.toContain('Having trouble loading this video');
-    expect(sendBeacon).toHaveBeenCalledTimes(1);
+    expect(sendBeacon).not.toHaveBeenCalled();
   });
 
   it('reports to Zapier only once per page load', () => {
@@ -457,7 +511,7 @@ describe('youtube embed fallback', () => {
     expect(body).toBeInstanceOf(Blob);
   });
 
-  it('handleEmbedFailure reports without showing UI', () => {
+  it('handleEmbedFailure reports YouTube onError without showing UI', () => {
     const sendBeacon = vi.fn().mockReturnValue(true);
     Object.defineProperty(navigator, 'sendBeacon', {
       configurable: true,
@@ -476,7 +530,72 @@ describe('youtube embed fallback', () => {
     expect(sendBeacon).toHaveBeenCalledTimes(1);
   });
 
-  it('times out when onReady never fires', async () => {
+  it('does not report onError from likely bots', () => {
+    setUserAgent('SEBot-WA');
+    const sendBeacon = vi.fn().mockReturnValue(true);
+    Object.defineProperty(navigator, 'sendBeacon', {
+      configurable: true,
+      value: sendBeacon,
+    });
+
+    const iframe = mountPlayer({ videoId: 'OLWSh7VZIRU' });
+    handleEmbedFailure({
+      iframe,
+      videoId: 'OLWSh7VZIRU',
+      trigger: 'error',
+      errorCode: 150,
+    });
+
+    expect(sendBeacon).not.toHaveBeenCalled();
+  });
+
+  it('skips init for bots unless force-fail is set', () => {
+    setUserAgent('SEBot-WA');
+    const sendBeacon = vi.fn().mockReturnValue(true);
+    Object.defineProperty(navigator, 'sendBeacon', {
+      configurable: true,
+      value: sendBeacon,
+    });
+
+    mountPlayer({ videoId: 'OLWSh7VZIRU' });
+    initYoutubeEmbedFallback();
+    expect(sendBeacon).not.toHaveBeenCalled();
+
+    setLocation('/videos/wordpress-to-webflow-introduction?wfu_yt_force_fail=error');
+    initYoutubeEmbedFallback();
+    expect(sendBeacon).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports when YouTube onError fires', async () => {
+    setUserAgent(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36'
+    );
+    const sendBeacon = vi.fn().mockReturnValue(true);
+    Object.defineProperty(navigator, 'sendBeacon', {
+      configurable: true,
+      value: sendBeacon,
+    });
+
+    class MockPlayer {
+      constructor(
+        _id: string,
+        options?: { events?: { onReady?: (e: unknown) => void; onError?: (e: unknown) => void } }
+      ) {
+        options?.events?.onError?.({ data: 150 });
+      }
+    }
+
+    window.YT = { Player: MockPlayer } as Window['YT'];
+
+    mountPlayer({ videoId: 'OLWSh7VZIRU' });
+    initYoutubeEmbedFallback();
+
+    await vi.waitFor(() => {
+      expect(sendBeacon).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('does not report when onReady never fires (timeout is silent)', async () => {
     vi.useFakeTimers();
 
     const sendBeacon = vi.fn().mockReturnValue(true);
@@ -502,7 +621,7 @@ describe('youtube embed fallback', () => {
     await vi.advanceTimersByTimeAsync(READY_TIMEOUT_MS);
 
     expect(document.getElementById('wfu-yt-fallback')).toBeNull();
-    expect(sendBeacon).toHaveBeenCalledTimes(1);
+    expect(sendBeacon).not.toHaveBeenCalled();
   });
 
   it('clears the timeout when onReady fires', async () => {
