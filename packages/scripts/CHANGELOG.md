@@ -1,5 +1,11 @@
 # scripts
 
+## 2.6.0
+
+### Minor Changes
+
+- 922828f: Remove the temporary YouTube embed failure debugger and its reporting hooks. Bundle the search-modal behavior in the scripts package and restore Swiftype analytics for Enter-key searches.
+
 ## 2.5.3
 
 ### Patch Changes
