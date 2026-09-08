@@ -1,3 +1,6 @@
+const SWIFTYPE_SEARCH_ENDPOINT =
+  'https://search-api.swiftype.com/api/v1/public/installs/8tPjZM7QFLqxMEpVo-ws/search.json';
+
 export function initSearchModal(): void {
   const searchWindow = window as Window & { __wfuSearchModal?: boolean };
   if (searchWindow.__wfuSearchModal) return;
@@ -14,6 +17,7 @@ export function initSearchModal(): void {
   let selectionFrame = 0;
   let contentObserver: MutationObserver | null = null;
   let observedAutocomplete: HTMLElement | null = null;
+  let hasSubmittedCurrentQuery = false;
 
   function getModal(): HTMLElement | null {
     return document.querySelector<HTMLElement>(MODAL);
@@ -310,6 +314,7 @@ export function initSearchModal(): void {
   }
 
   function handleQueryInput() {
+    hasSubmittedCurrentQuery = false;
     clearPopularActive();
     syncSearchState();
   }
@@ -371,7 +376,10 @@ export function initSearchModal(): void {
 
     // Swiftype owns Enter when a query is present. Its native handlers submit search.json
     // for search analytics and track/navigate an active autocomplete result when selected.
-    if (input.value.trim().length > 0) return;
+    if (input.value.trim().length > 0) {
+      hasSubmittedCurrentQuery = true;
+      return;
+    }
 
     event.preventDefault();
     event.stopPropagation();
@@ -385,6 +393,35 @@ export function initSearchModal(): void {
       : target.querySelector<HTMLAnchorElement>('a[href]');
     if (link && link.href) window.location.assign(link.href);
     else target.click();
+  }
+
+  function handleResultSelection(event: MouseEvent): void {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+
+    const result = target.closest<HTMLAnchorElement>('.st-ui-result');
+    const autocomplete = result?.closest('.st-default-autocomplete');
+    const modal = getModal();
+    const input = getInput();
+    const query = input?.value.trim() || '';
+
+    if (!result || !autocomplete || !modal?.contains(result) || !query) return;
+    if (hasSubmittedCurrentQuery) return;
+
+    hasSubmittedCurrentQuery = true;
+    const body = new URLSearchParams({ q: query, page: '1' });
+
+    void fetch(SWIFTYPE_SEARCH_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+      },
+      body,
+      credentials: 'include',
+      keepalive: true,
+    }).catch(() => {
+      hasSubmittedCurrentQuery = false;
+    });
   }
 
   function closeSearch() {
@@ -709,6 +746,7 @@ export function initSearchModal(): void {
     true
   );
   document.addEventListener('keydown', handleEnter, true);
+  document.addEventListener('click', handleResultSelection, true);
 
   if (window.visualViewport) {
     // The list height follows resize only: recomputing it on every pan frame resizes the panel
