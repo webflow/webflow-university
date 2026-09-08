@@ -1,11 +1,9 @@
 /**
  * @vitest-environment happy-dom
  */
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { runInThisContext } from 'node:vm';
-
 import { expect, it, vi } from 'vitest';
+
+import { initSearchModal } from './search-modal.js';
 
 it('defers typed Enter to Swiftype and keeps empty-query Popular navigation custom', () => {
   document.body.innerHTML = `
@@ -22,15 +20,8 @@ it('defers typed Enter to Swiftype and keeps empty-query Popular navigation cust
     </div>
   `;
 
-  const source = readFileSync(
-    resolve(process.cwd(), 'src/common/global-search/search-modal.script.embed.html'),
-    'utf8'
-  )
-    .replace(/^\s*<!--.*?-->\s*/, '')
-    .replace(/^\s*<script>\s*/, '')
-    .replace(/\s*<\/script>\s*$/, '');
-
-  runInThisContext(source);
+  delete (window as Window & { __wfuSearchModal?: boolean }).__wfuSearchModal;
+  initSearchModal();
 
   const input = document.querySelector<HTMLInputElement>('#g-search');
   expect(input).not.toBeNull();

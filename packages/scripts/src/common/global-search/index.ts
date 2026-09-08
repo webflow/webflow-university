@@ -3,6 +3,8 @@
  * Handles the search modal, keyboard shortcuts, and Swiftype overlay integration.
  */
 
+import { initSearchModal } from './search-modal.js';
+
 const AUTOCOMPLETE_SELECTOR = '.st-default-autocomplete .st-query-present';
 const SEARCH_RESULT_CONTAINER_SELECTOR = '.st-ui-autocomplete, .st-search-results';
 const SEARCH_RESULT_SELECTOR = '.st-ui-result';
@@ -50,6 +52,7 @@ const SEARCH_ICON_TYPE_ALIASES: Array<{ type: SearchIconType; match: RegExp }> =
  */
 export function initGlobalSearch(): void {
   initSearchResultIcons();
+  initSearchModal();
 
   const searchWrapper = document.querySelector<HTMLElement>('.g_search-wrapper');
   const searchCloseBg = document.querySelector<HTMLElement>('.g_search-close-bg');
