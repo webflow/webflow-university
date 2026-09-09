@@ -1,5 +1,11 @@
 # scripts
 
+## 2.8.3
+
+### Patch Changes
+
+- 8ad88d3: Keep keyboard focus inside the active Swiftype search results overlay and make the autocomplete Return control submit its query.
+
 ## 2.8.2
 
 ### Patch Changes
