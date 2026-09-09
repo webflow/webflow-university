@@ -94,6 +94,11 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
   vi.spyOn(document.documentElement, 'clientWidth', 'get').mockImplementation(() =>
     document.body.style.position === 'fixed' ? 1024 : 1009
   );
+  let fieldBottom = 126.4;
+  vi.spyOn(
+    document.querySelector<HTMLElement>('.sm-ovl__field')!,
+    'getBoundingClientRect'
+  ).mockImplementation(() => ({ bottom: fieldBottom }) as DOMRect);
 
   const results = document.querySelector<HTMLElement>('.st-search-results')!;
   const { addQueryOutput, attach } = mockSwiftypeKeyboard();
@@ -163,6 +168,12 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
   expect(searchControl?.getAttribute('aria-label')).toBe('Submit search');
   expect(autocomplete?.parentElement).toBe(document.body);
   expect(document.body.style.position).toBe('fixed');
+  const autocompletePanel = autocomplete?.querySelector<HTMLElement>('.st-ui-autocomplete');
+  expect(autocompletePanel?.style.getPropertyValue('top')).toBe('126px');
+  expect(autocompletePanel?.style.getPropertyPriority('top')).toBe('important');
+  fieldBottom = 110.2;
+  window.dispatchEvent(new Event('resize'));
+  expect(autocompletePanel?.style.getPropertyValue('top')).toBe('110px');
 
   searchControl?.click();
   expect(swiftypeKeydown).toHaveBeenCalledTimes(1);

@@ -442,6 +442,20 @@ export function initSearchModal(): void {
     viewportFrame = window.requestAnimationFrame(syncOverlayViewport);
   }
 
+  function syncAutocompletePosition(): void {
+    const input = getInput();
+    const field = modal?.querySelector<HTMLElement>('.sm-ovl__field');
+    const autocomplete = document.querySelector<HTMLElement>(AUTOCOMPLETE_SELECTOR);
+    if (!input?.value.trim() || !modal?.classList.contains('active') || !field || !autocomplete) {
+      return;
+    }
+
+    const top = Math.round(field.getBoundingClientRect().bottom) + 'px';
+    if (autocomplete.style.getPropertyValue('top') !== top) {
+      autocomplete.style.setProperty('top', top, 'important');
+    }
+  }
+
   function wakePopularScroller(): void {
     const popular = modal?.querySelector<HTMLElement>('.sm-popular');
     if (!popular || popular.hidden) return;
@@ -468,6 +482,7 @@ export function initSearchModal(): void {
         wakePopularScroller();
       } else {
         modal?.style.removeProperty('--sm-list-max');
+        syncAutocompletePosition();
       }
 
       return;
@@ -721,6 +736,7 @@ export function initSearchModal(): void {
   const nativeScrollObserver = new MutationObserver(() => {
     syncNativeScrollState();
     ensureKeyboardFooters();
+    syncAutocompletePosition();
   });
   nativeScrollObserver.observe(document.body, {
     attributes: true,
@@ -733,11 +749,14 @@ export function initSearchModal(): void {
   document.addEventListener('keydown', handleTabKey, true);
   document.addEventListener('keydown', handleEnter, true);
   document.addEventListener('click', handleNativeClose, true);
+  window.addEventListener('resize', syncAutocompletePosition);
 
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', scheduleListHeight);
     window.visualViewport.addEventListener('resize', scheduleOverlayViewport);
+    window.visualViewport.addEventListener('resize', syncAutocompletePosition);
     window.visualViewport.addEventListener('scroll', scheduleOverlayViewport);
+    window.visualViewport.addEventListener('scroll', syncAutocompletePosition);
   }
 
   window.addEventListener('pagehide', () => unlockPageScroll());
