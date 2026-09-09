@@ -125,6 +125,7 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
   });
 
   const input = document.querySelector<HTMLInputElement>('#g-search');
+  const searchControl = document.querySelector<HTMLButtonElement>('.sm-kbd');
   const autocomplete = document.querySelector<HTMLElement>('.st-default-autocomplete');
   const popular = document.querySelector<HTMLElement>('.sm-popular');
   const popularFooter = document.querySelector<HTMLElement>(
@@ -134,6 +135,7 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
     '.st-ui-autocomplete > .sm-search-footer'
   );
   expect(input).not.toBeNull();
+  expect(searchControl?.textContent).toBe('Esc');
   expect(popular?.hidden).toBe(false);
   expect(autocomplete?.parentElement).toBe(document.body);
   expect(popularFooter?.textContent).toContain('to navigate');
@@ -152,6 +154,7 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
   input!.dispatchEvent(new Event('input', { bubbles: true }));
 
   expect(popular?.hidden).toBe(true);
+  expect(searchControl?.textContent).toBe('↵');
   expect(autocomplete?.parentElement).toBe(document.body);
   expect(document.body.style.position).toBe('fixed');
 
@@ -259,6 +262,7 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
   input!.value = '';
   input!.dispatchEvent(new Event('input', { bubbles: true }));
   expect(popular?.hidden).toBe(false);
+  expect(searchControl?.textContent).toBe('Esc');
 
   const emptyArrow = new KeyboardEvent('keydown', {
     key: 'ArrowDown',

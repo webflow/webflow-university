@@ -4,9 +4,10 @@ const SEARCH_KEYBOARD_CLASS = 'st-search-keyboard-navigable';
 const OVERLAY_INPUT_SELECTOR = '#st-overlay-search-input';
 const AUTOCOMPLETE_SELECTOR = '.st-default-autocomplete .st-ui-autocomplete';
 const KEYBOARD_FOOTER_CLASS = 'sm-search-footer';
+const RETURN_KEY_SYMBOL = '↵';
 const KEYBOARD_FOOTER_HTML =
   '<span class="sm-search-footer__hint"><kbd class="sm-search-footer__key">↑↓</kbd><span>to navigate</span></span>' +
-  '<span class="sm-search-footer__hint"><kbd class="sm-search-footer__key">↵</kbd><span>to select</span></span>' +
+  `<span class="sm-search-footer__hint"><kbd class="sm-search-footer__key">${RETURN_KEY_SYMBOL}</kbd><span>to select</span></span>` +
   '<span class="sm-search-footer__hint"><kbd class="sm-search-footer__key">Esc</kbd><span>to close</span></span>';
 
 type SearchWindow = Window & { __wfuSearchModal?: boolean };
@@ -436,11 +437,13 @@ export function initSearchModal(): void {
   function syncEmptyState(): void {
     const input = getInput();
     const popular = modal?.querySelector<HTMLElement>('.sm-popular');
+    const searchControl = modal?.querySelector<HTMLButtonElement>('.sm-kbd');
     if (!input || !popular) return;
 
     const isEmpty = input.value.trim().length === 0;
     modal?.classList.toggle('is-empty', isEmpty);
     popular.hidden = !isEmpty;
+    if (searchControl) searchControl.textContent = isEmpty ? 'Esc' : RETURN_KEY_SYMBOL;
 
     if (isEmpty) {
       input.setAttribute('aria-controls', popular.id);
