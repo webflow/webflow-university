@@ -1,5 +1,11 @@
 # scripts
 
+## 2.8.2
+
+### Patch Changes
+
+- 0974866: Keep the Swiftype autocomplete suggestions flush with the search input across responsive breakpoints.
+
 ## 2.8.1
 
 ### Patch Changes
