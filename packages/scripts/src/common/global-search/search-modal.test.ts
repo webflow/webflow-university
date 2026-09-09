@@ -140,7 +140,10 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
   expect(popularFooter?.textContent).toContain('to select');
   expect(popularFooter?.textContent).toContain('to close');
   expect(suggestionsFooter?.innerHTML).toBe(popularFooter?.innerHTML);
-  expect(document.documentElement.style.getPropertyValue('scrollbar-gutter')).toBe('stable');
+  expect(document.documentElement.style.getPropertyValue('scrollbar-gutter')).toBe(
+    'stable both-edges'
+  );
+  expect(document.documentElement.style.getPropertyPriority('scrollbar-gutter')).toBe('important');
   expect(document.documentElement.style.overflow).toBe('clip');
 
   const swiftypeKeydown = vi.fn();
@@ -226,7 +229,9 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
     false
   );
   expect(document.body.style.position).toBe('');
-  expect(document.documentElement.style.getPropertyValue('scrollbar-gutter')).toBe('stable');
+  expect(document.documentElement.style.getPropertyValue('scrollbar-gutter')).toBe(
+    'stable both-edges'
+  );
 
   nativeOverlay.classList.add('dismiss');
   await Promise.resolve();

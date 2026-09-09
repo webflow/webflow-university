@@ -290,13 +290,17 @@ export function initSearchModal(): void {
   }
 
   function reserveScrollbarGutter(): void {
-    const rootStyle = document.documentElement.style;
-    if (!hasSavedScrollbarGutter) {
-      hasSavedScrollbarGutter = true;
-      savedScrollbarGutter = rootStyle.getPropertyValue('scrollbar-gutter');
-      savedScrollbarGutterPriority = rootStyle.getPropertyPriority('scrollbar-gutter');
-    }
+    if (hasSavedScrollbarGutter) return;
 
+    const rootStyle = document.documentElement.style;
+    const currentScrollbarGutter = window
+      .getComputedStyle(document.documentElement)
+      .getPropertyValue('scrollbar-gutter');
+    if (currentScrollbarGutter.includes('stable')) return;
+
+    hasSavedScrollbarGutter = true;
+    savedScrollbarGutter = rootStyle.getPropertyValue('scrollbar-gutter');
+    savedScrollbarGutterPriority = rootStyle.getPropertyPriority('scrollbar-gutter');
     rootStyle.setProperty('scrollbar-gutter', 'stable');
   }
 
