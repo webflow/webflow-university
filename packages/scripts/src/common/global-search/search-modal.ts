@@ -157,6 +157,11 @@ export function initSearchModal(): void {
   let hasSavedScrollbarGutter = false;
   let savedScrollbarGutter = '';
   let savedScrollbarGutterPriority = '';
+  let hasSavedBodyPaddingRight = false;
+  let savedBodyPaddingRight = '';
+  let savedBodyPaddingRightPriority = '';
+  let savedBodyBoxSizing = '';
+  let savedBodyBoxSizingPriority = '';
   let heightFrame = 0;
   let viewportFrame = 0;
   let nativeHandoffFrame = 0;
@@ -327,11 +332,30 @@ export function initSearchModal(): void {
     reserveScrollbarGutter();
 
     const body = document.body;
+    const unlockedClientWidth = document.documentElement.clientWidth;
+    const unlockedPaddingRight = Number.parseFloat(window.getComputedStyle(body).paddingRight) || 0;
+    hasSavedBodyPaddingRight = true;
+    savedBodyPaddingRight = body.style.getPropertyValue('padding-right');
+    savedBodyPaddingRightPriority = body.style.getPropertyPriority('padding-right');
+    savedBodyBoxSizing = body.style.getPropertyValue('box-sizing');
+    savedBodyBoxSizingPriority = body.style.getPropertyPriority('box-sizing');
     body.style.position = 'fixed';
     body.style.top = -savedScrollY + 'px';
     body.style.left = '0';
     body.style.right = '0';
     body.style.width = '100%';
+
+    // Some browsers release the viewport gutter once the body becomes fixed, even when
+    // `scrollbar-gutter: stable` is present. Compensate only for the measured width change.
+    const releasedGutter = document.documentElement.clientWidth - unlockedClientWidth;
+    if (releasedGutter > 0) {
+      body.style.setProperty('box-sizing', 'border-box', 'important');
+      body.style.setProperty(
+        'padding-right',
+        unlockedPaddingRight + releasedGutter + 'px',
+        'important'
+      );
+    }
   }
 
   function unlockPageScroll(preserveScrollbarGutter = false): void {
@@ -344,6 +368,27 @@ export function initSearchModal(): void {
       body.style.left = '';
       body.style.right = '';
       body.style.width = '';
+      if (hasSavedBodyPaddingRight) {
+        if (savedBodyPaddingRight) {
+          body.style.setProperty(
+            'padding-right',
+            savedBodyPaddingRight,
+            savedBodyPaddingRightPriority
+          );
+        } else {
+          body.style.removeProperty('padding-right');
+        }
+        if (savedBodyBoxSizing) {
+          body.style.setProperty('box-sizing', savedBodyBoxSizing, savedBodyBoxSizingPriority);
+        } else {
+          body.style.removeProperty('box-sizing');
+        }
+        hasSavedBodyPaddingRight = false;
+        savedBodyPaddingRight = '';
+        savedBodyPaddingRightPriority = '';
+        savedBodyBoxSizing = '';
+        savedBodyBoxSizingPriority = '';
+      }
       window.scrollTo(0, savedScrollY);
     }
 

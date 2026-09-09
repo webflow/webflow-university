@@ -90,6 +90,10 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
   `;
   document.documentElement.style.setProperty('scrollbar-gutter', 'stable both-edges', 'important');
   document.documentElement.style.overflow = 'clip';
+  document.body.style.paddingRight = '8px';
+  vi.spyOn(document.documentElement, 'clientWidth', 'get').mockImplementation(() =>
+    document.body.style.position === 'fixed' ? 1024 : 1009
+  );
 
   const results = document.querySelector<HTMLElement>('.st-search-results')!;
   const { addQueryOutput, attach } = mockSwiftypeKeyboard();
@@ -147,6 +151,7 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
   );
   expect(document.documentElement.style.getPropertyPriority('scrollbar-gutter')).toBe('important');
   expect(document.documentElement.style.overflow).toBe('clip');
+  expect(document.body.style.paddingRight).toBe('23px');
 
   const swiftypeKeydown = vi.fn();
   input!.addEventListener('keydown', swiftypeKeydown);
@@ -238,6 +243,7 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
     false
   );
   expect(document.body.style.position).toBe('');
+  expect(document.body.style.paddingRight).toBe('8px');
   expect(document.documentElement.style.getPropertyValue('scrollbar-gutter')).toBe(
     'stable both-edges'
   );
@@ -292,6 +298,9 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
   expect(swiftypeKeydown).not.toHaveBeenCalled();
   expect(emptyArrow.defaultPrevented).toBe(true);
   expect(emptyEnter.defaultPrevented).toBe(true);
+  window.dispatchEvent(new Event('pagehide'));
+  expect(document.body.style.paddingRight).toBe('8px');
+  document.body.style.paddingRight = '';
   document.documentElement.style.removeProperty('scrollbar-gutter');
   document.documentElement.style.overflow = '';
   vi.restoreAllMocks();
