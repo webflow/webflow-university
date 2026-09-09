@@ -1,5 +1,12 @@
 # scripts
 
+## 2.7.0
+
+### Minor Changes
+
+- dd84ae7: Return non-empty search queries to Swiftype's native autocomplete and full-results experience
+  while preserving the custom Popular links shown before a visitor starts typing.
+
 ## 2.6.0
 
 ### Minor Changes
