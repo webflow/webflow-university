@@ -1,5 +1,11 @@
 # scripts
 
+## 2.8.1
+
+### Patch Changes
+
+- b2443f4: Make Swiftype result icons follow the active theme, submit active suggestions from the Return key control, and prevent horizontal layout shifts while search locks page scrolling.
+
 ## 2.8.0
 
 ### Minor Changes
