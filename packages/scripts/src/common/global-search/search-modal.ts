@@ -3,6 +3,9 @@ const SEARCH_RESULTS_SELECTOR = '.st-search-results';
 const SEARCH_KEYBOARD_CLASS = 'st-search-keyboard-navigable';
 const OVERLAY_INPUT_SELECTOR = '#st-overlay-search-input';
 const AUTOCOMPLETE_SELECTOR = '.st-default-autocomplete .st-ui-autocomplete';
+const NATIVE_FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+  'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 const KEYBOARD_FOOTER_CLASS = 'sm-search-footer';
 const RETURN_KEY_SYMBOL = '↵';
 const KEYBOARD_FOOTER_HTML =
@@ -576,6 +579,35 @@ export function initSearchModal(): void {
     );
   }
 
+  function handleNativeTabKey(event: KeyboardEvent): void {
+    if (event.key !== 'Tab' || !nativeResultsAreVisible()) return;
+
+    const container = document.querySelector<HTMLElement>('.st-ui-injected-overlay-container');
+    if (!container) return;
+
+    const focusable = Array.from(
+      container.querySelectorAll<HTMLElement>(NATIVE_FOCUSABLE_SELECTOR)
+    ).filter((element) => {
+      if (element.tabIndex < 0 || element.closest('[hidden], [aria-hidden="true"]')) return false;
+      const styles = window.getComputedStyle(element);
+      return styles.display !== 'none' && styles.visibility !== 'hidden';
+    });
+    if (!focusable.length) return;
+
+    const activeElement = document.activeElement;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const focusEscaped = !activeElement || !container.contains(activeElement);
+    const shouldWrapBackward = event.shiftKey && (focusEscaped || activeElement === first);
+    const shouldWrapForward = !event.shiftKey && (focusEscaped || activeElement === last);
+    if (!shouldWrapBackward && !shouldWrapForward) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    (shouldWrapBackward ? last : first)?.focus({ preventScroll: true });
+  }
+
   function syncNativeScrollState(): void {
     if (nativeResultsAreActive()) {
       reserveScrollbarGutter();
@@ -747,6 +779,7 @@ export function initSearchModal(): void {
 
   document.addEventListener('keydown', handleArrowKey, true);
   document.addEventListener('keydown', handleTabKey, true);
+  document.addEventListener('keydown', handleNativeTabKey, true);
   document.addEventListener('keydown', handleEnter, true);
   document.addEventListener('click', handleNativeClose, true);
   window.addEventListener('resize', syncAutocompletePosition);
