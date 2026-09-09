@@ -4,9 +4,10 @@ const SEARCH_KEYBOARD_CLASS = 'st-search-keyboard-navigable';
 const OVERLAY_INPUT_SELECTOR = '#st-overlay-search-input';
 const AUTOCOMPLETE_SELECTOR = '.st-default-autocomplete .st-ui-autocomplete';
 const KEYBOARD_FOOTER_CLASS = 'sm-search-footer';
+const RETURN_KEY_SYMBOL = '↵';
 const KEYBOARD_FOOTER_HTML =
   '<span class="sm-search-footer__hint"><kbd class="sm-search-footer__key">↑↓</kbd><span>to navigate</span></span>' +
-  '<span class="sm-search-footer__hint"><kbd class="sm-search-footer__key">↵</kbd><span>to select</span></span>' +
+  `<span class="sm-search-footer__hint"><kbd class="sm-search-footer__key">${RETURN_KEY_SYMBOL}</kbd><span>to select</span></span>` +
   '<span class="sm-search-footer__hint"><kbd class="sm-search-footer__key">Esc</kbd><span>to close</span></span>';
 
 type SearchWindow = Window & { __wfuSearchModal?: boolean };
@@ -156,6 +157,11 @@ export function initSearchModal(): void {
   let hasSavedScrollbarGutter = false;
   let savedScrollbarGutter = '';
   let savedScrollbarGutterPriority = '';
+  let hasSavedBodyPaddingRight = false;
+  let savedBodyPaddingRight = '';
+  let savedBodyPaddingRightPriority = '';
+  let savedBodyBoxSizing = '';
+  let savedBodyBoxSizingPriority = '';
   let heightFrame = 0;
   let viewportFrame = 0;
   let nativeHandoffFrame = 0;
@@ -326,11 +332,30 @@ export function initSearchModal(): void {
     reserveScrollbarGutter();
 
     const body = document.body;
+    const unlockedClientWidth = document.documentElement.clientWidth;
+    const unlockedPaddingRight = Number.parseFloat(window.getComputedStyle(body).paddingRight) || 0;
+    hasSavedBodyPaddingRight = true;
+    savedBodyPaddingRight = body.style.getPropertyValue('padding-right');
+    savedBodyPaddingRightPriority = body.style.getPropertyPriority('padding-right');
+    savedBodyBoxSizing = body.style.getPropertyValue('box-sizing');
+    savedBodyBoxSizingPriority = body.style.getPropertyPriority('box-sizing');
     body.style.position = 'fixed';
     body.style.top = -savedScrollY + 'px';
     body.style.left = '0';
     body.style.right = '0';
     body.style.width = '100%';
+
+    // Some browsers release the viewport gutter once the body becomes fixed, even when
+    // `scrollbar-gutter: stable` is present. Compensate only for the measured width change.
+    const releasedGutter = document.documentElement.clientWidth - unlockedClientWidth;
+    if (releasedGutter > 0) {
+      body.style.setProperty('box-sizing', 'border-box', 'important');
+      body.style.setProperty(
+        'padding-right',
+        unlockedPaddingRight + releasedGutter + 'px',
+        'important'
+      );
+    }
   }
 
   function unlockPageScroll(preserveScrollbarGutter = false): void {
@@ -343,6 +368,27 @@ export function initSearchModal(): void {
       body.style.left = '';
       body.style.right = '';
       body.style.width = '';
+      if (hasSavedBodyPaddingRight) {
+        if (savedBodyPaddingRight) {
+          body.style.setProperty(
+            'padding-right',
+            savedBodyPaddingRight,
+            savedBodyPaddingRightPriority
+          );
+        } else {
+          body.style.removeProperty('padding-right');
+        }
+        if (savedBodyBoxSizing) {
+          body.style.setProperty('box-sizing', savedBodyBoxSizing, savedBodyBoxSizingPriority);
+        } else {
+          body.style.removeProperty('box-sizing');
+        }
+        hasSavedBodyPaddingRight = false;
+        savedBodyPaddingRight = '';
+        savedBodyPaddingRightPriority = '';
+        savedBodyBoxSizing = '';
+        savedBodyBoxSizingPriority = '';
+      }
       window.scrollTo(0, savedScrollY);
     }
 
@@ -436,11 +482,16 @@ export function initSearchModal(): void {
   function syncEmptyState(): void {
     const input = getInput();
     const popular = modal?.querySelector<HTMLElement>('.sm-popular');
+    const searchControl = modal?.querySelector<HTMLButtonElement>('.sm-kbd');
     if (!input || !popular) return;
 
     const isEmpty = input.value.trim().length === 0;
     modal?.classList.toggle('is-empty', isEmpty);
     popular.hidden = !isEmpty;
+    if (searchControl) {
+      searchControl.textContent = isEmpty ? 'Esc' : RETURN_KEY_SYMBOL;
+      searchControl.setAttribute('aria-label', isEmpty ? 'Close search' : 'Submit search');
+    }
 
     if (isEmpty) {
       input.setAttribute('aria-controls', popular.id);
@@ -630,12 +681,28 @@ export function initSearchModal(): void {
     input.addEventListener('blur', () => window.setTimeout(scheduleListHeight, 350));
   }
 
-  function wireCloseButton(): void {
+  function wireSearchControl(): void {
     const button = modal?.querySelector<HTMLButtonElement>('.sm-kbd');
     if (!button || button.dataset.smWired === 'true') return;
     button.dataset.smWired = 'true';
+    button.addEventListener('mousedown', (event) => {
+      if (getInput()?.value.trim()) event.preventDefault();
+    });
     button.addEventListener('click', (event) => {
       event.preventDefault();
+      const input = getInput();
+      if (input?.value.trim()) {
+        input.focus({ preventScroll: true });
+        input.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: 'Enter',
+            code: 'Enter',
+            bubbles: true,
+            cancelable: true,
+          })
+        );
+        return;
+      }
       closeSearch();
     });
   }
@@ -644,7 +711,7 @@ export function initSearchModal(): void {
   ensureKeyboardFooters();
   decoratePopular();
   wireInput();
-  wireCloseButton();
+  wireSearchControl();
   syncEmptyState();
   enableNativeOverlayKeyboardNavigation();
 
