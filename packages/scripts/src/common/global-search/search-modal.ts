@@ -147,6 +147,9 @@ export function initSearchModal(): void {
   let popularIndex = -1;
   let savedScrollY = 0;
   let isLocked = false;
+  let hasSavedScrollbarGutter = false;
+  let savedScrollbarGutter = '';
+  let savedScrollbarGutterPriority = '';
   let heightFrame = 0;
   let viewportFrame = 0;
   let nativeHandoffObserver: MutationObserver | null = null;
@@ -257,16 +260,37 @@ export function initSearchModal(): void {
     }
   }
 
-  function releaseRootOverflow(): void {
-    if (document.documentElement.style.overflow !== '') {
-      document.documentElement.style.overflow = '';
+  function reserveScrollbarGutter(): void {
+    const rootStyle = document.documentElement.style;
+    if (!hasSavedScrollbarGutter) {
+      hasSavedScrollbarGutter = true;
+      savedScrollbarGutter = rootStyle.getPropertyValue('scrollbar-gutter');
+      savedScrollbarGutterPriority = rootStyle.getPropertyPriority('scrollbar-gutter');
     }
+
+    rootStyle.setProperty('scrollbar-gutter', 'stable');
+  }
+
+  function restoreScrollbarGutter(): void {
+    if (!hasSavedScrollbarGutter) return;
+
+    const rootStyle = document.documentElement.style;
+    if (savedScrollbarGutter) {
+      rootStyle.setProperty('scrollbar-gutter', savedScrollbarGutter, savedScrollbarGutterPriority);
+    } else {
+      rootStyle.removeProperty('scrollbar-gutter');
+    }
+
+    hasSavedScrollbarGutter = false;
+    savedScrollbarGutter = '';
+    savedScrollbarGutterPriority = '';
   }
 
   function lockPageScroll(): void {
     if (isLocked) return;
     isLocked = true;
     savedScrollY = window.scrollY || window.pageYOffset || 0;
+    reserveScrollbarGutter();
 
     const body = document.body;
     body.style.position = 'fixed';
@@ -274,21 +298,22 @@ export function initSearchModal(): void {
     body.style.left = '0';
     body.style.right = '0';
     body.style.width = '100%';
-    releaseRootOverflow();
   }
 
-  function unlockPageScroll(): void {
-    if (!isLocked) return;
-    isLocked = false;
+  function unlockPageScroll(preserveScrollbarGutter = false): void {
+    if (isLocked) {
+      isLocked = false;
 
-    const body = document.body;
-    body.style.position = '';
-    body.style.top = '';
-    body.style.left = '';
-    body.style.right = '';
-    body.style.width = '';
-    releaseRootOverflow();
-    window.scrollTo(0, savedScrollY);
+      const body = document.body;
+      body.style.position = '';
+      body.style.top = '';
+      body.style.left = '';
+      body.style.right = '';
+      body.style.width = '';
+      window.scrollTo(0, savedScrollY);
+    }
+
+    if (!preserveScrollbarGutter) restoreScrollbarGutter();
   }
 
   function syncListHeight(): void {
@@ -365,7 +390,7 @@ export function initSearchModal(): void {
     }
 
     clearNativeHandoff();
-    unlockPageScroll();
+    unlockPageScroll(nativeResultsAreVisible());
     syncOverlayViewport();
     modal?.style.removeProperty('--sm-list-max');
   }
@@ -420,6 +445,15 @@ export function initSearchModal(): void {
     );
   }
 
+  function syncNativeScrollState(): void {
+    if (nativeResultsAreVisible()) {
+      reserveScrollbarGutter();
+      return;
+    }
+
+    if (!modal?.classList.contains('active')) restoreScrollbarGutter();
+  }
+
   function clearNativeHandoff(): void {
     nativeHandoffObserver?.disconnect();
     nativeHandoffObserver = null;
@@ -428,7 +462,7 @@ export function initSearchModal(): void {
   function deactivateLauncher(): void {
     clearNativeHandoff();
     modal?.classList.remove('active');
-    unlockPageScroll();
+    unlockPageScroll(nativeResultsAreVisible());
   }
 
   function waitForNativeResults(): void {
@@ -532,6 +566,14 @@ export function initSearchModal(): void {
   const stateObserver = new MutationObserver(syncModalState);
   stateObserver.observe(modal, { attributes: true, attributeFilter: ['class'] });
 
+  const nativeScrollObserver = new MutationObserver(syncNativeScrollState);
+  nativeScrollObserver.observe(document.body, {
+    attributes: true,
+    attributeFilter: ['class'],
+    childList: true,
+    subtree: true,
+  });
+
   document.addEventListener('keydown', handleArrowKey, true);
   document.addEventListener('keydown', handleEnter, true);
   document.addEventListener('click', handleNativeClose, true);
@@ -542,5 +584,5 @@ export function initSearchModal(): void {
     window.visualViewport.addEventListener('scroll', scheduleOverlayViewport);
   }
 
-  window.addEventListener('pagehide', unlockPageScroll);
+  window.addEventListener('pagehide', () => unlockPageScroll());
 }
