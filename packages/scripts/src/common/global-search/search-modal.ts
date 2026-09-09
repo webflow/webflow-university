@@ -740,14 +740,18 @@ export function initSearchModal(): void {
       const input = getInput();
       if (input?.value.trim()) {
         input.focus({ preventScroll: true });
-        input.dispatchEvent(
-          new KeyboardEvent('keydown', {
-            key: 'Enter',
-            code: 'Enter',
-            bubbles: true,
-            cancelable: true,
-          })
-        );
+        const enterEvent = new KeyboardEvent('keydown', {
+          key: 'Enter',
+          code: 'Enter',
+          bubbles: true,
+          cancelable: true,
+        });
+        // Swiftype 2.0's jQuery handler checks legacy key values rather than `key`.
+        Object.defineProperties(enterEvent, {
+          keyCode: { value: 13 },
+          which: { value: 13 },
+        });
+        input.dispatchEvent(enterEvent);
         return;
       }
       closeSearch();

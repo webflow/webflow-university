@@ -159,7 +159,11 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
   expect(document.body.style.paddingRight).toBe('23px');
 
   const swiftypeKeydown = vi.fn();
-  input!.addEventListener('keydown', swiftypeKeydown);
+  const swiftypeSearch = vi.fn();
+  input!.addEventListener('keydown', (event) => {
+    swiftypeKeydown(event);
+    if (event.which === 13) swiftypeSearch();
+  });
   input!.value = 'grid';
   input!.dispatchEvent(new Event('input', { bubbles: true }));
 
@@ -177,7 +181,10 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
 
   searchControl?.click();
   expect(swiftypeKeydown).toHaveBeenCalledTimes(1);
-  expect((swiftypeKeydown.mock.calls[0]?.[0] as KeyboardEvent).key).toBe('Enter');
+  const clickedEnter = swiftypeKeydown.mock.calls[0]?.[0] as KeyboardEvent;
+  expect(clickedEnter.key).toBe('Enter');
+  expect(clickedEnter.which).toBe(13);
+  expect(swiftypeSearch).toHaveBeenCalledTimes(1);
   swiftypeKeydown.mockClear();
 
   input!.focus();
