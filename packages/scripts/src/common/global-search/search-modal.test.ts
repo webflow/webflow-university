@@ -159,7 +159,11 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
   expect(document.body.style.paddingRight).toBe('23px');
 
   const swiftypeKeydown = vi.fn();
-  input!.addEventListener('keydown', swiftypeKeydown);
+  const swiftypeSearch = vi.fn();
+  input!.addEventListener('keydown', (event) => {
+    swiftypeKeydown(event);
+    if (event.which === 13) swiftypeSearch();
+  });
   input!.value = 'grid';
   input!.dispatchEvent(new Event('input', { bubbles: true }));
 
@@ -177,7 +181,10 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
 
   searchControl?.click();
   expect(swiftypeKeydown).toHaveBeenCalledTimes(1);
-  expect((swiftypeKeydown.mock.calls[0]?.[0] as KeyboardEvent).key).toBe('Enter');
+  const clickedEnter = swiftypeKeydown.mock.calls[0]?.[0] as KeyboardEvent;
+  expect(clickedEnter.key).toBe('Enter');
+  expect(clickedEnter.which).toBe(13);
+  expect(swiftypeSearch).toHaveBeenCalledTimes(1);
   swiftypeKeydown.mockClear();
 
   input!.focus();
@@ -228,7 +235,10 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
   const nativeOverlay = document.createElement('div');
   nativeOverlay.className = 'st-ui-overlay';
   nativeOverlay.innerHTML =
-    '<div class="st-ui-injected-overlay-container"><button class="st-ui-close-button"></button></div>';
+    '<div class="st-ui-injected-overlay-container">' +
+    '<a id="native-result" href="#native-result">Result</a>' +
+    '<button class="st-ui-close-button"></button>' +
+    '</div>';
   const nativeContainer = nativeOverlay.querySelector<HTMLElement>(
     '.st-ui-injected-overlay-container'
   )!;
@@ -258,6 +268,41 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
   expect(document.documentElement.style.getPropertyValue('scrollbar-gutter')).toBe(
     'stable both-edges'
   );
+
+  const nativeResult = nativeOverlay.querySelector<HTMLAnchorElement>('#native-result')!;
+  const nativeClose = nativeOverlay.querySelector<HTMLButtonElement>('.st-ui-close-button')!;
+  const outsideSearch = document.querySelector<HTMLButtonElement>('#outside-search')!;
+
+  outsideSearch.focus();
+  const outsideTab = new KeyboardEvent('keydown', {
+    key: 'Tab',
+    bubbles: true,
+    cancelable: true,
+  });
+  outsideSearch.dispatchEvent(outsideTab);
+  expect(outsideTab.defaultPrevented).toBe(true);
+  expect(document.activeElement).toBe(nativeResult);
+
+  nativeClose.focus();
+  const lastTab = new KeyboardEvent('keydown', {
+    key: 'Tab',
+    bubbles: true,
+    cancelable: true,
+  });
+  nativeClose.dispatchEvent(lastTab);
+  expect(lastTab.defaultPrevented).toBe(true);
+  expect(document.activeElement).toBe(nativeResult);
+
+  nativeResult.focus();
+  const firstShiftTab = new KeyboardEvent('keydown', {
+    key: 'Tab',
+    shiftKey: true,
+    bubbles: true,
+    cancelable: true,
+  });
+  nativeResult.dispatchEvent(firstShiftTab);
+  expect(firstShiftTab.defaultPrevented).toBe(true);
+  expect(document.activeElement).toBe(nativeClose);
 
   nativeOverlay.classList.add('dismiss');
   await Promise.resolve();
