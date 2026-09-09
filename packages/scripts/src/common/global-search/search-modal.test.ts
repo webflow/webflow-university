@@ -158,11 +158,30 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
   expect(document.querySelector('[data-sm-modal="true"]')?.classList.contains('active')).toBe(true);
   expect(document.body.style.position).toBe('fixed');
 
+  requestAnimationFrame.mockImplementation(() => 2);
+
   const nativeOverlay = document.createElement('div');
   nativeOverlay.className = 'st-ui-overlay';
   nativeOverlay.innerHTML =
     '<div class="st-ui-injected-overlay-container"><button class="st-ui-close-button"></button></div>';
+  const nativeContainer = nativeOverlay.querySelector<HTMLElement>(
+    '.st-ui-injected-overlay-container'
+  )!;
+  nativeContainer.style.opacity = '0';
+  vi.spyOn(nativeContainer, 'getBoundingClientRect').mockReturnValue({
+    width: 600,
+    height: 560,
+  } as DOMRect);
   document.body.appendChild(nativeOverlay);
+  await Promise.resolve();
+
+  expect(document.querySelector('[data-sm-modal="true"]')?.classList.contains('active')).toBe(true);
+  const handoffFrame = requestAnimationFrame.mock.lastCall?.[0];
+  expect(handoffFrame).not.toBeNull();
+
+  nativeContainer.style.opacity = '1';
+  if (!handoffFrame) throw new Error('Expected a pending native handoff frame');
+  handoffFrame(0);
   await Promise.resolve();
 
   expect(document.querySelector('[data-sm-modal="true"]')?.classList.contains('active')).toBe(

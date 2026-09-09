@@ -152,6 +152,7 @@ export function initSearchModal(): void {
   let savedScrollbarGutterPriority = '';
   let heightFrame = 0;
   let viewportFrame = 0;
+  let nativeHandoffFrame = 0;
   let nativeHandoffObserver: MutationObserver | null = null;
 
   function getInput(): HTMLInputElement | null {
@@ -390,7 +391,7 @@ export function initSearchModal(): void {
     }
 
     clearNativeHandoff();
-    unlockPageScroll(nativeResultsAreVisible());
+    unlockPageScroll(nativeResultsAreActive());
     syncOverlayViewport();
     modal?.style.removeProperty('--sm-list-max');
   }
@@ -435,8 +436,8 @@ export function initSearchModal(): void {
     }
   }
 
-  function nativeResultsAreVisible(): boolean {
-    const container = document.querySelector('.st-ui-injected-overlay-container');
+  function nativeResultsAreActive(): boolean {
+    const container = document.querySelector<HTMLElement>('.st-ui-injected-overlay-container');
     if (!container) return false;
 
     return Boolean(
@@ -445,8 +446,23 @@ export function initSearchModal(): void {
     );
   }
 
+  function nativeResultsAreVisible(): boolean {
+    const container = document.querySelector<HTMLElement>('.st-ui-injected-overlay-container');
+    if (!container || !nativeResultsAreActive()) return false;
+
+    const styles = window.getComputedStyle(container);
+    const bounds = container.getBoundingClientRect();
+    return (
+      styles.display !== 'none' &&
+      styles.visibility !== 'hidden' &&
+      Number.parseFloat(styles.opacity || '0') >= 0.99 &&
+      bounds.width > 0 &&
+      bounds.height > 0
+    );
+  }
+
   function syncNativeScrollState(): void {
-    if (nativeResultsAreVisible()) {
+    if (nativeResultsAreActive()) {
       reserveScrollbarGutter();
       return;
     }
@@ -457,12 +473,16 @@ export function initSearchModal(): void {
   function clearNativeHandoff(): void {
     nativeHandoffObserver?.disconnect();
     nativeHandoffObserver = null;
+    if (nativeHandoffFrame) {
+      window.cancelAnimationFrame(nativeHandoffFrame);
+      nativeHandoffFrame = 0;
+    }
   }
 
   function deactivateLauncher(): void {
     clearNativeHandoff();
     modal?.classList.remove('active');
-    unlockPageScroll(nativeResultsAreVisible());
+    unlockPageScroll(nativeResultsAreActive());
   }
 
   function waitForNativeResults(): void {
@@ -473,9 +493,24 @@ export function initSearchModal(): void {
       return;
     }
 
-    nativeHandoffObserver = new MutationObserver(() => {
-      if (nativeResultsAreVisible()) deactivateLauncher();
-    });
+    const scheduleHandoffCheck = (): void => {
+      if (nativeResultsAreVisible()) {
+        deactivateLauncher();
+        return;
+      }
+
+      if (nativeResultsAreActive() && !nativeHandoffFrame) {
+        nativeHandoffFrame = window.requestAnimationFrame(checkHandoff);
+      }
+    };
+
+    const checkHandoff = (): void => {
+      nativeHandoffFrame = 0;
+      scheduleHandoffCheck();
+    };
+
+    scheduleHandoffCheck();
+    nativeHandoffObserver = new MutationObserver(scheduleHandoffCheck);
     nativeHandoffObserver.observe(document.body, {
       attributes: true,
       attributeFilter: ['class'],
