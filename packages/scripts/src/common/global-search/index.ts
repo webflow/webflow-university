@@ -27,14 +27,12 @@ export function initGlobalSearch(): void {
   const openSearch = (): void => {
     resetInput();
     searchWrapper.classList.add('active');
-    document.documentElement.style.overflow = 'hidden';
     searchInput.focus();
   };
 
   const closeSearch = (): void => {
     window.setTimeout(() => {
       searchWrapper.classList.remove('active');
-      document.documentElement.style.overflow = '';
       resetInput();
     }, 100);
   };

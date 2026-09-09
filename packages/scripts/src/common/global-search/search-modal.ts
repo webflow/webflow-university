@@ -1,6 +1,144 @@
 const MODAL_SELECTOR = '[data-sm-modal="true"]';
+const SEARCH_RESULTS_SELECTOR = '.st-search-results';
+const SEARCH_KEYBOARD_CLASS = 'st-search-keyboard-navigable';
+const OVERLAY_INPUT_SELECTOR = '#st-overlay-search-input';
+const AUTOCOMPLETE_SELECTOR = '.st-default-autocomplete .st-ui-autocomplete';
+const KEYBOARD_FOOTER_CLASS = 'sm-search-footer';
+const KEYBOARD_FOOTER_HTML =
+  '<span class="sm-search-footer__hint"><kbd class="sm-search-footer__key">↑↓</kbd><span>to navigate</span></span>' +
+  '<span class="sm-search-footer__hint"><kbd class="sm-search-footer__key">↵</kbd><span>to select</span></span>' +
+  '<span class="sm-search-footer__hint"><kbd class="sm-search-footer__key">Esc</kbd><span>to close</span></span>';
 
 type SearchWindow = Window & { __wfuSearchModal?: boolean };
+
+type SwiftypeKeyboardOutput = {
+  _className?: string;
+  validate: () => boolean;
+  attach: () => void;
+  getElement?: () => { [0]?: Element };
+};
+
+type SwiftypeResultsDisplay = {
+  _addQueryOutput: (output: SwiftypeKeyboardOutput) => void;
+  _queryOutputs: SwiftypeKeyboardOutput[];
+};
+
+type SwiftypeInstall = {
+  getSearchContext: () => { _resultsDisplay: SwiftypeResultsDisplay };
+};
+
+type SwiftypeWindow = Window & {
+  _st?: ((command: string, ...args: unknown[]) => void) & {
+    _stLoaded?: boolean;
+    _widgetManager?: {
+      onInstallReady: (callback: () => void) => void;
+      _defaultInstall?: SwiftypeInstall;
+    };
+  };
+  _InternalSwiftype?: {
+    QueryOutputs?: {
+      KeyboardNavigableList: new (
+        resultsDisplay: SwiftypeResultsDisplay,
+        element: Element
+      ) => SwiftypeKeyboardOutput;
+    };
+  };
+};
+
+function wireNativeResultScroll(results: HTMLElement): boolean {
+  const input = document.querySelector<HTMLInputElement>(OVERLAY_INPUT_SELECTOR);
+  if (!input) return false;
+  if (input.dataset.wfuSearchScroll === 'true') return true;
+
+  input.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+
+    // Swiftype updates `st-keyboard-active-item` in its own keydown handler.
+    // Wait until that handler finishes, then keep the selected result in view.
+    window.requestAnimationFrame(() => {
+      results
+        .querySelector<HTMLElement>('.st-keyboard-active-item')
+        ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    });
+  });
+  input.dataset.wfuSearchScroll = 'true';
+  return true;
+}
+
+/**
+ * Swiftype only binds overlay arrow-key navigation to `.st-search-keyboard-navigable`.
+ * The default overlay template omits that class, so autocomplete gets ↑/↓ and the results
+ * overlay does not. Mark the native results host and attach Swiftype's own KeyboardNavigableList.
+ */
+function enableNativeOverlayKeyboardNavigation(): void {
+  const swiftypeWindow = window as SwiftypeWindow;
+  let attempts = 0;
+
+  const wire = (): boolean => {
+    const results = document.querySelector<HTMLElement>(SEARCH_RESULTS_SELECTOR);
+    const KeyboardNavigableList =
+      swiftypeWindow._InternalSwiftype?.QueryOutputs?.KeyboardNavigableList;
+    const install = swiftypeWindow._st?._widgetManager?._defaultInstall;
+    if (!results || !KeyboardNavigableList || !install) return false;
+    if (results.dataset.wfuSearchKeyboard === 'true') return wireNativeResultScroll(results);
+
+    const resultsDisplay = install.getSearchContext()._resultsDisplay;
+    const alreadyAttached = resultsDisplay._queryOutputs.some(
+      (output) =>
+        output._className?.includes('KeyboardNavigableList') && output.getElement?.()[0] === results
+    );
+    if (alreadyAttached) {
+      results.classList.add(SEARCH_KEYBOARD_CLASS);
+      results.dataset.wfuSearchKeyboard = 'true';
+      return wireNativeResultScroll(results);
+    }
+
+    results.classList.add(SEARCH_KEYBOARD_CLASS);
+    results.setAttribute('data-st-target-element', OVERLAY_INPUT_SELECTOR);
+
+    const output = new KeyboardNavigableList(resultsDisplay, results);
+    if (!output.validate()) {
+      results.classList.remove(SEARCH_KEYBOARD_CLASS);
+      results.removeAttribute('data-st-target-element');
+      return false;
+    }
+
+    resultsDisplay._addQueryOutput(output);
+    output.attach();
+    results.dataset.wfuSearchKeyboard = 'true';
+    return wireNativeResultScroll(results);
+  };
+
+  const tryWire = (): void => {
+    if (wire()) return;
+    attempts += 1;
+    if (attempts < 40) window.setTimeout(tryWire, 100);
+  };
+
+  const onReady = (): void => {
+    tryWire();
+  };
+
+  try {
+    if (swiftypeWindow._st?._stLoaded) {
+      swiftypeWindow._st('onInstallReady', onReady);
+      return;
+    }
+  } catch {
+    // Install may not be registered yet; fall through to polling.
+  }
+
+  const poll = window.setInterval(() => {
+    if (!swiftypeWindow._st?._stLoaded) return;
+    window.clearInterval(poll);
+    try {
+      swiftypeWindow._st?.('onInstallReady', onReady);
+    } catch {
+      onReady();
+    }
+  }, 50);
+  window.setTimeout(() => window.clearInterval(poll), 15000);
+}
 
 /**
  * Keeps the Webflow search launcher and its empty-state Popular links while leaving every
@@ -15,8 +153,13 @@ export function initSearchModal(): void {
   let popularIndex = -1;
   let savedScrollY = 0;
   let isLocked = false;
+  let hasSavedScrollbarGutter = false;
+  let savedScrollbarGutter = '';
+  let savedScrollbarGutterPriority = '';
   let heightFrame = 0;
   let viewportFrame = 0;
+  let nativeHandoffFrame = 0;
+  let nativeHandoffObserver: MutationObserver | null = null;
 
   function getInput(): HTMLInputElement | null {
     return modal?.querySelector<HTMLInputElement>('#g-search') || null;
@@ -56,6 +199,28 @@ export function initSearchModal(): void {
       '<span class="sm-popular__arrow" aria-hidden="true"></span>' +
       '</a>';
     field.insertAdjacentElement('afterend', popular);
+  }
+
+  function appendKeyboardFooter(parent: HTMLElement): void {
+    if (
+      Array.from(parent.children).some((child) => child.classList.contains(KEYBOARD_FOOTER_CLASS))
+    ) {
+      return;
+    }
+
+    const footer = document.createElement('div');
+    footer.className = KEYBOARD_FOOTER_CLASS;
+    footer.setAttribute('aria-label', 'Keyboard shortcuts');
+    footer.innerHTML = KEYBOARD_FOOTER_HTML;
+    parent.appendChild(footer);
+  }
+
+  function ensureKeyboardFooters(): void {
+    const panel = modal?.querySelector<HTMLElement>('.sm-ovl__panel');
+    if (panel?.querySelector('.sm-popular')) appendKeyboardFooter(panel);
+
+    const autocomplete = document.querySelector<HTMLElement>(AUTOCOMPLETE_SELECTOR);
+    if (autocomplete?.querySelector('.st-query-present')) appendKeyboardFooter(autocomplete);
   }
 
   function contentTypeFromHref(href: string | null): string {
@@ -124,16 +289,41 @@ export function initSearchModal(): void {
     }
   }
 
-  function releaseRootOverflow(): void {
-    if (document.documentElement.style.overflow !== '') {
-      document.documentElement.style.overflow = '';
+  function reserveScrollbarGutter(): void {
+    if (hasSavedScrollbarGutter) return;
+
+    const rootStyle = document.documentElement.style;
+    const currentScrollbarGutter = window
+      .getComputedStyle(document.documentElement)
+      .getPropertyValue('scrollbar-gutter');
+    if (currentScrollbarGutter.includes('stable')) return;
+
+    hasSavedScrollbarGutter = true;
+    savedScrollbarGutter = rootStyle.getPropertyValue('scrollbar-gutter');
+    savedScrollbarGutterPriority = rootStyle.getPropertyPriority('scrollbar-gutter');
+    rootStyle.setProperty('scrollbar-gutter', 'stable');
+  }
+
+  function restoreScrollbarGutter(): void {
+    if (!hasSavedScrollbarGutter) return;
+
+    const rootStyle = document.documentElement.style;
+    if (savedScrollbarGutter) {
+      rootStyle.setProperty('scrollbar-gutter', savedScrollbarGutter, savedScrollbarGutterPriority);
+    } else {
+      rootStyle.removeProperty('scrollbar-gutter');
     }
+
+    hasSavedScrollbarGutter = false;
+    savedScrollbarGutter = '';
+    savedScrollbarGutterPriority = '';
   }
 
   function lockPageScroll(): void {
     if (isLocked) return;
     isLocked = true;
     savedScrollY = window.scrollY || window.pageYOffset || 0;
+    reserveScrollbarGutter();
 
     const body = document.body;
     body.style.position = 'fixed';
@@ -141,21 +331,22 @@ export function initSearchModal(): void {
     body.style.left = '0';
     body.style.right = '0';
     body.style.width = '100%';
-    releaseRootOverflow();
   }
 
-  function unlockPageScroll(): void {
-    if (!isLocked) return;
-    isLocked = false;
+  function unlockPageScroll(preserveScrollbarGutter = false): void {
+    if (isLocked) {
+      isLocked = false;
 
-    const body = document.body;
-    body.style.position = '';
-    body.style.top = '';
-    body.style.left = '';
-    body.style.right = '';
-    body.style.width = '';
-    releaseRootOverflow();
-    window.scrollTo(0, savedScrollY);
+      const body = document.body;
+      body.style.position = '';
+      body.style.top = '';
+      body.style.left = '';
+      body.style.right = '';
+      body.style.width = '';
+      window.scrollTo(0, savedScrollY);
+    }
+
+    if (!preserveScrollbarGutter) restoreScrollbarGutter();
   }
 
   function syncListHeight(): void {
@@ -172,7 +363,12 @@ export function initSearchModal(): void {
       return;
     }
 
-    const available = window.visualViewport.height - popular.getBoundingClientRect().top - 9;
+    const footer = modal?.querySelector<HTMLElement>('.sm-ovl__panel > .sm-search-footer');
+    const available =
+      window.visualViewport.height -
+      popular.getBoundingClientRect().top -
+      (footer?.offsetHeight || 0) -
+      9;
     modal.style.setProperty('--sm-list-max', Math.max(160, Math.round(available)) + 'px');
   }
 
@@ -217,15 +413,22 @@ export function initSearchModal(): void {
     const isActive = modal?.classList.contains('active');
     const isEmpty = !input?.value.trim();
 
-    if (isActive && isEmpty) {
+    if (isActive) {
       lockPageScroll();
       syncOverlayViewport();
-      scheduleListHeight();
-      wakePopularScroller();
+
+      if (isEmpty) {
+        scheduleListHeight();
+        wakePopularScroller();
+      } else {
+        modal?.style.removeProperty('--sm-list-max');
+      }
+
       return;
     }
 
-    unlockPageScroll();
+    clearNativeHandoff();
+    unlockPageScroll(nativeResultsAreActive());
     syncOverlayViewport();
     modal?.style.removeProperty('--sm-list-max');
   }
@@ -270,9 +473,99 @@ export function initSearchModal(): void {
     }
   }
 
+  function handleTabKey(event: KeyboardEvent): void {
+    if (event.key !== 'Tab' || !modal?.classList.contains('active')) return;
+
+    const input = getInput();
+    if (!input || input.value.trim().length === 0) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    input.focus({ preventScroll: true });
+  }
+
+  function nativeResultsAreActive(): boolean {
+    const container = document.querySelector<HTMLElement>('.st-ui-injected-overlay-container');
+    if (!container) return false;
+
+    return Boolean(
+      document.body.classList.contains('st-ui-overlay-active') ||
+        container.closest('div.st-ui-overlay:not(.dismiss)')
+    );
+  }
+
+  function nativeResultsAreVisible(): boolean {
+    const container = document.querySelector<HTMLElement>('.st-ui-injected-overlay-container');
+    if (!container || !nativeResultsAreActive()) return false;
+
+    const styles = window.getComputedStyle(container);
+    const bounds = container.getBoundingClientRect();
+    return (
+      styles.display !== 'none' &&
+      styles.visibility !== 'hidden' &&
+      Number.parseFloat(styles.opacity || '0') >= 0.99 &&
+      bounds.width > 0 &&
+      bounds.height > 0
+    );
+  }
+
+  function syncNativeScrollState(): void {
+    if (nativeResultsAreActive()) {
+      reserveScrollbarGutter();
+      return;
+    }
+
+    if (!modal?.classList.contains('active')) restoreScrollbarGutter();
+  }
+
+  function clearNativeHandoff(): void {
+    nativeHandoffObserver?.disconnect();
+    nativeHandoffObserver = null;
+    if (nativeHandoffFrame) {
+      window.cancelAnimationFrame(nativeHandoffFrame);
+      nativeHandoffFrame = 0;
+    }
+  }
+
   function deactivateLauncher(): void {
+    clearNativeHandoff();
     modal?.classList.remove('active');
-    unlockPageScroll();
+    unlockPageScroll(nativeResultsAreActive());
+  }
+
+  function waitForNativeResults(): void {
+    clearNativeHandoff();
+
+    if (nativeResultsAreVisible()) {
+      deactivateLauncher();
+      return;
+    }
+
+    const scheduleHandoffCheck = (): void => {
+      if (nativeResultsAreVisible()) {
+        deactivateLauncher();
+        return;
+      }
+
+      if (nativeResultsAreActive() && !nativeHandoffFrame) {
+        nativeHandoffFrame = window.requestAnimationFrame(checkHandoff);
+      }
+    };
+
+    const checkHandoff = (): void => {
+      nativeHandoffFrame = 0;
+      scheduleHandoffCheck();
+    };
+
+    scheduleHandoffCheck();
+    nativeHandoffObserver = new MutationObserver(scheduleHandoffCheck);
+    nativeHandoffObserver.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class'],
+      childList: true,
+      subtree: true,
+    });
   }
 
   function handleEnter(event: KeyboardEvent): void {
@@ -282,9 +575,9 @@ export function initSearchModal(): void {
     if (!input || event.target !== input) return;
 
     if (input.value.trim().length > 0) {
-      // Do not interfere with Swiftype's handler. Release the custom launcher after the event
-      // finishes so its page lock cannot sit behind Swiftype's native results overlay.
-      window.setTimeout(deactivateLauncher, 0);
+      // Do not interfere with Swiftype's handler. Keep the launcher covering the page until
+      // Swiftype's results overlay is present, then hand off without exposing the page between.
+      waitForNativeResults();
       return;
     }
 
@@ -300,6 +593,19 @@ export function initSearchModal(): void {
     const backdrop = modal?.querySelector<HTMLElement>('.g_search-close-bg');
     if (backdrop) {
       backdrop.click();
+      return;
+    }
+
+    deactivateLauncher();
+    const input = getInput();
+    if (input) {
+      input.value = '';
+      input.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+    }
+  }
+
+  function handleNativeClose(event: MouseEvent): void {
+    if (!(event.target instanceof Element) || !event.target.closest('.st-ui-close-button')) {
       return;
     }
 
@@ -335,16 +641,31 @@ export function initSearchModal(): void {
   }
 
   ensurePopular();
+  ensureKeyboardFooters();
   decoratePopular();
   wireInput();
   wireCloseButton();
   syncEmptyState();
+  enableNativeOverlayKeyboardNavigation();
 
   const stateObserver = new MutationObserver(syncModalState);
   stateObserver.observe(modal, { attributes: true, attributeFilter: ['class'] });
 
+  const nativeScrollObserver = new MutationObserver(() => {
+    syncNativeScrollState();
+    ensureKeyboardFooters();
+  });
+  nativeScrollObserver.observe(document.body, {
+    attributes: true,
+    attributeFilter: ['class'],
+    childList: true,
+    subtree: true,
+  });
+
   document.addEventListener('keydown', handleArrowKey, true);
+  document.addEventListener('keydown', handleTabKey, true);
   document.addEventListener('keydown', handleEnter, true);
+  document.addEventListener('click', handleNativeClose, true);
 
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', scheduleListHeight);
@@ -352,5 +673,5 @@ export function initSearchModal(): void {
     window.visualViewport.addEventListener('scroll', scheduleOverlayViewport);
   }
 
-  window.addEventListener('pagehide', unlockPageScroll);
+  window.addEventListener('pagehide', () => unlockPageScroll());
 }
