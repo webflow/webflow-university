@@ -68,7 +68,11 @@ function mockSwiftypeKeyboard(): {
 it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', async () => {
   vi.useFakeTimers();
   document.body.innerHTML = `
-    <div class="st-default-autocomplete"></div>
+    <div class="st-default-autocomplete st-install-8tPjZM7QFLqxMEpVo-ws">
+      <div class="st-ui-autocomplete">
+        <div class="st-query-present"></div>
+      </div>
+    </div>
     <section class="st-ui-content st-search-results"></section>
     <input id="st-overlay-search-input" />
     <div data-sm-modal="true" class="active">
@@ -122,9 +126,19 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
   const input = document.querySelector<HTMLInputElement>('#g-search');
   const autocomplete = document.querySelector<HTMLElement>('.st-default-autocomplete');
   const popular = document.querySelector<HTMLElement>('.sm-popular');
+  const popularFooter = document.querySelector<HTMLElement>(
+    '[data-sm-modal] .sm-ovl__panel > .sm-search-footer'
+  );
+  const suggestionsFooter = document.querySelector<HTMLElement>(
+    '.st-ui-autocomplete > .sm-search-footer'
+  );
   expect(input).not.toBeNull();
   expect(popular?.hidden).toBe(false);
   expect(autocomplete?.parentElement).toBe(document.body);
+  expect(popularFooter?.textContent).toContain('to navigate');
+  expect(popularFooter?.textContent).toContain('to select');
+  expect(popularFooter?.textContent).toContain('to close');
+  expect(suggestionsFooter?.innerHTML).toBe(popularFooter?.innerHTML);
   expect(document.documentElement.style.getPropertyValue('scrollbar-gutter')).toBe('stable');
   expect(document.documentElement.style.overflow).toBe('clip');
 
@@ -175,6 +189,7 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
   document.body.appendChild(nativeOverlay);
   await Promise.resolve();
 
+  expect(nativeOverlay.querySelector('.sm-search-footer')).toBeNull();
   expect(document.querySelector('[data-sm-modal="true"]')?.classList.contains('active')).toBe(true);
   const handoffFrame = requestAnimationFrame.mock.lastCall?.[0];
   expect(handoffFrame).not.toBeNull();

@@ -2,6 +2,12 @@ const MODAL_SELECTOR = '[data-sm-modal="true"]';
 const SEARCH_RESULTS_SELECTOR = '.st-search-results';
 const SEARCH_KEYBOARD_CLASS = 'st-search-keyboard-navigable';
 const OVERLAY_INPUT_SELECTOR = '#st-overlay-search-input';
+const AUTOCOMPLETE_SELECTOR = '.st-default-autocomplete .st-ui-autocomplete';
+const KEYBOARD_FOOTER_CLASS = 'sm-search-footer';
+const KEYBOARD_FOOTER_HTML =
+  '<span class="sm-search-footer__hint"><kbd class="sm-search-footer__key">↑↓</kbd><span>to navigate</span></span>' +
+  '<span class="sm-search-footer__hint"><kbd class="sm-search-footer__key">↵</kbd><span>to select</span></span>' +
+  '<span class="sm-search-footer__hint"><kbd class="sm-search-footer__key">Esc</kbd><span>to close</span></span>';
 
 type SearchWindow = Window & { __wfuSearchModal?: boolean };
 
@@ -195,6 +201,28 @@ export function initSearchModal(): void {
     field.insertAdjacentElement('afterend', popular);
   }
 
+  function appendKeyboardFooter(parent: HTMLElement): void {
+    if (
+      Array.from(parent.children).some((child) => child.classList.contains(KEYBOARD_FOOTER_CLASS))
+    ) {
+      return;
+    }
+
+    const footer = document.createElement('div');
+    footer.className = KEYBOARD_FOOTER_CLASS;
+    footer.setAttribute('aria-label', 'Keyboard shortcuts');
+    footer.innerHTML = KEYBOARD_FOOTER_HTML;
+    parent.appendChild(footer);
+  }
+
+  function ensureKeyboardFooters(): void {
+    const panel = modal?.querySelector<HTMLElement>('.sm-ovl__panel');
+    if (panel?.querySelector('.sm-popular')) appendKeyboardFooter(panel);
+
+    const autocomplete = document.querySelector<HTMLElement>(AUTOCOMPLETE_SELECTOR);
+    if (autocomplete?.querySelector('.st-query-present')) appendKeyboardFooter(autocomplete);
+  }
+
   function contentTypeFromHref(href: string | null): string {
     let path = '';
     try {
@@ -331,7 +359,12 @@ export function initSearchModal(): void {
       return;
     }
 
-    const available = window.visualViewport.height - popular.getBoundingClientRect().top - 9;
+    const footer = modal?.querySelector<HTMLElement>('.sm-ovl__panel > .sm-search-footer');
+    const available =
+      window.visualViewport.height -
+      popular.getBoundingClientRect().top -
+      (footer?.offsetHeight || 0) -
+      9;
     modal.style.setProperty('--sm-list-max', Math.max(160, Math.round(available)) + 'px');
   }
 
@@ -592,6 +625,7 @@ export function initSearchModal(): void {
   }
 
   ensurePopular();
+  ensureKeyboardFooters();
   decoratePopular();
   wireInput();
   wireCloseButton();
@@ -601,7 +635,10 @@ export function initSearchModal(): void {
   const stateObserver = new MutationObserver(syncModalState);
   stateObserver.observe(modal, { attributes: true, attributeFilter: ['class'] });
 
-  const nativeScrollObserver = new MutationObserver(syncNativeScrollState);
+  const nativeScrollObserver = new MutationObserver(() => {
+    syncNativeScrollState();
+    ensureKeyboardFooters();
+  });
   nativeScrollObserver.observe(document.body, {
     attributes: true,
     attributeFilter: ['class'],
