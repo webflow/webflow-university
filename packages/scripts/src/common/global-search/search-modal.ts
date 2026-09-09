@@ -1,6 +1,138 @@
 const MODAL_SELECTOR = '[data-sm-modal="true"]';
+const SEARCH_RESULTS_SELECTOR = '.st-search-results';
+const SEARCH_KEYBOARD_CLASS = 'st-search-keyboard-navigable';
+const OVERLAY_INPUT_SELECTOR = '#st-overlay-search-input';
 
 type SearchWindow = Window & { __wfuSearchModal?: boolean };
+
+type SwiftypeKeyboardOutput = {
+  _className?: string;
+  validate: () => boolean;
+  attach: () => void;
+  getElement?: () => { [0]?: Element };
+};
+
+type SwiftypeResultsDisplay = {
+  _addQueryOutput: (output: SwiftypeKeyboardOutput) => void;
+  _queryOutputs: SwiftypeKeyboardOutput[];
+};
+
+type SwiftypeInstall = {
+  getSearchContext: () => { _resultsDisplay: SwiftypeResultsDisplay };
+};
+
+type SwiftypeWindow = Window & {
+  _st?: ((command: string, ...args: unknown[]) => void) & {
+    _stLoaded?: boolean;
+    _widgetManager?: {
+      onInstallReady: (callback: () => void) => void;
+      _defaultInstall?: SwiftypeInstall;
+    };
+  };
+  _InternalSwiftype?: {
+    QueryOutputs?: {
+      KeyboardNavigableList: new (
+        resultsDisplay: SwiftypeResultsDisplay,
+        element: Element
+      ) => SwiftypeKeyboardOutput;
+    };
+  };
+};
+
+function wireNativeResultScroll(results: HTMLElement): boolean {
+  const input = document.querySelector<HTMLInputElement>(OVERLAY_INPUT_SELECTOR);
+  if (!input) return false;
+  if (input.dataset.wfuSearchScroll === 'true') return true;
+
+  input.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+
+    // Swiftype updates `st-keyboard-active-item` in its own keydown handler.
+    // Wait until that handler finishes, then keep the selected result in view.
+    window.requestAnimationFrame(() => {
+      results
+        .querySelector<HTMLElement>('.st-keyboard-active-item')
+        ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    });
+  });
+  input.dataset.wfuSearchScroll = 'true';
+  return true;
+}
+
+/**
+ * Swiftype only binds overlay arrow-key navigation to `.st-search-keyboard-navigable`.
+ * The default overlay template omits that class, so autocomplete gets ↑/↓ and the results
+ * overlay does not. Mark the native results host and attach Swiftype's own KeyboardNavigableList.
+ */
+function enableNativeOverlayKeyboardNavigation(): void {
+  const swiftypeWindow = window as SwiftypeWindow;
+  let attempts = 0;
+
+  const wire = (): boolean => {
+    const results = document.querySelector<HTMLElement>(SEARCH_RESULTS_SELECTOR);
+    const KeyboardNavigableList =
+      swiftypeWindow._InternalSwiftype?.QueryOutputs?.KeyboardNavigableList;
+    const install = swiftypeWindow._st?._widgetManager?._defaultInstall;
+    if (!results || !KeyboardNavigableList || !install) return false;
+    if (results.dataset.wfuSearchKeyboard === 'true') return wireNativeResultScroll(results);
+
+    const resultsDisplay = install.getSearchContext()._resultsDisplay;
+    const alreadyAttached = resultsDisplay._queryOutputs.some(
+      (output) =>
+        output._className?.includes('KeyboardNavigableList') && output.getElement?.()[0] === results
+    );
+    if (alreadyAttached) {
+      results.classList.add(SEARCH_KEYBOARD_CLASS);
+      results.dataset.wfuSearchKeyboard = 'true';
+      return wireNativeResultScroll(results);
+    }
+
+    results.classList.add(SEARCH_KEYBOARD_CLASS);
+    results.setAttribute('data-st-target-element', OVERLAY_INPUT_SELECTOR);
+
+    const output = new KeyboardNavigableList(resultsDisplay, results);
+    if (!output.validate()) {
+      results.classList.remove(SEARCH_KEYBOARD_CLASS);
+      results.removeAttribute('data-st-target-element');
+      return false;
+    }
+
+    resultsDisplay._addQueryOutput(output);
+    output.attach();
+    results.dataset.wfuSearchKeyboard = 'true';
+    return wireNativeResultScroll(results);
+  };
+
+  const tryWire = (): void => {
+    if (wire()) return;
+    attempts += 1;
+    if (attempts < 40) window.setTimeout(tryWire, 100);
+  };
+
+  const onReady = (): void => {
+    tryWire();
+  };
+
+  try {
+    if (swiftypeWindow._st?._stLoaded) {
+      swiftypeWindow._st('onInstallReady', onReady);
+      return;
+    }
+  } catch {
+    // Install may not be registered yet; fall through to polling.
+  }
+
+  const poll = window.setInterval(() => {
+    if (!swiftypeWindow._st?._stLoaded) return;
+    window.clearInterval(poll);
+    try {
+      swiftypeWindow._st?.('onInstallReady', onReady);
+    } catch {
+      onReady();
+    }
+  }, 50);
+  window.setTimeout(() => window.clearInterval(poll), 15000);
+}
 
 /**
  * Keeps the Webflow search launcher and its empty-state Popular links while leaving every
@@ -17,6 +149,7 @@ export function initSearchModal(): void {
   let isLocked = false;
   let heightFrame = 0;
   let viewportFrame = 0;
+  let nativeHandoffObserver: MutationObserver | null = null;
 
   function getInput(): HTMLInputElement | null {
     return modal?.querySelector<HTMLInputElement>('#g-search') || null;
@@ -217,14 +350,21 @@ export function initSearchModal(): void {
     const isActive = modal?.classList.contains('active');
     const isEmpty = !input?.value.trim();
 
-    if (isActive && isEmpty) {
+    if (isActive) {
       lockPageScroll();
       syncOverlayViewport();
-      scheduleListHeight();
-      wakePopularScroller();
+
+      if (isEmpty) {
+        scheduleListHeight();
+        wakePopularScroller();
+      } else {
+        modal?.style.removeProperty('--sm-list-max');
+      }
+
       return;
     }
 
+    clearNativeHandoff();
     unlockPageScroll();
     syncOverlayViewport();
     modal?.style.removeProperty('--sm-list-max');
@@ -270,9 +410,44 @@ export function initSearchModal(): void {
     }
   }
 
+  function nativeResultsAreVisible(): boolean {
+    const container = document.querySelector('.st-ui-injected-overlay-container');
+    if (!container) return false;
+
+    return Boolean(
+      document.body.classList.contains('st-ui-overlay-active') ||
+        container.closest('div.st-ui-overlay:not(.dismiss)')
+    );
+  }
+
+  function clearNativeHandoff(): void {
+    nativeHandoffObserver?.disconnect();
+    nativeHandoffObserver = null;
+  }
+
   function deactivateLauncher(): void {
+    clearNativeHandoff();
     modal?.classList.remove('active');
     unlockPageScroll();
+  }
+
+  function waitForNativeResults(): void {
+    clearNativeHandoff();
+
+    if (nativeResultsAreVisible()) {
+      deactivateLauncher();
+      return;
+    }
+
+    nativeHandoffObserver = new MutationObserver(() => {
+      if (nativeResultsAreVisible()) deactivateLauncher();
+    });
+    nativeHandoffObserver.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class'],
+      childList: true,
+      subtree: true,
+    });
   }
 
   function handleEnter(event: KeyboardEvent): void {
@@ -282,9 +457,9 @@ export function initSearchModal(): void {
     if (!input || event.target !== input) return;
 
     if (input.value.trim().length > 0) {
-      // Do not interfere with Swiftype's handler. Release the custom launcher after the event
-      // finishes so its page lock cannot sit behind Swiftype's native results overlay.
-      window.setTimeout(deactivateLauncher, 0);
+      // Do not interfere with Swiftype's handler. Keep the launcher covering the page until
+      // Swiftype's results overlay is present, then hand off without exposing the page between.
+      waitForNativeResults();
       return;
     }
 
@@ -300,6 +475,19 @@ export function initSearchModal(): void {
     const backdrop = modal?.querySelector<HTMLElement>('.g_search-close-bg');
     if (backdrop) {
       backdrop.click();
+      return;
+    }
+
+    deactivateLauncher();
+    const input = getInput();
+    if (input) {
+      input.value = '';
+      input.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+    }
+  }
+
+  function handleNativeClose(event: MouseEvent): void {
+    if (!(event.target instanceof Element) || !event.target.closest('.st-ui-close-button')) {
       return;
     }
 
@@ -339,12 +527,14 @@ export function initSearchModal(): void {
   wireInput();
   wireCloseButton();
   syncEmptyState();
+  enableNativeOverlayKeyboardNavigation();
 
   const stateObserver = new MutationObserver(syncModalState);
   stateObserver.observe(modal, { attributes: true, attributeFilter: ['class'] });
 
   document.addEventListener('keydown', handleArrowKey, true);
   document.addEventListener('keydown', handleEnter, true);
+  document.addEventListener('click', handleNativeClose, true);
 
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', scheduleListHeight);
