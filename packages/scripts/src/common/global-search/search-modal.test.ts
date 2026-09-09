@@ -86,6 +86,7 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
         </div>
       </div>
     </div>
+    <button id="outside-search" type="button">Outside search</button>
   `;
   document.documentElement.style.setProperty('scrollbar-gutter', 'stable both-edges', 'important');
   document.documentElement.style.overflow = 'clip';
@@ -150,6 +151,28 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
   expect(popular?.hidden).toBe(true);
   expect(autocomplete?.parentElement).toBe(document.body);
   expect(document.body.style.position).toBe('fixed');
+
+  input!.focus();
+  const typedTab = new KeyboardEvent('keydown', {
+    key: 'Tab',
+    bubbles: true,
+    cancelable: true,
+  });
+  input!.dispatchEvent(typedTab);
+
+  expect(typedTab.defaultPrevented).toBe(true);
+  expect(document.activeElement).toBe(input);
+
+  const typedShiftTab = new KeyboardEvent('keydown', {
+    key: 'Tab',
+    shiftKey: true,
+    bubbles: true,
+    cancelable: true,
+  });
+  input!.dispatchEvent(typedShiftTab);
+
+  expect(typedShiftTab.defaultPrevented).toBe(true);
+  expect(document.activeElement).toBe(input);
 
   const typedArrow = new KeyboardEvent('keydown', {
     key: 'ArrowDown',

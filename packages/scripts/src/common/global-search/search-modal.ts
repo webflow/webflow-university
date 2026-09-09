@@ -469,6 +469,18 @@ export function initSearchModal(): void {
     }
   }
 
+  function handleTabKey(event: KeyboardEvent): void {
+    if (event.key !== 'Tab' || !modal?.classList.contains('active')) return;
+
+    const input = getInput();
+    if (!input || input.value.trim().length === 0) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    input.focus({ preventScroll: true });
+  }
+
   function nativeResultsAreActive(): boolean {
     const container = document.querySelector<HTMLElement>('.st-ui-injected-overlay-container');
     if (!container) return false;
@@ -647,6 +659,7 @@ export function initSearchModal(): void {
   });
 
   document.addEventListener('keydown', handleArrowKey, true);
+  document.addEventListener('keydown', handleTabKey, true);
   document.addEventListener('keydown', handleEnter, true);
   document.addEventListener('click', handleNativeClose, true);
 
