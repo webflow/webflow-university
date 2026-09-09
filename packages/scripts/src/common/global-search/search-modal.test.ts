@@ -155,8 +155,14 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
 
   expect(popular?.hidden).toBe(true);
   expect(searchControl?.textContent).toBe('↵');
+  expect(searchControl?.getAttribute('aria-label')).toBe('Submit search');
   expect(autocomplete?.parentElement).toBe(document.body);
   expect(document.body.style.position).toBe('fixed');
+
+  searchControl?.click();
+  expect(swiftypeKeydown).toHaveBeenCalledTimes(1);
+  expect((swiftypeKeydown.mock.calls[0]?.[0] as KeyboardEvent).key).toBe('Enter');
+  swiftypeKeydown.mockClear();
 
   input!.focus();
   const typedTab = new KeyboardEvent('keydown', {
@@ -263,6 +269,7 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
   input!.dispatchEvent(new Event('input', { bubbles: true }));
   expect(popular?.hidden).toBe(false);
   expect(searchControl?.textContent).toBe('Esc');
+  expect(searchControl?.getAttribute('aria-label')).toBe('Close search');
 
   const emptyArrow = new KeyboardEvent('keydown', {
     key: 'ArrowDown',

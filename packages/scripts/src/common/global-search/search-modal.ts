@@ -443,7 +443,10 @@ export function initSearchModal(): void {
     const isEmpty = input.value.trim().length === 0;
     modal?.classList.toggle('is-empty', isEmpty);
     popular.hidden = !isEmpty;
-    if (searchControl) searchControl.textContent = isEmpty ? 'Esc' : RETURN_KEY_SYMBOL;
+    if (searchControl) {
+      searchControl.textContent = isEmpty ? 'Esc' : RETURN_KEY_SYMBOL;
+      searchControl.setAttribute('aria-label', isEmpty ? 'Close search' : 'Submit search');
+    }
 
     if (isEmpty) {
       input.setAttribute('aria-controls', popular.id);
@@ -633,12 +636,28 @@ export function initSearchModal(): void {
     input.addEventListener('blur', () => window.setTimeout(scheduleListHeight, 350));
   }
 
-  function wireCloseButton(): void {
+  function wireSearchControl(): void {
     const button = modal?.querySelector<HTMLButtonElement>('.sm-kbd');
     if (!button || button.dataset.smWired === 'true') return;
     button.dataset.smWired = 'true';
+    button.addEventListener('mousedown', (event) => {
+      if (getInput()?.value.trim()) event.preventDefault();
+    });
     button.addEventListener('click', (event) => {
       event.preventDefault();
+      const input = getInput();
+      if (input?.value.trim()) {
+        input.focus({ preventScroll: true });
+        input.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: 'Enter',
+            code: 'Enter',
+            bubbles: true,
+            cancelable: true,
+          })
+        );
+        return;
+      }
       closeSearch();
     });
   }
@@ -647,7 +666,7 @@ export function initSearchModal(): void {
   ensureKeyboardFooters();
   decoratePopular();
   wireInput();
-  wireCloseButton();
+  wireSearchControl();
   syncEmptyState();
   enableNativeOverlayKeyboardNavigation();
 
