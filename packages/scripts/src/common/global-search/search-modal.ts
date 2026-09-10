@@ -3,6 +3,9 @@ const SEARCH_RESULTS_SELECTOR = '.st-search-results';
 const SEARCH_KEYBOARD_CLASS = 'st-search-keyboard-navigable';
 const OVERLAY_INPUT_SELECTOR = '#st-overlay-search-input';
 const AUTOCOMPLETE_SELECTOR = '.st-default-autocomplete .st-ui-autocomplete';
+const AUTOCOMPLETE_EMPTY_CLASS = 'wfu-autocomplete-empty';
+const AUTOCOMPLETE_EMPTY_TEXT =
+  'No autocomplete results, press return to see more suggestions for your query';
 const NATIVE_FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
   'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -27,8 +30,14 @@ type SwiftypeResultsDisplay = {
   _queryOutputs: SwiftypeKeyboardOutput[];
 };
 
+type SwiftypeQuery = {
+  queryType: () => string;
+};
+
 type SwiftypeInstall = {
   getSearchContext: () => { _resultsDisplay: SwiftypeResultsDisplay };
+  addSearchCompleteListener: (callback: (query: SwiftypeQuery) => void) => void;
+  __wfuAutocompleteEmptyState?: boolean;
 };
 
 type SwiftypeWindow = Window & {
@@ -74,7 +83,7 @@ function wireNativeResultScroll(results: HTMLElement): boolean {
  * The default overlay template omits that class, so autocomplete gets ↑/↓ and the results
  * overlay does not. Mark the native results host and attach Swiftype's own KeyboardNavigableList.
  */
-function enableNativeOverlayKeyboardNavigation(): void {
+function enableNativeOverlayKeyboardNavigation(onAutocompleteComplete: () => void): void {
   const swiftypeWindow = window as SwiftypeWindow;
   let attempts = 0;
 
@@ -120,6 +129,15 @@ function enableNativeOverlayKeyboardNavigation(): void {
   };
 
   const onReady = (): void => {
+    const install = swiftypeWindow._st?._widgetManager?._defaultInstall;
+    if (install && !install.__wfuAutocompleteEmptyState) {
+      install.__wfuAutocompleteEmptyState = true;
+      install.addSearchCompleteListener((query) => {
+        if (query.queryType() === 'autocomplete') {
+          window.requestAnimationFrame(onAutocompleteComplete);
+        }
+      });
+    }
     tryWire();
   };
 
@@ -230,6 +248,38 @@ export function initSearchModal(): void {
 
     const autocomplete = document.querySelector<HTMLElement>(AUTOCOMPLETE_SELECTOR);
     if (autocomplete?.querySelector('.st-query-present')) appendKeyboardFooter(autocomplete);
+  }
+
+  function clearAutocompleteEmptyState(): void {
+    const autocomplete = document.querySelector<HTMLElement>(AUTOCOMPLETE_SELECTOR);
+    autocomplete?.closest('.st-default-autocomplete')?.classList.remove(AUTOCOMPLETE_EMPTY_CLASS);
+    autocomplete?.querySelector('.sm-autocomplete-empty')?.remove();
+  }
+
+  function syncAutocompleteEmptyState(): void {
+    const input = getInput();
+    const autocomplete = document.querySelector<HTMLElement>(AUTOCOMPLETE_SELECTOR);
+    const wrapper = autocomplete?.closest<HTMLElement>('.st-default-autocomplete');
+    if (
+      !input?.value.trim() ||
+      !modal?.classList.contains('active') ||
+      !autocomplete ||
+      !wrapper ||
+      autocomplete.querySelector('a.st-ui-result')
+    ) {
+      clearAutocompleteEmptyState();
+      return;
+    }
+
+    wrapper.classList.add(AUTOCOMPLETE_EMPTY_CLASS);
+    if (autocomplete.querySelector('.sm-autocomplete-empty')) return;
+
+    const emptyState = document.createElement('div');
+    emptyState.className = 'sm-autocomplete-empty';
+    emptyState.setAttribute('role', 'status');
+    emptyState.setAttribute('aria-live', 'polite');
+    emptyState.textContent = AUTOCOMPLETE_EMPTY_TEXT;
+    autocomplete.appendChild(emptyState);
   }
 
   function contentTypeFromHref(href: string | null): string {
@@ -503,6 +553,7 @@ export function initSearchModal(): void {
     const searchControl = modal?.querySelector<HTMLButtonElement>('.sm-kbd');
     if (!input || !popular) return;
 
+    clearAutocompleteEmptyState();
     const isEmpty = input.value.trim().length === 0;
     modal?.classList.toggle('is-empty', isEmpty);
     popular.hidden = !isEmpty;
@@ -764,7 +815,7 @@ export function initSearchModal(): void {
   wireInput();
   wireSearchControl();
   syncEmptyState();
-  enableNativeOverlayKeyboardNavigation();
+  enableNativeOverlayKeyboardNavigation(syncAutocompleteEmptyState);
 
   const stateObserver = new MutationObserver(syncModalState);
   stateObserver.observe(modal, { attributes: true, attributeFilter: ['class'] });

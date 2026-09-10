@@ -15,9 +15,11 @@ type MockKeyboardOutput = {
 function mockSwiftypeKeyboard(): {
   addQueryOutput: ReturnType<typeof vi.fn>;
   attach: ReturnType<typeof vi.fn>;
+  completeAutocomplete: () => void;
 } {
   const attach = vi.fn();
   const addQueryOutput = vi.fn();
+  let searchCompleteListener: ((query: { queryType: () => string }) => void) | undefined;
   const resultsDisplay = {
     _addQueryOutput: addQueryOutput,
     _queryOutputs: [] as MockKeyboardOutput[],
@@ -36,6 +38,9 @@ function mockSwiftypeKeyboard(): {
 
   const install = {
     getSearchContext: () => ({ _resultsDisplay: resultsDisplay }),
+    addSearchCompleteListener: vi.fn((callback: (query: { queryType: () => string }) => void) => {
+      searchCompleteListener = callback;
+    }),
   };
 
   const onInstallReady = vi.fn((callback: () => void) => callback());
@@ -62,7 +67,14 @@ function mockSwiftypeKeyboard(): {
     },
   });
 
-  return { addQueryOutput, attach };
+  return {
+    addQueryOutput,
+    attach,
+    completeAutocomplete: () =>
+      searchCompleteListener?.({
+        queryType: () => 'autocomplete',
+      }),
+  };
 }
 
 it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', async () => {
@@ -101,7 +113,7 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
   ).mockImplementation(() => ({ bottom: fieldBottom }) as DOMRect);
 
   const results = document.querySelector<HTMLElement>('.st-search-results')!;
-  const { addQueryOutput, attach } = mockSwiftypeKeyboard();
+  const { addQueryOutput, attach, completeAutocomplete } = mockSwiftypeKeyboard();
   const requestAnimationFrame = vi
     .spyOn(window, 'requestAnimationFrame')
     .mockImplementation((callback) => {
@@ -178,6 +190,21 @@ it('keeps Popular custom while leaving non-empty queries entirely to Swiftype', 
   fieldBottom = 110.2;
   window.dispatchEvent(new Event('resize'));
   expect(autocompletePanel?.style.getPropertyValue('top')).toBe('110px');
+  expect(autocomplete?.classList.contains('wfu-autocomplete-empty')).toBe(false);
+  expect(autocompletePanel?.querySelector('.sm-autocomplete-empty')).toBeNull();
+
+  completeAutocomplete();
+  const autocompleteEmpty = autocompletePanel?.querySelector<HTMLElement>('.sm-autocomplete-empty');
+  expect(autocomplete?.classList.contains('wfu-autocomplete-empty')).toBe(true);
+  expect(autocompleteEmpty?.textContent).toBe(
+    'No autocomplete results, press return to see more suggestions for your query'
+  );
+  expect(autocompleteEmpty?.getAttribute('role')).toBe('status');
+
+  input!.value = 'grid layout';
+  input!.dispatchEvent(new Event('input', { bubbles: true }));
+  expect(autocomplete?.classList.contains('wfu-autocomplete-empty')).toBe(false);
+  expect(autocompletePanel?.querySelector('.sm-autocomplete-empty')).toBeNull();
 
   searchControl?.click();
   expect(swiftypeKeydown).toHaveBeenCalledTimes(1);
