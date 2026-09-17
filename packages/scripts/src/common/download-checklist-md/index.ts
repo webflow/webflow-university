@@ -1,9 +1,14 @@
 const BUTTON_SELECTOR = '[data-copy-checklist-md]';
 const LIST_SELECTOR = '.cc_list-wrap';
 const ITEM_SELECTOR = 'details.cc_accordion-item';
+const RICH_TEXT_SELECTOR = '.w-richtext';
 const DOWNLOADED_LABEL = 'Downloaded';
 const DOWNLOADED_MS = 2000;
 
+/**
+ * @deprecated Superseded by `initChecklist`, which owns every checklist
+ * control including this button. Kept for pages that still load it directly.
+ */
 export function initDownloadChecklistMarkdown(): void {
   const buttons = document.querySelectorAll<HTMLElement>(BUTTON_SELECTOR);
   if (!buttons.length) {
@@ -37,17 +42,13 @@ export function serializeChecklistToMarkdown(root: ParentNode = document): strin
   const source = getSourceUrl();
 
   if (!lists.length) {
-    const orphanItems = Array.from(root.querySelectorAll<HTMLElement>(ITEM_SELECTOR))
-      .map(serializeItem)
-      .filter(Boolean);
+    const sections = serializeUngroupedItems(root);
 
-    if (!orphanItems.length) {
+    if (!sections.length) {
       return '';
     }
 
-    return (
-      cleanText([`# ${h1}`, `Source: ${source}`, orphanItems.join('\n\n')].join('\n\n')) + '\n'
-    );
+    return cleanText([`# ${h1}`, `Source: ${source}`, ...sections].join('\n\n')) + '\n';
   }
 
   const chunks: string[] = [`# ${h1}`, `Source: ${source}`];
@@ -80,14 +81,60 @@ export function serializeChecklistToMarkdown(root: ParentNode = document): strin
   return cleanText(chunks.join('\n\n')) + '\n';
 }
 
-export function getDownloadFilename(): string {
+/**
+ * Serializes checklists whose phases come from rich-text components, where the
+ * tasks are plain siblings of their `h2` phase heading rather than wrapped in a
+ * list container. Walking headings and items together in document order is what
+ * lets the phase structure survive into the Markdown.
+ */
+function serializeUngroupedItems(root: ParentNode): string[] {
+  const firstItem = root.querySelector<HTMLElement>(ITEM_SELECTOR);
+  if (!firstItem) {
+    return [];
+  }
+
+  const scope: ParentNode = firstItem.closest(RICH_TEXT_SELECTOR) || root;
+  const sections: string[] = [];
+  let heading = '';
+  let items: string[] = [];
+
+  const flush = () => {
+    if (!items.length) {
+      return;
+    }
+    if (heading) {
+      sections.push(`## ${heading}`);
+    }
+    sections.push(items.join('\n\n'));
+    items = [];
+  };
+
+  scope.querySelectorAll<HTMLElement>(`h2, ${ITEM_SELECTOR}`).forEach((node) => {
+    if (node.matches(ITEM_SELECTOR)) {
+      const serialized = serializeItem(node);
+      if (serialized) {
+        items.push(serialized);
+      }
+      return;
+    }
+
+    flush();
+    heading = cleanText(node.textContent);
+  });
+
+  flush();
+
+  return sections;
+}
+
+export function getDownloadFilename(extension = 'md'): string {
   const pathSegment = window.location.pathname.split('/').filter(Boolean).pop();
   if (pathSegment) {
-    return `${sanitizeFilename(pathSegment)}.md`;
+    return `${sanitizeFilename(pathSegment)}.${extension}`;
   }
 
   const title = cleanText(document.querySelector('h1')?.textContent) || 'checklist';
-  return `${sanitizeFilename(title)}.md`;
+  return `${sanitizeFilename(title)}.${extension}`;
 }
 
 export function downloadMarkdown(markdown: string, filename: string): void {

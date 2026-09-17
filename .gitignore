@@ -41,6 +41,9 @@ typings/
 .env.local
 .env.*.local
 
+# Agent working notes and plans
+tmp/
+
 # IDE
 .vscode/
 .idea/
