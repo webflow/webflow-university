@@ -1,5 +1,5 @@
+import { initChecklist } from './common/checklist/index.js';
 import { initContrast } from './common/contrast/index.js';
-import { initDownloadChecklistMarkdown } from './common/download-checklist-md/index.js';
 import { initGlobalSearch } from './common/global-search/index.js';
 import { initSidebar, initSidebarHighlight } from './common/sidebar/index.js';
 import { initTheme } from './common/theme/index.js';
@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initGlobalSearch();
   initCoursesPage();
   initOnCourseCompleted();
-  initDownloadChecklistMarkdown();
+  initChecklist();
 });
 
 // Initialize sidebar highlight when page loads
