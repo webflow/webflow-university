@@ -32,7 +32,10 @@ function setupPage(taskCount = 4): void {
         <div class="cc_course-progress-bar" data-checklist-progress="bar"></div>
       </div>
       <div class="cc_course-progress-percent" data-checklist-progress="percent">0%</div>
-      <button data-checklist-copy-url aria-label="Copy link to this checklist"></button>
+      <button data-checklist-copy-url aria-label="Copy link to this checklist">
+        <span data-checklist-icon="link"></span>
+        <span data-checklist-icon="check"></span>
+      </button>
       <button data-checklist-download="csv" aria-label="Download as CSV"></button>
       <button data-checklist-download="md" aria-label="Download as Markdown"></button>
       <button data-checklist-clear aria-label="Clear checklist"></button>
@@ -159,6 +162,22 @@ describe('initChecklist', () => {
     await vi.waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled());
 
     expect(vi.mocked(navigator.clipboard.writeText).mock.calls[0][0]).toContain('checked=1');
+  });
+
+  it('crossfades to a checkmark on copy, then snaps back to the link icon', async () => {
+    setupPage(2);
+    initChecklist();
+
+    click('[data-checklist-copy-url]');
+    await vi.waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled());
+
+    const button = document.querySelector<HTMLElement>('[data-checklist-copy-url]')!;
+    expect(button.hasAttribute('data-checklist-copied')).toBe(true);
+    expect(document.getElementById('wfu-checklist-copy-confirm')).not.toBeNull();
+
+    vi.advanceTimersByTime(2000);
+
+    expect(button.hasAttribute('data-checklist-copied')).toBe(false);
   });
 
   it('clears every task and drops the URL param', () => {

@@ -1,8 +1,8 @@
 /**
  * Checklist sidebar controls
  *
- * Owns everything interactive on a checklist page: progress, the shareable
- * link, CSV and Markdown export, and clearing progress.
+ * Owns everything interactive on a checklist page: section navigation,
+ * progress, the shareable link, CSV and Markdown export, and clearing progress.
  */
 
 import {
@@ -12,6 +12,7 @@ import {
 } from '../download-checklist-md/index.js';
 import { downloadCsv, serializeChecklistToCsv } from './csv.js';
 import { type ChecklistItem, getCheckedIds, getChecklistItems } from './items.js';
+import { initChecklistNav } from './nav.js';
 import {
   buildShareUrl,
   getStorageKey,
@@ -29,8 +30,47 @@ const CLEAR_SELECTOR = '[data-checklist-clear]';
 const CSV_SELECTOR = '[data-checklist-download="csv"]';
 const MARKDOWN_SELECTOR = '[data-checklist-download="md"], [data-copy-checklist-md]';
 const FEEDBACK_MS = 2000;
+const COPIED_ATTR = 'data-checklist-copied';
+const COPY_STYLE_ID = 'wfu-checklist-copy-confirm';
+const COPY_TRANSITION = 'transform 220ms ease, filter 220ms ease, opacity 220ms ease';
+
+const COPY_CONFIRM_CSS = `
+[data-checklist-copy-url] {
+  position: relative;
+}
+[data-checklist-icon] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--wfu-checklist-icon-transition, ${COPY_TRANSITION});
+  will-change: transform, filter, opacity;
+}
+[data-checklist-icon="check"] {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  transform: scale(0.9);
+  filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+}
+[${COPIED_ATTR}] [data-checklist-icon="link"] {
+  transform: scale(0.9);
+  filter: blur(4px);
+  opacity: 0;
+}
+[${COPIED_ATTR}] [data-checklist-icon="check"] {
+  transform: scale(1);
+  filter: blur(0);
+  opacity: 1;
+}
+`;
 
 export function initChecklist(): void {
+  // Driven by the rich text headings rather than by the tasks, so it runs even
+  // on a page where task discovery comes up empty.
+  initChecklistNav();
+
   const items = getChecklistItems();
   if (!items.length) {
     return;
@@ -135,9 +175,46 @@ async function copyShareUrl(items: ChecklistItem[], button: HTMLElement): Promis
   try {
     await navigator.clipboard.writeText(shareUrl);
     setFeedback(button, 'Link copied');
+    showCopyConfirmation(button);
   } catch {
     setFeedback(button, 'Press Ctrl+C to copy');
   }
+}
+
+/**
+ * Crossfades the link icon out (scale + blur) with a checkmark, then snaps
+ * back to the link icon after FEEDBACK_MS with no exit transition.
+ */
+function showCopyConfirmation(button: HTMLElement): void {
+  if (
+    !button.querySelector('[data-checklist-icon="link"]') ||
+    !button.querySelector('[data-checklist-icon="check"]')
+  ) {
+    return;
+  }
+
+  ensureCopyConfirmStyles();
+  button.style.removeProperty('--wfu-checklist-icon-transition');
+  button.setAttribute(COPIED_ATTR, '');
+
+  window.setTimeout(() => {
+    button.style.setProperty('--wfu-checklist-icon-transition', 'none');
+    button.removeAttribute(COPIED_ATTR);
+    // Force a reflow so the next click animates in again.
+    void button.offsetWidth;
+    button.style.removeProperty('--wfu-checklist-icon-transition');
+  }, FEEDBACK_MS);
+}
+
+function ensureCopyConfirmStyles(): void {
+  if (document.getElementById(COPY_STYLE_ID)) {
+    return;
+  }
+
+  const style = document.createElement('style');
+  style.id = COPY_STYLE_ID;
+  style.textContent = COPY_CONFIRM_CSS;
+  document.head.appendChild(style);
 }
 
 function bindClick(selector: string, handler: (button: HTMLElement) => void): void {

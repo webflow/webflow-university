@@ -77,7 +77,7 @@ function getBadgeLabels(element: HTMLElement): string[] {
   return labels;
 }
 
-function cleanText(value: string | null | undefined): string {
+export function cleanText(value: string | null | undefined): string {
   return String(value || '')
     .replace(/[\u200B-\u200D\uFEFF]/g, '')
     .replace(/\u00A0/g, ' ')
