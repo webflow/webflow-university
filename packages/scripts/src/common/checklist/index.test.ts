@@ -168,12 +168,13 @@ describe('initChecklist', () => {
     setupPage(2);
     initChecklist();
 
+    expect(document.getElementById('wfu-checklist-copy-confirm')).not.toBeNull();
+
     click('[data-checklist-copy-url]');
     await vi.waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled());
 
     const button = document.querySelector<HTMLElement>('[data-checklist-copy-url]')!;
     expect(button.hasAttribute('data-checklist-copied')).toBe(true);
-    expect(document.getElementById('wfu-checklist-copy-confirm')).not.toBeNull();
 
     vi.advanceTimersByTime(2000);
 

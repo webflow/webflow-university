@@ -2,11 +2,13 @@
 'scripts': minor
 ---
 
-Add section navigation to the checklist sidebar
+Add checklist sidebar navigation, and confirm the copy-link action visually
 
-Checklist pages now get an "On this page" list in the sidebar, built from every
-`h2` inside the `#rich-content` rich text block. Long checklists are a lot of
-scrolling, and the phase headings were the one piece of structure a reader had
+Two additions to the checklist sidebar.
+
+**Section navigation.** Checklist pages now get an "On this page" list built from
+every `h2` inside the `#rich-content` rich text block. Long checklists are a lot
+of scrolling, and the phase headings were the one piece of structure a reader had
 no way to jump between.
 
 Because the checklist body is a CMS rich text field, its headings arrive without
@@ -27,3 +29,13 @@ Wiring:
 
 The navigation is driven by headings rather than tasks, so it initializes before
 task discovery and works on a page where no tasks are found.
+
+**Copy-link confirmation.** Clicking `[data-checklist-copy-url]` now crossfades
+the link icon out, scaling it down and blurring it, while a checkmark scales and
+blurs in. After two seconds the button returns to the link icon with no exit
+transition, so the reset reads as instant rather than as a second animation.
+
+This requires stacked `[data-checklist-icon="link"]` and
+`[data-checklist-icon="check"]` children on the control. The resting styles that
+hide the checkmark are injected on init rather than on first click, otherwise
+both icons render side by side until the button is used.

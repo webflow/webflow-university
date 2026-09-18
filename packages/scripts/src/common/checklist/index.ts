@@ -42,7 +42,7 @@ const COPY_CONFIRM_CSS = `
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: var(--wfu-checklist-icon-transition, ${COPY_TRANSITION});
+  transition: ${COPY_TRANSITION};
   will-change: transform, filter, opacity;
 }
 [data-checklist-icon="check"] {
@@ -54,6 +54,9 @@ const COPY_CONFIRM_CSS = `
   opacity: 0;
   pointer-events: none;
 }
+[${COPIED_ATTR}] [data-checklist-icon] {
+  transition: ${COPY_TRANSITION};
+}
 [${COPIED_ATTR}] [data-checklist-icon="link"] {
   transform: scale(0.9);
   filter: blur(4px);
@@ -63,6 +66,9 @@ const COPY_CONFIRM_CSS = `
   transform: scale(1);
   filter: blur(0);
   opacity: 1;
+}
+[data-checklist-copy-url]:not([${COPIED_ATTR}]) [data-checklist-icon] {
+  transition: none;
 }
 `;
 
@@ -74,6 +80,12 @@ export function initChecklist(): void {
   const items = getChecklistItems();
   if (!items.length) {
     return;
+  }
+
+  // Resting styles hide the checkmark; inject on init so both icons never
+  // flash side-by-side before the first copy click.
+  if (document.querySelector(`${COPY_URL_SELECTOR} [data-checklist-icon="check"]`)) {
+    ensureCopyConfirmStyles();
   }
 
   const storageKey = getStorageKey();
@@ -194,15 +206,10 @@ function showCopyConfirmation(button: HTMLElement): void {
   }
 
   ensureCopyConfirmStyles();
-  button.style.removeProperty('--wfu-checklist-icon-transition');
   button.setAttribute(COPIED_ATTR, '');
 
   window.setTimeout(() => {
-    button.style.setProperty('--wfu-checklist-icon-transition', 'none');
     button.removeAttribute(COPIED_ATTR);
-    // Force a reflow so the next click animates in again.
-    void button.offsetWidth;
-    button.style.removeProperty('--wfu-checklist-icon-transition');
   }, FEEDBACK_MS);
 }
 
