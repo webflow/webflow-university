@@ -3,7 +3,7 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { initChecklistNav, slugifyHeading } from './nav';
+import { initChecklistNav, NAV_CHILD_CLASS, slugifyHeading } from './nav';
 
 function page(headings: string, { withTemplate = true, withNav = true } = {}): string {
   const template = withTemplate
@@ -24,8 +24,8 @@ function page(headings: string, { withTemplate = true, withNav = true } = {}): s
   `;
 }
 
-function group(title: string, attrs = ''): string {
-  return `<div><h2${attrs ? ` ${attrs}` : ''}>${title}</h2><p>Phase intro</p></div>`;
+function group(title: string, attrs = '', level: 'h2' | 'h3' = 'h2'): string {
+  return `<div><${level}${attrs ? ` ${attrs}` : ''}>${title}</${level}><p>Phase intro</p></div>`;
 }
 
 function navLinks(): HTMLAnchorElement[] {
@@ -74,12 +74,69 @@ describe('initChecklistNav', () => {
     ]);
   });
 
+  it('includes h3 links under their parent h2, in document order', () => {
+    document.body.innerHTML = page(
+      group('Development') +
+        group('Static pages', '', 'h3') +
+        group('Dynamic pages', '', 'h3') +
+        group('Launch')
+    );
+
+    initChecklistNav();
+
+    expect(navLinks().map((link) => link.textContent)).toEqual([
+      'Development',
+      'Static pages',
+      'Dynamic pages',
+      'Launch',
+    ]);
+    expect(navLinks().map((link) => link.getAttribute('href'))).toEqual([
+      '#development',
+      '#static-pages',
+      '#dynamic-pages',
+      '#launch',
+    ]);
+  });
+
+  it('indents h3 links with the child combo class and leaves h2 links flat', () => {
+    document.body.innerHTML = page(group('Development') + group('Static pages', '', 'h3'));
+
+    initChecklistNav();
+
+    expect(navLinks()[0].className).toBe('cc_course_link cc_checklist_nav-link');
+    expect(navLinks()[0].classList.contains(NAV_CHILD_CLASS)).toBe(false);
+    expect(navLinks()[1].classList.contains(NAV_CHILD_CLASS)).toBe(true);
+    expect(navLinks()[1].className).toBe(`cc_course_link cc_checklist_nav-link ${NAV_CHILD_CLASS}`);
+  });
+
+  it('still works for h2-only checklists without child classes', () => {
+    document.body.innerHTML = page(
+      group('Design and build with SEO in mind') + group('Set up & track SEO performance')
+    );
+
+    initChecklistNav();
+
+    expect(navLinks()).toHaveLength(2);
+    navLinks().forEach((link) => {
+      expect(link.classList.contains(NAV_CHILD_CLASS)).toBe(false);
+    });
+  });
+
   it('assigns the matching id to each heading', () => {
     document.body.innerHTML = page(group('Technical foundations'));
 
     initChecklistNav();
 
     expect(document.querySelector('h2')?.id).toBe('technical-foundations');
+  });
+
+  it('assigns ids to h3 headings too', () => {
+    document.body.innerHTML = page(group('Static pages', '', 'h3'));
+
+    initChecklistNav();
+
+    expect(document.querySelector('h3')?.id).toBe('static-pages');
+    expect(navLinks()[0].getAttribute('href')).toBe('#static-pages');
   });
 
   it('keeps the styling classes from the authored template link', () => {
@@ -136,7 +193,7 @@ describe('initChecklistNav', () => {
     expect(navLinks()).toHaveLength(1);
   });
 
-  it('hides the whole section when the checklist has no h2', () => {
+  it('hides the whole section when the checklist has no h2 or h3', () => {
     document.body.innerHTML = page('<p>A checklist with no phases</p>');
 
     initChecklistNav();
@@ -150,6 +207,16 @@ describe('initChecklistNav', () => {
 
   it('leaves the section visible when there are headings', () => {
     document.body.innerHTML = page(group('Technical foundations'));
+
+    initChecklistNav();
+
+    document
+      .querySelectorAll<HTMLElement>('[data-checklist-nav-section]')
+      .forEach((section) => expect(section.style.display).toBe(''));
+  });
+
+  it('leaves the section visible when the checklist only has h3 headings', () => {
+    document.body.innerHTML = page(group('Static pages', '', 'h3'));
 
     initChecklistNav();
 
