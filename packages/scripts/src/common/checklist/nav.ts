@@ -6,15 +6,20 @@
  * of the anchor are therefore built here: the id goes onto the heading, and the
  * link is cloned from a template authored in the Designer so that every pixel
  * of link styling stays editable there.
+ *
+ * Nested checklists may use `h3` under an `h2` phase (via the Checklist Heading
+ * component's Heading Level prop). Those become indented child links; `h2`-only
+ * checklists keep a flat list.
  */
 
 import { cleanText } from './items.js';
 
 export const RICH_TEXT_SELECTOR = '#rich-content';
-export const HEADING_SELECTOR = 'h2';
+export const HEADING_SELECTOR = 'h2, h3';
 export const NAV_SELECTOR = '[data-checklist-nav]';
 export const NAV_ITEM_SELECTOR = '[data-checklist-nav-item]';
 export const NAV_SECTION_SELECTOR = '[data-checklist-nav-section]';
+export const NAV_CHILD_CLASS = 'cc_checklist_nav-link--child';
 
 const FALLBACK_SLUG = 'section';
 
@@ -44,6 +49,7 @@ export function initChecklistNav(root: ParentNode = document): void {
     const link = template.cloneNode(false) as HTMLAnchorElement;
     link.setAttribute('href', `#${assignId(heading, takenIds)}`);
     link.textContent = cleanText(heading.textContent);
+    applyHeadingLevel(link, heading);
     return link;
   });
 
@@ -59,6 +65,17 @@ export function slugifyHeading(text: string): string {
     .replace(/^-+|-+$/g, '');
 
   return slug || FALLBACK_SLUG;
+}
+
+/**
+ * Child (`h3`) links pick up a Designer-owned combo class so indent stays
+ * editable in Webflow. `h2` links keep the flat template classes only.
+ */
+function applyHeadingLevel(link: HTMLAnchorElement, heading: HTMLElement): void {
+  link.classList.remove(NAV_CHILD_CLASS);
+  if (heading.tagName.toLowerCase() === 'h3') {
+    link.classList.add(NAV_CHILD_CLASS);
+  }
 }
 
 /**
