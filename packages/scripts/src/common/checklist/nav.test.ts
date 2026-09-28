@@ -122,6 +122,21 @@ describe('initChecklistNav', () => {
     });
   });
 
+  it('injects persistent scrollbar styles once, keeping WebKit rules free of standard overrides', () => {
+    document.body.innerHTML = page(group('Technical foundations'));
+    initChecklistNav();
+    initChecklistNav();
+
+    const styles = document.querySelectorAll('#wfu-checklist-nav-scrollbar');
+    expect(styles).toHaveLength(1);
+    const css = styles[0].textContent!;
+    expect(css).toContain('scrollbar-gutter: stable');
+    expect(css).toContain('::-webkit-scrollbar-thumb');
+    const [webkit, fallback] = css.split('@supports not selector(::-webkit-scrollbar)');
+    expect(webkit).not.toContain('scrollbar-width');
+    expect(fallback).toContain('scrollbar-width: thin');
+  });
+
   it('assigns the matching id to each heading', () => {
     document.body.innerHTML = page(group('Technical foundations'));
 

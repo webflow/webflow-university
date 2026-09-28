@@ -22,6 +22,37 @@ export const NAV_SECTION_SELECTOR = '[data-checklist-nav-section]';
 export const NAV_CHILD_CLASS = 'cc_checklist_nav-link--child';
 
 const FALLBACK_SLUG = 'section';
+const SCROLLBAR_STYLE_ID = 'wfu-checklist-nav-scrollbar';
+
+/**
+ * Styling `::-webkit-scrollbar` makes Chrome, Safari, and Edge draw a real
+ * scrollbar that stays visible, instead of macOS's auto-hiding overlay. Chrome
+ * 121+ ignores those pseudo-elements once `scrollbar-width` or
+ * `scrollbar-color` is set, so the standard properties are limited to browsers
+ * without them (Firefox). `scrollbar-gutter` reserves the space up front, so
+ * the links never shift when the list starts to overflow.
+ */
+const SCROLLBAR_CSS = `
+${NAV_SELECTOR} {
+  scrollbar-gutter: stable;
+}
+${NAV_SELECTOR}::-webkit-scrollbar {
+  width: 6px;
+}
+${NAV_SELECTOR}::-webkit-scrollbar-track {
+  background: transparent;
+}
+${NAV_SELECTOR}::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background-color: var(--theme--t_border-primary, rgba(255, 255, 255, 0.24));
+}
+@supports not selector(::-webkit-scrollbar) {
+  ${NAV_SELECTOR} {
+    scrollbar-width: thin;
+    scrollbar-color: var(--theme--t_border-primary, rgba(255, 255, 255, 0.24)) transparent;
+  }
+}
+`;
 
 export function initChecklistNav(root: ParentNode = document): void {
   const nav = root.querySelector<HTMLElement>(NAV_SELECTOR);
@@ -54,6 +85,18 @@ export function initChecklistNav(root: ParentNode = document): void {
   });
 
   nav.replaceChildren(...links);
+  ensureScrollbarStyles();
+}
+
+function ensureScrollbarStyles(): void {
+  if (document.getElementById(SCROLLBAR_STYLE_ID)) {
+    return;
+  }
+
+  const style = document.createElement('style');
+  style.id = SCROLLBAR_STYLE_ID;
+  style.textContent = SCROLLBAR_CSS;
+  document.head.appendChild(style);
 }
 
 export function slugifyHeading(text: string): string {

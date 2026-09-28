@@ -40,3 +40,9 @@ by an explicit `[data-checklist-section-status]` attribute.
 its task title, with a unique id assigned per item (the component renders every
 task from one definition, so a static id or `for` would be duplicated). Screen
 readers previously announced an unnamed "checkbox".
+
+**Persistent nav scrollbar.** When the "On this page" list overflows, it now
+shows a thin, theme-colored scrollbar that stays visible (instead of macOS's
+auto-hiding overlay) in Chrome, Safari, and Edge. `scrollbar-gutter: stable`
+reserves its space so the links never shift. Firefox gets the standard
+`scrollbar-width: thin` fallback.
