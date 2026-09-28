@@ -23,6 +23,7 @@ export const NAV_CHILD_CLASS = 'cc_checklist_nav-link--child';
 
 const FALLBACK_SLUG = 'section';
 const SCROLLBAR_STYLE_ID = 'wfu-checklist-nav-scrollbar';
+const SCROLLBAR_ATTR = 'data-scrollbar';
 
 /**
  * Styling `::-webkit-scrollbar` makes Chrome, Safari, and Edge draw a real
@@ -101,6 +102,11 @@ export function initChecklistNav(root: ParentNode = document): void {
   });
 
   nav.replaceChildren(...links);
+  // Opts out of the site-wide hover-only scrollbar; set the attribute in the
+  // Designer to override.
+  if (!nav.hasAttribute(SCROLLBAR_ATTR)) {
+    nav.setAttribute(SCROLLBAR_ATTR, 'always');
+  }
   ensureScrollbarStyles();
 }
 

@@ -138,6 +138,21 @@ describe('initChecklistNav', () => {
     expect(fallback).toContain('scrollbar-width: thin');
   });
 
+  it('keeps the nav scrollbar always visible unless the Designer sets otherwise', () => {
+    document.body.innerHTML = page(group('Technical foundations'));
+    initChecklistNav();
+    expect(document.querySelector('[data-checklist-nav]')?.getAttribute('data-scrollbar')).toBe(
+      'always'
+    );
+
+    document.body.innerHTML = page(group('Technical foundations'));
+    document.querySelector('[data-checklist-nav]')!.setAttribute('data-scrollbar', 'hover');
+    initChecklistNav();
+    expect(document.querySelector('[data-checklist-nav]')?.getAttribute('data-scrollbar')).toBe(
+      'hover'
+    );
+  });
+
   it('assigns the matching id to each heading', () => {
     document.body.innerHTML = page(group('Technical foundations'));
 
