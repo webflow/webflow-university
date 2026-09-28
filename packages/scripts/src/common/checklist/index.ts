@@ -13,7 +13,7 @@ import {
 import { downloadCsv, serializeChecklistToCsv } from './csv.js';
 import { setFeedback, showCopyConfirmation, stackCopyIcons } from './feedback.js';
 import { initHeadingLinks } from './heading-links.js';
-import { type ChecklistItem, getCheckedIds, getChecklistItems } from './items.js';
+import { type ChecklistItem, getCheckedIds, getChecklistItems, TITLE_SELECTOR } from './items.js';
 import { initChecklistNav } from './nav.js';
 import { type ChecklistSection, getChecklistSections, renderSectionProgress } from './sections.js';
 import {
@@ -46,6 +46,8 @@ export function initChecklist(): void {
   }
 
   const sections = getChecklistSections(items);
+
+  labelCheckboxes(items);
 
   // Stack the icons on init so both never flash side-by-side before the first
   // copy click.
@@ -90,6 +92,26 @@ export function initChecklist(): void {
   });
 
   renderProgress(items, sections);
+}
+
+/**
+ * The checkbox's wrapping label has no text; the task title sits beside it.
+ * Every task renders from one component, so a static id (and `for`) would be
+ * duplicated on every item; the unique id is assigned here instead.
+ */
+function labelCheckboxes(items: ChecklistItem[]): void {
+  items.forEach((item) => {
+    const { checkbox } = item;
+    const title = item.element.querySelector<HTMLElement>(TITLE_SELECTOR);
+    if (!title || checkbox.hasAttribute('aria-label') || checkbox.hasAttribute('aria-labelledby')) {
+      return;
+    }
+
+    if (!title.id) {
+      title.id = `checklist-task-${item.id}-title`;
+    }
+    checkbox.setAttribute('aria-labelledby', title.id);
+  });
 }
 
 /**

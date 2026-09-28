@@ -35,3 +35,8 @@ next heading of the same or higher level, so an `h2` count includes its `h3`
 subgroups. Each `h2` link in the "On this page" nav also shows its count
 (e.g. `3/9`), right-aligned. The status is found by its "x/y checked" text, or
 by an explicit `[data-checklist-section-status]` attribute.
+
+**Checkbox names.** Each task checkbox now gets `aria-labelledby` pointing at
+its task title, with a unique id assigned per item (the component renders every
+task from one definition, so a static id or `for` would be duplicated). Screen
+readers previously announced an unnamed "checkbox".

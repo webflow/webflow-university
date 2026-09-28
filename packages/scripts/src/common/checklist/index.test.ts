@@ -215,6 +215,25 @@ describe('initChecklist', () => {
     expect(label.textContent).toBe('Copy link');
   });
 
+  it('names each checkbox by its task title with a unique id', () => {
+    setupPage(3);
+    initChecklist();
+
+    const ids = checkboxes().map((box) => box.getAttribute('aria-labelledby'));
+    expect(new Set(ids).size).toBe(3);
+    ids.forEach((id, i) => {
+      expect(document.getElementById(id!)?.textContent).toBe(`Task ${i + 1}`);
+    });
+  });
+
+  it('keeps an accessible name the author already set', () => {
+    setupPage(1);
+    checkboxes()[0].setAttribute('aria-label', 'Custom');
+    initChecklist();
+
+    expect(checkboxes()[0].hasAttribute('aria-labelledby')).toBe(false);
+  });
+
   it('adds section links to the checklist headings', () => {
     setupPage(2);
     document.querySelector('.w-richtext')!.id = 'rich-content';
