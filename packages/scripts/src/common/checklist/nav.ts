@@ -39,6 +39,8 @@ const SCROLLBAR_STYLE_ID = 'wfu-checklist-nav-scrollbar';
  */
 const SCROLLBAR_WIDTH = '10px';
 const GROUP_PADDING = 'var(--size--fixed--fs_2, 1rem)';
+/** Held on hover and drag too, so site-wide scrollbar hover colors never apply here. */
+const THUMB_COLOR = 'var(--theme--t_border-primary, rgba(255, 255, 255, 0.24))';
 
 const SCROLLBAR_CSS = `
 ${NAV_SELECTOR} {
@@ -52,16 +54,18 @@ ${NAV_SELECTOR}::-webkit-scrollbar {
 ${NAV_SELECTOR}::-webkit-scrollbar-track {
   background: transparent;
 }
-${NAV_SELECTOR}::-webkit-scrollbar-thumb {
+${NAV_SELECTOR}::-webkit-scrollbar-thumb,
+${NAV_SELECTOR}::-webkit-scrollbar-thumb:hover,
+${NAV_SELECTOR}::-webkit-scrollbar-thumb:active {
   border: 2px solid transparent;
   border-radius: 999px;
   background-clip: padding-box;
-  background-color: var(--theme--t_border-primary, rgba(255, 255, 255, 0.24));
+  background-color: ${THUMB_COLOR};
 }
 @supports not selector(::-webkit-scrollbar) {
   ${NAV_SELECTOR} {
     scrollbar-width: thin;
-    scrollbar-color: var(--theme--t_border-primary, rgba(255, 255, 255, 0.24)) transparent;
+    scrollbar-color: ${THUMB_COLOR} transparent;
   }
 }
 `;
