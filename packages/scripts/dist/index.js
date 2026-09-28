@@ -67,11 +67,11 @@ ${ne}[${M}="check"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  margin-left: 0.375em;
-  vertical-align: middle;
-  border-radius: 0.25rem;
+  width: 1em;
+  height: 1em;
+  margin-left: 0.3em;
+  vertical-align: -0.1em;
+  border-radius: 0.15em;
   color: inherit;
   text-decoration: none;
   opacity: 0;
@@ -79,8 +79,8 @@ ${ne}[${M}="check"] {
 }
 .${L} svg {
   display: block;
-  width: 1rem;
-  height: 1rem;
+  width: 1em;
+  height: 1em;
 }
 :is(h2, h3):hover > .${L},
 .${L}[data-checklist-copied] {

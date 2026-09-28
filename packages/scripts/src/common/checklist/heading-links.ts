@@ -36,11 +36,11 @@ const HEADING_LINK_CSS = `
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  margin-left: 0.375em;
-  vertical-align: middle;
-  border-radius: 0.25rem;
+  width: 1em;
+  height: 1em;
+  margin-left: 0.3em;
+  vertical-align: -0.1em;
+  border-radius: 0.15em;
   color: inherit;
   text-decoration: none;
   opacity: 0;
@@ -48,8 +48,8 @@ const HEADING_LINK_CSS = `
 }
 .${HEADING_LINK_CLASS} svg {
   display: block;
-  width: 1rem;
-  height: 1rem;
+  width: 1em;
+  height: 1em;
 }
 :is(h2, h3):hover > .${HEADING_LINK_CLASS},
 .${HEADING_LINK_CLASS}[data-checklist-copied] {
