@@ -15,8 +15,13 @@ function page(body: string, { withCopyButton = false } = {}): string {
   return `${copyButton}<div class="w-richtext" id="rich-content">${body}</div>`;
 }
 
-function headingLinks(): HTMLAnchorElement[] {
-  return Array.from(document.querySelectorAll<HTMLAnchorElement>(`.${HEADING_LINK_CLASS}`));
+function headingLinks(): HTMLButtonElement[] {
+  return Array.from(document.querySelectorAll<HTMLButtonElement>(`.${HEADING_LINK_CLASS}`));
+}
+
+/** happy-dom's TransitionEvent drops `propertyName`, so set it by hand. */
+function opacityEvent(type: string): Event {
+  return Object.assign(new Event(type), { propertyName: 'opacity' });
 }
 
 beforeEach(() => {
@@ -46,9 +51,9 @@ describe('initHeadingLinks', () => {
     const links = headingLinks();
     expect(links).toHaveLength(2);
     expect(links[0].parentElement?.tagName).toBe('H2');
-    expect(links[0].getAttribute('href')).toBe('#development');
+    expect(links[0].getAttribute('data-checklist-heading-link')).toBe('development');
     expect(links[1].parentElement?.tagName).toBe('H3');
-    expect(links[1].getAttribute('href')).toBe('#static-pages');
+    expect(links[1].getAttribute('data-checklist-heading-link')).toBe('static-pages');
   });
 
   it('assigns an id to headings that have none', () => {
@@ -57,7 +62,7 @@ describe('initHeadingLinks', () => {
     initHeadingLinks();
 
     expect(document.querySelector('h2')?.id).toBe('project-setup');
-    expect(headingLinks()[0].getAttribute('href')).toBe('#project-setup');
+    expect(headingLinks()[0].getAttribute('data-checklist-heading-link')).toBe('project-setup');
   });
 
   it('ignores headings outside the rich text and headings with no text', () => {
@@ -66,7 +71,7 @@ describe('initHeadingLinks', () => {
     initHeadingLinks();
 
     expect(headingLinks()).toHaveLength(1);
-    expect(headingLinks()[0].getAttribute('href')).toBe('#launch');
+    expect(headingLinks()[0].getAttribute('data-checklist-heading-link')).toBe('launch');
   });
 
   it('adds no text to the heading, so nav and exports read it unchanged', () => {
@@ -135,10 +140,46 @@ describe('initHeadingLinks', () => {
     await vi.waitFor(() => expect(link.hasAttribute('data-checklist-copied')).toBe(true));
     expect(link.getAttribute('aria-label')).toBe('Link copied');
 
-    vi.advanceTimersByTime(2000);
+    vi.advanceTimersByTime(2050);
 
     expect(link.hasAttribute('data-checklist-copied')).toBe(false);
     expect(link.getAttribute('aria-label')).toBe('Copy link to this section');
+  });
+
+  it('keeps the checkmark until an idle link has faded out', async () => {
+    document.body.innerHTML = page('<h2 id="launch">Launch</h2>');
+    initHeadingLinks();
+    const link = headingLinks()[0];
+
+    link.click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(link.hasAttribute('data-checklist-copy-hold')).toBe(true);
+
+    vi.advanceTimersByTime(2000);
+    expect(link.hasAttribute('data-checklist-copy-hold')).toBe(false);
+
+    link.dispatchEvent(opacityEvent('transitionrun'));
+    vi.advanceTimersByTime(500);
+    expect(link.hasAttribute('data-checklist-copied')).toBe(true);
+
+    link.dispatchEvent(opacityEvent('transitionend'));
+    expect(link.hasAttribute('data-checklist-copied')).toBe(false);
+  });
+
+  it('reverts if the fade-out never reports finishing', async () => {
+    document.body.innerHTML = page('<h2 id="launch">Launch</h2>');
+    initHeadingLinks();
+    const link = headingLinks()[0];
+
+    link.click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(link.hasAttribute('data-checklist-copied')).toBe(true);
+    vi.advanceTimersByTime(2000);
+    link.dispatchEvent(opacityEvent('transitionrun'));
+
+    vi.advanceTimersByTime(1000);
+
+    expect(link.hasAttribute('data-checklist-copied')).toBe(false);
   });
 
   it('restarts the confirmation timer on a repeat click', async () => {
@@ -157,15 +198,19 @@ describe('initHeadingLinks', () => {
     expect(link.hasAttribute('data-checklist-copied')).toBe(true);
   });
 
-  it('leaves modified clicks to the browser', () => {
+  it('is a button that only copies, without navigating to the section', async () => {
     document.body.innerHTML = page('<h2 id="launch">Launch</h2>');
     initHeadingLinks();
+    const link = headingLinks()[0];
 
-    const event = new MouseEvent('click', { bubbles: true, cancelable: true, metaKey: true });
-    headingLinks()[0].dispatchEvent(event);
+    expect(link.tagName).toBe('BUTTON');
+    expect(link.type).toBe('button');
+    expect(link.hasAttribute('href')).toBe(false);
 
-    expect(event.defaultPrevented).toBe(false);
-    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+    link.click();
+    await vi.waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled());
+
+    expect(window.location.hash).toBe('');
   });
 
   it('keeps the link icon when the clipboard is unavailable', async () => {

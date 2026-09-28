@@ -6,11 +6,11 @@
  * the URL of that section, then crossfades to a checkmark like the sidebar's
  * copy-link control.
  *
- * The control is a real `#id` anchor, so it still works as a link when the
- * clipboard is unavailable or when it is opened in a new tab.
+ * The control is a button rather than an anchor so a click only copies; it
+ * never navigates or scrolls to the section.
  */
 
-import { setFeedback, showCopyConfirmation, stackCopyIcons } from './feedback.js';
+import { COPY_HOLD_ATTR, setFeedback, showCopyConfirmation, stackCopyIcons } from './feedback.js';
 import { cleanText } from './items.js';
 import { assignId, collectIds, HEADING_SELECTOR, RICH_TEXT_SELECTOR } from './nav.js';
 
@@ -38,13 +38,17 @@ const HEADING_LINK_CSS = `
   justify-content: center;
   width: 1em;
   height: 1em;
-  margin-left: 0.3em;
-  vertical-align: -0.1em;
+  margin: 0 0 0 0.3em;
+  padding: 0;
+  border: 0;
   border-radius: 0.15em;
+  background: none;
+  font: inherit;
+  vertical-align: -0.1em;
   color: inherit;
-  text-decoration: none;
+  cursor: pointer;
   opacity: 0;
-  transition: opacity 150ms ease;
+  transition: opacity 150ms ease, color 150ms ease;
 }
 .${HEADING_LINK_CLASS} svg {
   display: block;
@@ -52,12 +56,13 @@ const HEADING_LINK_CSS = `
   height: 1em;
 }
 :is(h2, h3):hover > .${HEADING_LINK_CLASS},
-.${HEADING_LINK_CLASS}[data-checklist-copied] {
+.${HEADING_LINK_CLASS}[${COPY_HOLD_ATTR}] {
   opacity: 0.6;
 }
 .${HEADING_LINK_CLASS}:hover,
 .${HEADING_LINK_CLASS}:focus-visible {
   opacity: 1;
+  color: var(--swatches--blue, #146ef5);
 }
 @media (hover: none) {
   .${HEADING_LINK_CLASS} {
@@ -91,29 +96,24 @@ export function getSectionUrl(id: string): string {
   return `${window.location.origin}${window.location.pathname}#${id}`;
 }
 
-function createLink(id: string, root: ParentNode): HTMLAnchorElement {
-  const link = document.createElement('a');
+function createLink(id: string, root: ParentNode): HTMLButtonElement {
+  const link = document.createElement('button');
+  link.type = 'button';
   link.className = HEADING_LINK_CLASS;
-  link.href = `#${id}`;
-  link.setAttribute(HEADING_LINK_ATTR, '');
+  link.setAttribute(HEADING_LINK_ATTR, id);
   link.setAttribute('aria-label', LINK_LABEL);
   link.setAttribute('title', LINK_LABEL);
   link.append(createIcon('link', root), createIcon('check', root));
   stackCopyIcons(link);
 
-  link.addEventListener('click', (event) => {
-    // Leave modified clicks (new tab, new window) to the browser.
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-      return;
-    }
-    event.preventDefault();
+  link.addEventListener('click', () => {
     void copySectionUrl(link, id);
   });
 
   return link;
 }
 
-async function copySectionUrl(link: HTMLAnchorElement, id: string): Promise<void> {
+async function copySectionUrl(link: HTMLButtonElement, id: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(getSectionUrl(id));
     setFeedback(link, 'Link copied');

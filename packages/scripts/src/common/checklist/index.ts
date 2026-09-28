@@ -127,7 +127,7 @@ function renderProgress(items: ChecklistItem[]): void {
   });
 
   document.querySelectorAll<HTMLElement>(PROGRESS_PERCENT_SELECTOR).forEach((percentEl) => {
-    percentEl.textContent = `${percent}%`;
+    percentEl.textContent = `${checked}/${items.length}`;
   });
 }
 
@@ -147,7 +147,7 @@ async function copyShareUrl(items: ChecklistItem[], button: HTMLElement): Promis
   try {
     await navigator.clipboard.writeText(shareUrl);
     setFeedback(button, 'Link copied');
-    showCopyConfirmation(button);
+    showCopyConfirmation(button, { copiedLabel: 'Copied!' });
   } catch {
     setFeedback(button, 'Press Ctrl+C to copy');
   }

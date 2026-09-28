@@ -95,15 +95,15 @@ describe('initChecklist', () => {
     expect(document.querySelector('[data-checklist-progress="percent"]')!.textContent).toBe('0%');
   });
 
-  it('renders progress as a percentage of all tasks', () => {
+  it('shows checked out of total tasks, and sizes the bar by percentage', () => {
     setupPage(4);
     initChecklist();
 
-    expect(percentText()).toBe('0%');
+    expect(percentText()).toBe('0/4');
 
     checkboxes()[0].click();
 
-    expect(percentText()).toBe('25%');
+    expect(percentText()).toBe('1/4');
     expect(progressBar().style.width).toBe('25%');
   });
 
@@ -139,7 +139,7 @@ describe('initChecklist', () => {
     initChecklist();
 
     expect(checkboxes()[2].checked).toBe(true);
-    expect(percentText()).toBe('25%');
+    expect(percentText()).toBe('1/4');
   });
 
   it('lets a shared URL win over locally saved progress', () => {
@@ -150,7 +150,7 @@ describe('initChecklist', () => {
     initChecklist();
 
     expect(checkboxes().map((c) => c.checked)).toEqual([false, false, true, true]);
-    expect(percentText()).toBe('50%');
+    expect(percentText()).toBe('2/4');
   });
 
   it('copies a shareable link carrying the checked tasks', async () => {
@@ -176,7 +176,9 @@ describe('initChecklist', () => {
     const button = document.querySelector<HTMLElement>('[data-checklist-copy-url]')!;
     expect(button.hasAttribute('data-checklist-copied')).toBe(true);
 
-    vi.advanceTimersByTime(2000);
+    // The sidebar button never fades out, so it reverts as soon as the
+    // fade-detection window passes.
+    vi.advanceTimersByTime(2050);
 
     expect(button.hasAttribute('data-checklist-copied')).toBe(false);
   });
@@ -194,6 +196,23 @@ describe('initChecklist', () => {
       Array.from(stack.children).map((icon) => icon.getAttribute('data-checklist-icon'))
     ).toEqual(['link', 'check']);
     expect(button.lastElementChild?.textContent).toBe('Copy link');
+  });
+
+  it('changes the copy label to "Copied!" during the confirmation, then restores it', async () => {
+    setupPage(2);
+    const button = document.querySelector<HTMLElement>('[data-checklist-copy-url]')!;
+    button.insertAdjacentHTML('beforeend', '<div class="text-xs">Copy link</div>');
+    initChecklist();
+    const label = button.querySelector('.text-xs')!;
+
+    click('[data-checklist-copy-url]');
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(label.textContent).toBe('Copied!');
+
+    vi.advanceTimersByTime(2050);
+
+    expect(label.textContent).toBe('Copy link');
   });
 
   it('adds section links to the checklist headings', () => {
@@ -214,7 +233,7 @@ describe('initChecklist', () => {
     click('[data-checklist-clear]');
 
     expect(checkboxes().every((c) => !c.checked)).toBe(true);
-    expect(percentText()).toBe('0%');
+    expect(percentText()).toBe('0/4');
     expect(window.location.search).toBe('');
     expect(window.localStorage.getItem('wfu-checklist:/resources/seo-checklist')).toBeNull();
   });
