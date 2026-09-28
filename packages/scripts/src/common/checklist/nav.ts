@@ -31,19 +31,31 @@ const SCROLLBAR_STYLE_ID = 'wfu-checklist-nav-scrollbar';
  * `scrollbar-color` is set, so the standard properties are limited to browsers
  * without them (Firefox). `scrollbar-gutter` reserves the space up front, so
  * the links never shift when the list starts to overflow.
+ *
+ * The nav sits inside `.cc_card-inner-group`, whose right padding is
+ * `--size--fixed--fs_2`. The nav is pulled out over that padding so the
+ * scrollbar sits at the card's edge, and padded back so the links stay put.
+ * The thumb's transparent border keeps it off the card border.
  */
+const SCROLLBAR_WIDTH = '10px';
+const GROUP_PADDING = 'var(--size--fixed--fs_2, 1rem)';
+
 const SCROLLBAR_CSS = `
 ${NAV_SELECTOR} {
   scrollbar-gutter: stable;
+  margin-right: calc(-1 * ${GROUP_PADDING});
+  padding-right: max(0px, calc(${GROUP_PADDING} - ${SCROLLBAR_WIDTH}));
 }
 ${NAV_SELECTOR}::-webkit-scrollbar {
-  width: 6px;
+  width: ${SCROLLBAR_WIDTH};
 }
 ${NAV_SELECTOR}::-webkit-scrollbar-track {
   background: transparent;
 }
 ${NAV_SELECTOR}::-webkit-scrollbar-thumb {
-  border-radius: 3px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
   background-color: var(--theme--t_border-primary, rgba(255, 255, 255, 0.24));
 }
 @supports not selector(::-webkit-scrollbar) {
