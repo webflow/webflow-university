@@ -15,6 +15,7 @@ import { setFeedback, showCopyConfirmation, stackCopyIcons } from './feedback.js
 import { initHeadingLinks } from './heading-links.js';
 import { type ChecklistItem, getCheckedIds, getChecklistItems } from './items.js';
 import { initChecklistNav } from './nav.js';
+import { type ChecklistSection, getChecklistSections, renderSectionProgress } from './sections.js';
 import {
   buildShareUrl,
   getStorageKey,
@@ -44,6 +45,8 @@ export function initChecklist(): void {
     return;
   }
 
+  const sections = getChecklistSections(items);
+
   // Stack the icons on init so both never flash side-by-side before the first
   // copy click.
   document.querySelectorAll<HTMLElement>(COPY_URL_SELECTOR).forEach(stackCopyIcons);
@@ -55,7 +58,7 @@ export function initChecklist(): void {
   items.forEach((item) => {
     item.checkbox.addEventListener('change', () => {
       persist(items, storageKey);
-      renderProgress(items);
+      renderProgress(items, sections);
     });
   });
 
@@ -64,7 +67,7 @@ export function initChecklist(): void {
   });
 
   bindClick(CLEAR_SELECTOR, (button) => {
-    clearProgress(items, storageKey);
+    clearProgress(items, sections, storageKey);
     setFeedback(button, 'Checklist cleared');
   });
 
@@ -86,7 +89,7 @@ export function initChecklist(): void {
     setFeedback(button, 'Markdown downloaded');
   });
 
-  renderProgress(items);
+  renderProgress(items, sections);
 }
 
 /**
@@ -113,7 +116,7 @@ function persist(items: ChecklistItem[], storageKey: string): void {
   syncUrl(ids);
 }
 
-function renderProgress(items: ChecklistItem[]): void {
+function renderProgress(items: ChecklistItem[], sections: ChecklistSection[]): void {
   const checked = getCheckedIds(items).length;
   const percent = items.length ? Math.round((checked / items.length) * 100) : 0;
 
@@ -129,15 +132,21 @@ function renderProgress(items: ChecklistItem[]): void {
   document.querySelectorAll<HTMLElement>(PROGRESS_PERCENT_SELECTOR).forEach((percentEl) => {
     percentEl.textContent = `${checked}/${items.length}`;
   });
+
+  renderSectionProgress(sections);
 }
 
-function clearProgress(items: ChecklistItem[], storageKey: string): void {
+function clearProgress(
+  items: ChecklistItem[],
+  sections: ChecklistSection[],
+  storageKey: string
+): void {
   items.forEach((item) => {
     item.checkbox.checked = false;
   });
 
   persist(items, storageKey);
-  renderProgress(items);
+  renderProgress(items, sections);
 }
 
 async function copyShareUrl(items: ChecklistItem[], button: HTMLElement): Promise<void> {

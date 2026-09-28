@@ -28,3 +28,10 @@ longer flashes on its way out.
 **Progress count.** `[data-checklist-progress="percent"]` now reads checked out
 of total tasks (e.g. `3/12`) instead of a percentage. The progress bar is still
 sized by percentage.
+
+**Per-section progress.** The static "0/9 checked" status in the Checklist
+Heading component now stays live for every heading. A section runs until the
+next heading of the same or higher level, so an `h2` count includes its `h3`
+subgroups. Each `h2` link in the "On this page" nav also shows its count
+(e.g. `3/9`), right-aligned. The status is found by its "x/y checked" text, or
+by an explicit `[data-checklist-section-status]` attribute.
