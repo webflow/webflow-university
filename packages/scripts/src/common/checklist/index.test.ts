@@ -181,6 +181,30 @@ describe('initChecklist', () => {
     expect(button.hasAttribute('data-checklist-copied')).toBe(false);
   });
 
+  it('stacks the copy icons apart from a text label so they swap in place', () => {
+    setupPage(2);
+    const button = document.querySelector<HTMLElement>('[data-checklist-copy-url]')!;
+    button.insertAdjacentHTML('beforeend', '<div class="text-xs">Copy link</div>');
+
+    initChecklist();
+
+    const stack = button.querySelector('[data-checklist-icon-stack]')!;
+    expect(stack.parentElement).toBe(button);
+    expect(
+      Array.from(stack.children).map((icon) => icon.getAttribute('data-checklist-icon'))
+    ).toEqual(['link', 'check']);
+    expect(button.lastElementChild?.textContent).toBe('Copy link');
+  });
+
+  it('adds section links to the checklist headings', () => {
+    setupPage(2);
+    document.querySelector('.w-richtext')!.id = 'rich-content';
+
+    initChecklist();
+
+    expect(document.querySelector('h2 [data-checklist-heading-link]')).not.toBeNull();
+  });
+
   it('clears every task and drops the URL param', () => {
     setupPage(4);
     initChecklist();

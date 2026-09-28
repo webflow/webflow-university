@@ -82,7 +82,7 @@ function applyHeadingLevel(link: HTMLAnchorElement, heading: HTMLElement): void 
  * A heading keeps an id the CMS author set by hand; otherwise it gets a slug of
  * its own text, numbered if a checklist repeats a phase name.
  */
-function assignId(heading: HTMLElement, takenIds: Set<string>): string {
+export function assignId(heading: HTMLElement, takenIds: Set<string>): string {
   if (heading.id) {
     takenIds.add(heading.id);
     return heading.id;
@@ -102,7 +102,7 @@ function assignId(heading: HTMLElement, takenIds: Set<string>): string {
   return id;
 }
 
-function collectIds(root: ParentNode): Set<string> {
+export function collectIds(root: ParentNode): Set<string> {
   return new Set(
     Array.from(root.querySelectorAll<HTMLElement>('[id]')).map((element) => element.id)
   );
