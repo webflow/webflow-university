@@ -122,6 +122,37 @@ describe('initChecklistNav', () => {
     });
   });
 
+  it('injects persistent scrollbar styles once, keeping WebKit rules free of standard overrides', () => {
+    document.body.innerHTML = page(group('Technical foundations'));
+    initChecklistNav();
+    initChecklistNav();
+
+    const styles = document.querySelectorAll('#wfu-checklist-nav-scrollbar');
+    expect(styles).toHaveLength(1);
+    const css = styles[0].textContent!;
+    expect(css).toContain('scrollbar-gutter: stable');
+    expect(css).toContain('::-webkit-scrollbar-thumb');
+    expect(css).toContain('::-webkit-scrollbar-thumb:hover');
+    const [webkit, fallback] = css.split('@supports not selector(::-webkit-scrollbar)');
+    expect(webkit).not.toContain('scrollbar-width');
+    expect(fallback).toContain('scrollbar-width: thin');
+  });
+
+  it('keeps the nav scrollbar always visible unless the Designer sets otherwise', () => {
+    document.body.innerHTML = page(group('Technical foundations'));
+    initChecklistNav();
+    expect(document.querySelector('[data-checklist-nav]')?.getAttribute('data-scrollbar')).toBe(
+      'always'
+    );
+
+    document.body.innerHTML = page(group('Technical foundations'));
+    document.querySelector('[data-checklist-nav]')!.setAttribute('data-scrollbar', 'hover');
+    initChecklistNav();
+    expect(document.querySelector('[data-checklist-nav]')?.getAttribute('data-scrollbar')).toBe(
+      'hover'
+    );
+  });
+
   it('assigns the matching id to each heading', () => {
     document.body.innerHTML = page(group('Technical foundations'));
 

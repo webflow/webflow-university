@@ -11,8 +11,11 @@ import {
   serializeChecklistToMarkdown,
 } from '../download-checklist-md/index.js';
 import { downloadCsv, serializeChecklistToCsv } from './csv.js';
-import { type ChecklistItem, getCheckedIds, getChecklistItems } from './items.js';
+import { setFeedback, showCopyConfirmation, stackCopyIcons } from './feedback.js';
+import { initHeadingLinks } from './heading-links.js';
+import { type ChecklistItem, getCheckedIds, getChecklistItems, TITLE_SELECTOR } from './items.js';
 import { initChecklistNav } from './nav.js';
+import { type ChecklistSection, getChecklistSections, renderSectionProgress } from './sections.js';
 import {
   buildShareUrl,
   getStorageKey,
@@ -29,64 +32,26 @@ const COPY_URL_SELECTOR = '[data-checklist-copy-url]';
 const CLEAR_SELECTOR = '[data-checklist-clear]';
 const CSV_SELECTOR = '[data-checklist-download="csv"]';
 const MARKDOWN_SELECTOR = '[data-checklist-download="md"], [data-copy-checklist-md]';
-const FEEDBACK_MS = 2000;
-const COPIED_ATTR = 'data-checklist-copied';
-const COPY_STYLE_ID = 'wfu-checklist-copy-confirm';
-const COPY_TRANSITION = 'transform 220ms ease, filter 220ms ease, opacity 220ms ease';
-
-const COPY_CONFIRM_CSS = `
-[data-checklist-copy-url] {
-  position: relative;
-}
-[data-checklist-icon] {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: ${COPY_TRANSITION};
-  will-change: transform, filter, opacity;
-}
-[data-checklist-icon="check"] {
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  transform: scale(0.9);
-  filter: blur(4px);
-  opacity: 0;
-  pointer-events: none;
-}
-[${COPIED_ATTR}] [data-checklist-icon] {
-  transition: ${COPY_TRANSITION};
-}
-[${COPIED_ATTR}] [data-checklist-icon="link"] {
-  transform: scale(0.9);
-  filter: blur(4px);
-  opacity: 0;
-}
-[${COPIED_ATTR}] [data-checklist-icon="check"] {
-  transform: scale(1);
-  filter: blur(0);
-  opacity: 1;
-}
-[data-checklist-copy-url]:not([${COPIED_ATTR}]) [data-checklist-icon] {
-  transition: none;
-}
-`;
 
 export function initChecklist(): void {
-  // Driven by the rich text headings rather than by the tasks, so it runs even
-  // on a page where task discovery comes up empty.
+  // Driven by the rich text headings rather than by the tasks, so they run
+  // even on a page where task discovery comes up empty. Nav runs first so the
+  // heading links reuse the ids it assigns.
   initChecklistNav();
+  initHeadingLinks();
 
   const items = getChecklistItems();
   if (!items.length) {
     return;
   }
 
-  // Resting styles hide the checkmark; inject on init so both icons never
-  // flash side-by-side before the first copy click.
-  if (document.querySelector(`${COPY_URL_SELECTOR} [data-checklist-icon="check"]`)) {
-    ensureCopyConfirmStyles();
-  }
+  const sections = getChecklistSections(items);
+
+  labelCheckboxes(items);
+
+  // Stack the icons on init so both never flash side-by-side before the first
+  // copy click.
+  document.querySelectorAll<HTMLElement>(COPY_URL_SELECTOR).forEach(stackCopyIcons);
 
   const storageKey = getStorageKey();
 
@@ -95,7 +60,7 @@ export function initChecklist(): void {
   items.forEach((item) => {
     item.checkbox.addEventListener('change', () => {
       persist(items, storageKey);
-      renderProgress(items);
+      renderProgress(items, sections);
     });
   });
 
@@ -104,7 +69,7 @@ export function initChecklist(): void {
   });
 
   bindClick(CLEAR_SELECTOR, (button) => {
-    clearProgress(items, storageKey);
+    clearProgress(items, sections, storageKey);
     setFeedback(button, 'Checklist cleared');
   });
 
@@ -126,7 +91,27 @@ export function initChecklist(): void {
     setFeedback(button, 'Markdown downloaded');
   });
 
-  renderProgress(items);
+  renderProgress(items, sections);
+}
+
+/**
+ * The checkbox's wrapping label has no text; the task title sits beside it.
+ * Every task renders from one component, so a static id (and `for`) would be
+ * duplicated on every item; the unique id is assigned here instead.
+ */
+function labelCheckboxes(items: ChecklistItem[]): void {
+  items.forEach((item) => {
+    const { checkbox } = item;
+    const title = item.element.querySelector<HTMLElement>(TITLE_SELECTOR);
+    if (!title || checkbox.hasAttribute('aria-label') || checkbox.hasAttribute('aria-labelledby')) {
+      return;
+    }
+
+    if (!title.id) {
+      title.id = `checklist-task-${item.id}-title`;
+    }
+    checkbox.setAttribute('aria-labelledby', title.id);
+  });
 }
 
 /**
@@ -153,7 +138,7 @@ function persist(items: ChecklistItem[], storageKey: string): void {
   syncUrl(ids);
 }
 
-function renderProgress(items: ChecklistItem[]): void {
+function renderProgress(items: ChecklistItem[], sections: ChecklistSection[]): void {
   const checked = getCheckedIds(items).length;
   const percent = items.length ? Math.round((checked / items.length) * 100) : 0;
 
@@ -167,17 +152,23 @@ function renderProgress(items: ChecklistItem[]): void {
   });
 
   document.querySelectorAll<HTMLElement>(PROGRESS_PERCENT_SELECTOR).forEach((percentEl) => {
-    percentEl.textContent = `${percent}%`;
+    percentEl.textContent = `${checked}/${items.length}`;
   });
+
+  renderSectionProgress(sections);
 }
 
-function clearProgress(items: ChecklistItem[], storageKey: string): void {
+function clearProgress(
+  items: ChecklistItem[],
+  sections: ChecklistSection[],
+  storageKey: string
+): void {
   items.forEach((item) => {
     item.checkbox.checked = false;
   });
 
   persist(items, storageKey);
-  renderProgress(items);
+  renderProgress(items, sections);
 }
 
 async function copyShareUrl(items: ChecklistItem[], button: HTMLElement): Promise<void> {
@@ -187,41 +178,10 @@ async function copyShareUrl(items: ChecklistItem[], button: HTMLElement): Promis
   try {
     await navigator.clipboard.writeText(shareUrl);
     setFeedback(button, 'Link copied');
-    showCopyConfirmation(button);
+    showCopyConfirmation(button, { copiedLabel: 'Copied!' });
   } catch {
     setFeedback(button, 'Press Ctrl+C to copy');
   }
-}
-
-/**
- * Crossfades the link icon out (scale + blur) with a checkmark, then snaps
- * back to the link icon after FEEDBACK_MS with no exit transition.
- */
-function showCopyConfirmation(button: HTMLElement): void {
-  if (
-    !button.querySelector('[data-checklist-icon="link"]') ||
-    !button.querySelector('[data-checklist-icon="check"]')
-  ) {
-    return;
-  }
-
-  ensureCopyConfirmStyles();
-  button.setAttribute(COPIED_ATTR, '');
-
-  window.setTimeout(() => {
-    button.removeAttribute(COPIED_ATTR);
-  }, FEEDBACK_MS);
-}
-
-function ensureCopyConfirmStyles(): void {
-  if (document.getElementById(COPY_STYLE_ID)) {
-    return;
-  }
-
-  const style = document.createElement('style');
-  style.id = COPY_STYLE_ID;
-  style.textContent = COPY_CONFIRM_CSS;
-  document.head.appendChild(style);
 }
 
 function bindClick(selector: string, handler: (button: HTMLElement) => void): void {
@@ -232,26 +192,4 @@ function bindClick(selector: string, handler: (button: HTMLElement) => void): vo
       handler(button);
     });
   });
-}
-
-/**
- * These controls are icon-only, so the accessible name doubles as the place to
- * report what happened.
- */
-function setFeedback(button: HTMLElement, message: string): void {
-  const original = button.dataset.checklistLabel || button.getAttribute('aria-label') || '';
-  if (original) {
-    button.dataset.checklistLabel = original;
-  }
-
-  button.setAttribute('aria-label', message);
-  button.setAttribute('title', message);
-
-  window.setTimeout(() => {
-    const restored = button.dataset.checklistLabel;
-    if (restored) {
-      button.setAttribute('aria-label', restored);
-      button.setAttribute('title', restored);
-    }
-  }, FEEDBACK_MS);
 }

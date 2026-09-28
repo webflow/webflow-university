@@ -22,6 +22,54 @@ export const NAV_SECTION_SELECTOR = '[data-checklist-nav-section]';
 export const NAV_CHILD_CLASS = 'cc_checklist_nav-link--child';
 
 const FALLBACK_SLUG = 'section';
+const SCROLLBAR_STYLE_ID = 'wfu-checklist-nav-scrollbar';
+const SCROLLBAR_ATTR = 'data-scrollbar';
+
+/**
+ * Styling `::-webkit-scrollbar` makes Chrome, Safari, and Edge draw a real
+ * scrollbar that stays visible, instead of macOS's auto-hiding overlay. Chrome
+ * 121+ ignores those pseudo-elements once `scrollbar-width` or
+ * `scrollbar-color` is set, so the standard properties are limited to browsers
+ * without them (Firefox). `scrollbar-gutter` reserves the space up front, so
+ * the links never shift when the list starts to overflow.
+ *
+ * The nav sits inside `.cc_card-inner-group`, whose right padding is
+ * `--size--fixed--fs_2`. The nav is pulled out over that padding so the
+ * scrollbar sits at the card's edge, and padded back so the links stay put.
+ * The thumb's transparent border keeps it off the card border.
+ */
+const SCROLLBAR_WIDTH = '10px';
+const GROUP_PADDING = 'var(--size--fixed--fs_2, 1rem)';
+/** Held on hover and drag too, so site-wide scrollbar hover colors never apply here. */
+const THUMB_COLOR = 'var(--theme--t_border-primary, rgba(255, 255, 255, 0.24))';
+
+const SCROLLBAR_CSS = `
+${NAV_SELECTOR} {
+  scrollbar-gutter: stable;
+  margin-right: calc(-1 * ${GROUP_PADDING});
+  padding-right: max(0px, calc(${GROUP_PADDING} - ${SCROLLBAR_WIDTH}));
+}
+${NAV_SELECTOR}::-webkit-scrollbar {
+  width: ${SCROLLBAR_WIDTH};
+}
+${NAV_SELECTOR}::-webkit-scrollbar-track {
+  background: transparent;
+}
+${NAV_SELECTOR}::-webkit-scrollbar-thumb,
+${NAV_SELECTOR}::-webkit-scrollbar-thumb:hover,
+${NAV_SELECTOR}::-webkit-scrollbar-thumb:active {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  background-color: ${THUMB_COLOR};
+}
+@supports not selector(::-webkit-scrollbar) {
+  ${NAV_SELECTOR} {
+    scrollbar-width: thin;
+    scrollbar-color: ${THUMB_COLOR} transparent;
+  }
+}
+`;
 
 export function initChecklistNav(root: ParentNode = document): void {
   const nav = root.querySelector<HTMLElement>(NAV_SELECTOR);
@@ -54,6 +102,23 @@ export function initChecklistNav(root: ParentNode = document): void {
   });
 
   nav.replaceChildren(...links);
+  // Opts out of the site-wide hover-only scrollbar; set the attribute in the
+  // Designer to override.
+  if (!nav.hasAttribute(SCROLLBAR_ATTR)) {
+    nav.setAttribute(SCROLLBAR_ATTR, 'always');
+  }
+  ensureScrollbarStyles();
+}
+
+function ensureScrollbarStyles(): void {
+  if (document.getElementById(SCROLLBAR_STYLE_ID)) {
+    return;
+  }
+
+  const style = document.createElement('style');
+  style.id = SCROLLBAR_STYLE_ID;
+  style.textContent = SCROLLBAR_CSS;
+  document.head.appendChild(style);
 }
 
 export function slugifyHeading(text: string): string {
@@ -82,7 +147,7 @@ function applyHeadingLevel(link: HTMLAnchorElement, heading: HTMLElement): void 
  * A heading keeps an id the CMS author set by hand; otherwise it gets a slug of
  * its own text, numbered if a checklist repeats a phase name.
  */
-function assignId(heading: HTMLElement, takenIds: Set<string>): string {
+export function assignId(heading: HTMLElement, takenIds: Set<string>): string {
   if (heading.id) {
     takenIds.add(heading.id);
     return heading.id;
@@ -102,7 +167,7 @@ function assignId(heading: HTMLElement, takenIds: Set<string>): string {
   return id;
 }
 
-function collectIds(root: ParentNode): Set<string> {
+export function collectIds(root: ParentNode): Set<string> {
   return new Set(
     Array.from(root.querySelectorAll<HTMLElement>('[id]')).map((element) => element.id)
   );
