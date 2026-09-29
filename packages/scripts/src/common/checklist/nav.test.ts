@@ -153,6 +153,66 @@ describe('initChecklistNav', () => {
     );
   });
 
+  it('renders the sections as an ordered list, nesting h3s under their h2', () => {
+    document.body.innerHTML = page(
+      group('Design handoff') +
+        group('Development') +
+        group('Static pages', '', 'h3') +
+        group('Dynamic pages', '', 'h3') +
+        group('Launch')
+    );
+    initChecklistNav();
+
+    const top = document.querySelector('[data-checklist-nav] > ol[data-checklist-nav-list]')!;
+    expect(top.getAttribute('role')).toBe('list');
+    expect(Array.from(top.children).map((li) => li.querySelector('a')?.textContent)).toEqual([
+      'Design handoff',
+      'Development',
+      'Launch',
+    ]);
+
+    const nested = top.children[1].querySelector(':scope > ol[data-checklist-nav-list]')!;
+    expect(Array.from(nested.children).map((li) => li.textContent)).toEqual([
+      'Static pages',
+      'Dynamic pages',
+    ]);
+  });
+
+  it('keeps an h3 with no h2 before it at the top level', () => {
+    document.body.innerHTML = page(group('Static pages', '', 'h3') + group('Launch'));
+    initChecklistNav();
+
+    const top = document.querySelector('[data-checklist-nav] > ol')!;
+    expect(top.children).toHaveLength(2);
+    expect(top.querySelector('ol')).toBeNull();
+  });
+
+  it('splits a heading number into its own column, keeping the full text', () => {
+    document.body.innerHTML = page(
+      group('4. Development') + group('4.1. Static pages', '', 'h3') + group('Glossary')
+    );
+    initChecklistNav();
+
+    const [h2, h3, plain] = navLinks();
+    expect(h2.querySelector('[data-checklist-nav-marker]')?.textContent).toBe('4.');
+    expect(h2.querySelector('[data-checklist-nav-label]')?.textContent?.trim()).toBe('Development');
+    expect(h2.textContent).toBe('4. Development');
+    expect(h3.querySelector('[data-checklist-nav-marker]')?.textContent).toBe('4.1.');
+    expect(h3.textContent).toBe('4.1. Static pages');
+    expect(plain.querySelector('[data-checklist-nav-marker]')).toBeNull();
+    expect(plain.textContent).toBe('Glossary');
+  });
+
+  it('lays the list out on one shared grid, cancelling the child indent', () => {
+    document.body.innerHTML = page(group('Development'));
+    initChecklistNav();
+
+    const css = document.getElementById('wfu-checklist-nav-scrollbar')!.textContent!;
+    expect(css).toContain('grid-template-columns: auto auto 1fr auto');
+    expect(css).toContain('grid-template-columns: subgrid');
+    expect(css).toContain(`.${NAV_CHILD_CLASS}.${NAV_CHILD_CLASS}`);
+  });
+
   it('assigns the matching id to each heading', () => {
     document.body.innerHTML = page(group('Technical foundations'));
 
