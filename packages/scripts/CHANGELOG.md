@@ -1,5 +1,22 @@
 # scripts
 
+## 3.3.1
+
+### Patch Changes
+
+- 62ab3ec: Polish checklist section counts and heading copy icons
+  - The "On this page" nav counts now read `3 / 9` (non-breaking spaces around
+    the slash) in the primary text color.
+  - An `h2` whose tasks all sit in `h3` subgroups no longer shows a nav count;
+    its `h3` links show theirs instead. An `h2` with tasks of its own keeps its
+    count, and its `h3` links show none.
+  - The heading copy-link icon is half the heading's font size and vertically
+    centered on the heading text. The clickable area stays 1em.
+  - The sidebar progress count reads `3 / 12` the same way.
+  - The heading copy-link icon hovers to the primary text color instead of blue.
+  - The heading copy-link button has no left margin.
+  - The heading copy-link icon shows in `--theme--t_icon-tertiary` (full opacity) when revealed, and `--theme--t_icon-primary` when hovered or focused.
+
 ## 3.3.0
 
 ### Minor Changes
