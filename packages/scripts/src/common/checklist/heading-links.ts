@@ -44,16 +44,17 @@ const HEADING_LINK_CSS = `
   border-radius: 0.15em;
   background: none;
   font: inherit;
-  vertical-align: -0.1em;
+  vertical-align: middle;
   color: inherit;
   cursor: pointer;
   opacity: 0;
   transition: opacity 150ms ease, color 150ms ease;
 }
+/* The 1em button is the hit area; the icon inside is half that. */
 .${HEADING_LINK_CLASS} svg {
   display: block;
-  width: 1em;
-  height: 1em;
+  width: 0.5em;
+  height: 0.5em;
 }
 :is(h2, h3):hover > .${HEADING_LINK_CLASS},
 .${HEADING_LINK_CLASS}[${COPY_HOLD_ATTR}] {
