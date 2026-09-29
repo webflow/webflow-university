@@ -2,12 +2,15 @@
  * Per-section checklist progress
  *
  * Each Checklist Heading renders a static "0/9 checked" status beside its
- * heading. This keeps that count live, and mirrors it (as "0/9") at the right
- * edge of the matching `h2` link in the "On this page" nav.
+ * heading. This keeps that count live, and mirrors it (as "0 / 9") at the
+ * right edge of the matching link in the "On this page" nav.
  *
  * A section is a heading plus every task after it until the next heading of
  * the same or a higher level, so an `h2` count includes the tasks in its `h3`
  * subgroups.
+ *
+ * The nav shows each `h2`'s count, except for an `h2` whose tasks all sit in
+ * `h3` subgroups: there the counts move to those `h3` links instead.
  */
 
 import { type ChecklistItem, cleanText, ITEM_SELECTOR } from './items.js';
@@ -32,7 +35,9 @@ const NAV_COUNT_CSS = `
 [${NAV_COUNT_ATTR}] {
   flex: none;
   margin-left: auto;
+  color: var(--theme--t_text-primary);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 `;
 
@@ -41,6 +46,9 @@ export interface ChecklistSection {
   level: number;
   items: ChecklistItem[];
   status: HTMLElement | null;
+  parent: ChecklistSection | null;
+  /** Whether the "On this page" nav shows this section's count. */
+  showInNav: boolean;
 }
 
 export function getChecklistSections(
@@ -77,12 +85,29 @@ export function getChecklistSections(
       level,
       items: [],
       status: findStatus(node, content),
+      parent: open[open.length - 1] ?? null,
+      showInNav: false,
     };
     sections.push(section);
     open.push(section);
   });
 
+  sections.forEach((section) => {
+    section.showInNav =
+      section.level === 2
+        ? hasDirectItems(section, sections)
+        : section.level === 3 && (!section.parent || !hasDirectItems(section.parent, sections));
+  });
+
   return sections;
+}
+
+/** True when a section has tasks of its own, outside any subgroup. */
+function hasDirectItems(section: ChecklistSection, sections: ChecklistSection[]): boolean {
+  const inSubgroups = new Set(
+    sections.filter((child) => child.parent === section).flatMap((child) => child.items)
+  );
+  return section.items.some((item) => !inSubgroups.has(item));
 }
 
 export function renderSectionProgress(
@@ -90,7 +115,7 @@ export function renderSectionProgress(
   root: ParentNode = document
 ): void {
   const nav = root.querySelector<HTMLElement>(NAV_SELECTOR);
-  if (nav && sections.some((section) => section.level === 2)) {
+  if (nav && sections.some((section) => section.showInNav)) {
     ensureNavCountStyles();
   }
 
@@ -102,13 +127,13 @@ export function renderSectionProgress(
       section.status.textContent = `${count} checked`;
     }
 
-    if (nav && section.level === 2 && section.heading.id) {
+    if (nav && section.showInNav && section.heading.id) {
       const href = `#${section.heading.id}`;
       const link = Array.from(nav.querySelectorAll<HTMLElement>('a')).find(
         (anchor) => anchor.getAttribute('href') === href
       );
       if (link) {
-        getNavCount(link).textContent = count;
+        getNavCount(link).textContent = `${checked}\u00A0/\u00A0${section.items.length}`;
       }
     }
   });

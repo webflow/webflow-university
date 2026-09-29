@@ -38,35 +38,36 @@ const HEADING_LINK_CSS = `
   justify-content: center;
   width: 1em;
   height: 1em;
-  margin: 0 0 0 0.3em;
+  margin: 0;
   padding: 0;
   border: 0;
   border-radius: 0.15em;
   background: none;
   font: inherit;
-  vertical-align: -0.1em;
-  color: inherit;
+  vertical-align: middle;
+  color: var(--theme--t_icon-tertiary);
   cursor: pointer;
   opacity: 0;
   transition: opacity 150ms ease, color 150ms ease;
 }
+/* The 1em button is the hit area; the icon inside is half that. */
 .${HEADING_LINK_CLASS} svg {
   display: block;
-  width: 1em;
-  height: 1em;
+  width: 0.5em;
+  height: 0.5em;
 }
 :is(h2, h3):hover > .${HEADING_LINK_CLASS},
 .${HEADING_LINK_CLASS}[${COPY_HOLD_ATTR}] {
-  opacity: 0.6;
+  opacity: 1;
 }
 .${HEADING_LINK_CLASS}:hover,
 .${HEADING_LINK_CLASS}:focus-visible {
   opacity: 1;
-  color: var(--swatches--blue, #146ef5);
+  color: var(--theme--t_icon-primary);
 }
 @media (hover: none) {
   .${HEADING_LINK_CLASS} {
-    opacity: 0.6;
+    opacity: 1;
   }
 }
 `;

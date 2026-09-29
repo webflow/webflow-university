@@ -50,6 +50,10 @@ function navLink(title: string): HTMLElement {
   )!;
 }
 
+function navCount(title: string): string | null {
+  return navLink(title).querySelector('[data-checklist-nav-count]')?.textContent ?? null;
+}
+
 function setup(body: string) {
   document.body.innerHTML = page(body);
   initChecklistNav();
@@ -107,15 +111,37 @@ describe('section progress', () => {
     expect(statusOf('Launch')).toBe('1/2 checked');
   });
 
-  it('shows the count right-aligned on h2 nav links only', () => {
-    setup(heading('Development') + heading('Static pages', 'h3') + task('A', true) + task('B'));
-
-    const h2Count = navLink('Development').querySelector('[data-checklist-nav-count]');
-    expect(h2Count?.textContent).toBe('1/2');
-    expect(navLink('Static pages').querySelector('[data-checklist-nav-count]')).toBeNull();
-    expect(document.getElementById('wfu-checklist-nav-count')?.textContent).toContain(
-      'margin-left: auto'
+  it('shows the count on an h2 nav link when the h2 has tasks of its own', () => {
+    setup(
+      heading('Design handoff') +
+        task('A', true) +
+        heading('Extras', 'h3') +
+        task('B') +
+        heading('Launch') +
+        task('C')
     );
+
+    expect(navCount('Design handoff')).toBe('1\u00A0/\u00A02');
+    expect(navCount('Extras')).toBeNull();
+    expect(navCount('Launch')).toBe('0\u00A0/\u00A01');
+    const css = document.getElementById('wfu-checklist-nav-count')?.textContent;
+    expect(css).toContain('margin-left: auto');
+    expect(css).toContain('color: var(--theme--t_text-primary)');
+  });
+
+  it('moves counts to the h3 links when an h2 only holds subgroups', () => {
+    setup(
+      heading('Development') +
+        heading('Static pages', 'h3') +
+        task('A', true) +
+        task('B') +
+        heading('Dynamic pages', 'h3') +
+        task('C')
+    );
+
+    expect(navCount('Development')).toBeNull();
+    expect(navCount('Static pages')).toBe('1\u00A0/\u00A02');
+    expect(navCount('Dynamic pages')).toBe('0\u00A0/\u00A01');
   });
 
   it('does not add a second nav count on re-render', () => {
@@ -130,7 +156,7 @@ describe('section progress', () => {
     const { sections } = setup(heading('Launch', 'h2', '') + task('A'));
 
     expect(sections[0].status).toBeNull();
-    expect(navLink('Launch').querySelector('[data-checklist-nav-count]')?.textContent).toBe('0/1');
+    expect(navCount('Launch')).toBe('0\u00A0/\u00A01');
   });
 
   it('prefers an explicit status element', () => {

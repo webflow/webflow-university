@@ -152,7 +152,7 @@ function renderProgress(items: ChecklistItem[], sections: ChecklistSection[]): v
   });
 
   document.querySelectorAll<HTMLElement>(PROGRESS_PERCENT_SELECTOR).forEach((percentEl) => {
-    percentEl.textContent = `${checked}/${items.length}`;
+    percentEl.textContent = `${checked}\u00A0/\u00A0${items.length}`;
   });
 
   renderSectionProgress(sections);
