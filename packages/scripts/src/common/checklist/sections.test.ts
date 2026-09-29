@@ -125,7 +125,9 @@ describe('section progress', () => {
     expect(navCount('Extras')).toBeNull();
     expect(navCount('Launch')).toBe('0\u00A0/\u00A01');
     const css = document.getElementById('wfu-checklist-nav-count')?.textContent;
-    expect(css).toContain('margin-left: auto');
+    expect(document.getElementById('wfu-checklist-nav-scrollbar')?.textContent).toMatch(
+      /\[data-checklist-nav-count\] \{[^}]*justify-self: end/
+    );
     expect(css).toContain('color: var(--theme--t_text-primary)');
   });
 

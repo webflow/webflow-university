@@ -8,8 +8,12 @@
  * of link styling stays editable there.
  *
  * Nested checklists may use `h3` under an `h2` phase (via the Checklist Heading
- * component's Heading Level prop). Those become indented child links; `h2`-only
- * checklists keep a flat list.
+ * component's Heading Level prop). Those become a nested `ol` under their `h2`;
+ * `h2`-only checklists keep a flat list.
+ *
+ * Headings carry their own numbering ("4.1. Static pages"), so the number is
+ * split into its own column. Every title then starts at the same edge, and a
+ * title that wraps lines up under its first word rather than its number.
  */
 
 import { cleanText } from './items.js';
@@ -20,6 +24,13 @@ export const NAV_SELECTOR = '[data-checklist-nav]';
 export const NAV_ITEM_SELECTOR = '[data-checklist-nav-item]';
 export const NAV_SECTION_SELECTOR = '[data-checklist-nav-section]';
 export const NAV_CHILD_CLASS = 'cc_checklist_nav-link--child';
+export const NAV_LIST_ATTR = 'data-checklist-nav-list';
+export const NAV_MARKER_ATTR = 'data-checklist-nav-marker';
+export const NAV_LABEL_ATTR = 'data-checklist-nav-label';
+export const NAV_COUNT_ATTR = 'data-checklist-nav-count';
+
+/** A leading outline number: "1.", "4.1.", "4.1", "10)". */
+const HEADING_NUMBER_PATTERN = /^(\d+(?:\.\d+)*[.)]?)\s+(\S.*)$/;
 
 const FALLBACK_SLUG = 'section';
 const SCROLLBAR_STYLE_ID = 'wfu-checklist-nav-scrollbar';
@@ -71,6 +82,76 @@ ${NAV_SELECTOR}::-webkit-scrollbar-thumb:active {
 }
 `;
 
+const LIST = `[${NAV_LIST_ATTR}]`;
+const LINK = `${LIST} > li > a`;
+
+/**
+ * One grid spans the whole list: [h2 number] [h3 number] [title] [count].
+ * Rows and nested lists share its columns through subgrid, so all `h2` titles
+ * start at one edge, `h3` numbers sit under the `h2` titles, and `h3` titles
+ * share an edge of their own. Headings without numbers collapse the number
+ * columns to nothing.
+ *
+ * Nesting now does the indenting, so the Designer's child-link left padding is
+ * cancelled here; the doubled class outranks
+ * `.cc_course_link.cc_checklist_nav-link.cc_checklist_nav-link--child`.
+ */
+const LIST_CSS = `
+${LIST} {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  row-gap: inherit;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+${LIST} ${LIST} {
+  grid-column: 2 / -1;
+  grid-template-columns: subgrid;
+}
+${LIST} > li {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  row-gap: inherit;
+  margin: 0;
+  padding: 0;
+}
+${LINK} {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+}
+${LIST} .${NAV_CHILD_CLASS}.${NAV_CHILD_CLASS} {
+  padding-left: 0;
+}
+[${NAV_MARKER_ATTR}] {
+  grid-column: 1;
+  padding-right: 0.5em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+[${NAV_LABEL_ATTR}] {
+  grid-column: 2 / -2;
+  min-width: 0;
+}
+${LINK} > [${NAV_COUNT_ATTR}] {
+  grid-column: -2 / -1;
+  justify-self: end;
+  padding-left: 0.5rem;
+}
+@supports not (grid-template-columns: subgrid) {
+  ${LINK} {
+    display: flex;
+    align-items: baseline;
+  }
+  [${NAV_LABEL_ATTR}] {
+    flex: 1;
+  }
+}
+`;
+
 export function initChecklistNav(root: ParentNode = document): void {
   const nav = root.querySelector<HTMLElement>(NAV_SELECTOR);
   const content = root.querySelector<HTMLElement>(RICH_TEXT_SELECTOR);
@@ -93,15 +174,33 @@ export function initChecklistNav(root: ParentNode = document): void {
   }
 
   const takenIds = collectIds(root);
-  const links = headings.map((heading) => {
+  const list = createList();
+  let parentEntry: HTMLLIElement | null = null;
+
+  headings.forEach((heading) => {
     const link = template.cloneNode(false) as HTMLAnchorElement;
     link.setAttribute('href', `#${assignId(heading, takenIds)}`);
-    link.textContent = cleanText(heading.textContent);
+    link.append(...renderLinkText(cleanText(heading.textContent)));
     applyHeadingLevel(link, heading);
-    return link;
+
+    const entry = document.createElement('li');
+    entry.append(link);
+
+    if (heading.tagName.toLowerCase() === 'h3' && parentEntry) {
+      let children = parentEntry.querySelector<HTMLOListElement>(`:scope > ${LIST}`);
+      if (!children) {
+        children = createList();
+        parentEntry.append(children);
+      }
+      children.append(entry);
+      return;
+    }
+
+    list.append(entry);
+    parentEntry = heading.tagName.toLowerCase() === 'h2' ? entry : null;
   });
 
-  nav.replaceChildren(...links);
+  nav.replaceChildren(list);
   // Opts out of the site-wide hover-only scrollbar; set the attribute in the
   // Designer to override.
   if (!nav.hasAttribute(SCROLLBAR_ATTR)) {
@@ -117,8 +216,37 @@ function ensureScrollbarStyles(): void {
 
   const style = document.createElement('style');
   style.id = SCROLLBAR_STYLE_ID;
-  style.textContent = SCROLLBAR_CSS;
+  style.textContent = SCROLLBAR_CSS + LIST_CSS;
   document.head.appendChild(style);
+}
+
+/** Safari drops list semantics from `list-style: none` lists without a role. */
+function createList(): HTMLOListElement {
+  const list = document.createElement('ol');
+  list.setAttribute(NAV_LIST_ATTR, '');
+  list.setAttribute('role', 'list');
+  return list;
+}
+
+/**
+ * Splits "4.1. Static pages" into a number and a title. The title's leading
+ * space keeps the link's accessible name and text reading "4.1. Static pages".
+ */
+function renderLinkText(text: string): Node[] {
+  const label = document.createElement('span');
+  label.setAttribute(NAV_LABEL_ATTR, '');
+
+  const match = HEADING_NUMBER_PATTERN.exec(text);
+  if (!match) {
+    label.textContent = text;
+    return [label];
+  }
+
+  const marker = document.createElement('span');
+  marker.setAttribute(NAV_MARKER_ATTR, '');
+  marker.textContent = match[1];
+  label.textContent = ` ${match[2]}`;
+  return [marker, label];
 }
 
 export function slugifyHeading(text: string): string {
@@ -133,8 +261,8 @@ export function slugifyHeading(text: string): string {
 }
 
 /**
- * Child (`h3`) links pick up a Designer-owned combo class so indent stays
- * editable in Webflow. `h2` links keep the flat template classes only.
+ * Child (`h3`) links keep the Designer-owned combo class for any other styling
+ * set on it; its indent is handled by the nested list instead.
  */
 function applyHeadingLevel(link: HTMLAnchorElement, heading: HTMLElement): void {
   link.classList.remove(NAV_CHILD_CLASS);

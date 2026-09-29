@@ -14,10 +14,10 @@
  */
 
 import { type ChecklistItem, cleanText, ITEM_SELECTOR } from './items.js';
-import { HEADING_SELECTOR, NAV_SELECTOR, RICH_TEXT_SELECTOR } from './nav.js';
+import { HEADING_SELECTOR, NAV_COUNT_ATTR, NAV_SELECTOR, RICH_TEXT_SELECTOR } from './nav.js';
 
+export { NAV_COUNT_ATTR };
 export const SECTION_STATUS_ATTR = 'data-checklist-section-status';
-export const NAV_COUNT_ATTR = 'data-checklist-nav-count';
 
 const NAV_COUNT_STYLE_ID = 'wfu-checklist-nav-count';
 /** Matches the Designer's placeholder text, e.g. "0/9 checked". */
@@ -25,16 +25,9 @@ const STATUS_TEXT_PATTERN = /^\d+\s*\/\s*\d+\s+checked$/i;
 /** How far up from a heading to look for its status before giving up. */
 const STATUS_SEARCH_DEPTH = 3;
 
+/** Placement lives with the nav's list grid in `nav.ts`. */
 const NAV_COUNT_CSS = `
-[data-checklist-nav-item]:has(> [${NAV_COUNT_ATTR}]) {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
 [${NAV_COUNT_ATTR}] {
-  flex: none;
-  margin-left: auto;
   color: var(--theme--t_text-primary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
