@@ -102,7 +102,7 @@ ${S}::-webkit-scrollbar-thumb:active {
   background: none;
   font: inherit;
   vertical-align: middle;
-  color: inherit;
+  color: var(--theme--t_text-secondary);
   cursor: pointer;
   opacity: 0;
   transition: opacity 150ms ease, color 150ms ease;
@@ -115,7 +115,7 @@ ${S}::-webkit-scrollbar-thumb:active {
 }
 :is(h2, h3):hover > .${T},
 .${T}[${z}] {
-  opacity: 0.6;
+  opacity: 1;
 }
 .${T}:hover,
 .${T}:focus-visible {
@@ -124,7 +124,7 @@ ${S}::-webkit-scrollbar-thumb:active {
 }
 @media (hover: none) {
   .${T} {
-    opacity: 0.6;
+    opacity: 1;
   }
 }
 `;function Xe(e=document){let t=e.querySelector(F);if(!t)return;let n=Array.from(t.querySelectorAll(A)).filter(r=>w(r.textContent)&&!r.querySelector(`[${Qe}]`));if(!n.length)return;xn();let o=fe(e);n.forEach(r=>{r.append(_n(pe(r,o),e))})}function kn(e){return`${window.location.origin}${window.location.pathname}#${e}`}function _n(e,t){let n=document.createElement("button");return n.type="button",n.className=T,n.setAttribute(Qe,e),n.setAttribute("aria-label",Ge),n.setAttribute("title",Ge),n.append(Ye("link",t),Ye("check",t)),D(n),n.addEventListener("click",()=>{Mn(n,e)}),n}async function Mn(e,t){try{await navigator.clipboard.writeText(kn(t)),v(e,"Link copied"),G(e)}catch{v(e,"Press Ctrl+C to copy")}}function Ye(e,t){let n=document.createElement("span");n.setAttribute("data-checklist-icon",e);let o=t.querySelector(`${Ln} [data-checklist-icon="${e}"] svg`);return o?n.append(o.cloneNode(!0)):n.innerHTML=Tn[e],n}function xn(){if(document.getElementById(je))return;let e=document.createElement("style");e.id=je,e.textContent=Cn,document.head.appendChild(e)}var Je="data-checklist-section-status",Y="data-checklist-nav-count",Ze="wfu-checklist-nav-count",An=/^\d+\s*\/\s*\d+\s+checked$/i,Hn=3,In=`

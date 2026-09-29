@@ -45,7 +45,7 @@ const HEADING_LINK_CSS = `
   background: none;
   font: inherit;
   vertical-align: middle;
-  color: inherit;
+  color: var(--theme--t_text-secondary);
   cursor: pointer;
   opacity: 0;
   transition: opacity 150ms ease, color 150ms ease;
@@ -58,7 +58,7 @@ const HEADING_LINK_CSS = `
 }
 :is(h2, h3):hover > .${HEADING_LINK_CLASS},
 .${HEADING_LINK_CLASS}[${COPY_HOLD_ATTR}] {
-  opacity: 0.6;
+  opacity: 1;
 }
 .${HEADING_LINK_CLASS}:hover,
 .${HEADING_LINK_CLASS}:focus-visible {
@@ -67,7 +67,7 @@ const HEADING_LINK_CSS = `
 }
 @media (hover: none) {
   .${HEADING_LINK_CLASS} {
-    opacity: 0.6;
+    opacity: 1;
   }
 }
 `;

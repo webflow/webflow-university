@@ -14,3 +14,4 @@ Polish checklist section counts and heading copy icons
 - The sidebar progress count reads `3 / 12` the same way.
 - The heading copy-link icon hovers to the primary text color instead of blue.
 - The heading copy-link button has no left margin.
+- The heading copy-link icon shows in the secondary text color (full opacity) when revealed, and the primary text color when hovered or focused.
