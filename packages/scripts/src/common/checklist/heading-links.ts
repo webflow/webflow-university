@@ -38,7 +38,7 @@ const HEADING_LINK_CSS = `
   justify-content: center;
   width: 1em;
   height: 1em;
-  margin: 0 0 0 0.3em;
+  margin: 0;
   padding: 0;
   border: 0;
   border-radius: 0.15em;

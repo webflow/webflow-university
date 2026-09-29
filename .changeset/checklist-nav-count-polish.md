@@ -13,3 +13,4 @@ Polish checklist section counts and heading copy icons
   centered on the heading text. The clickable area stays 1em.
 - The sidebar progress count reads `3 / 12` the same way.
 - The heading copy-link icon hovers to the primary text color instead of blue.
+- The heading copy-link button has no left margin.
