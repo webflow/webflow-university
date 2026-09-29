@@ -11,3 +11,4 @@ Polish checklist section counts and heading copy icons
   count, and its `h3` links show none.
 - The heading copy-link icon is half the heading's font size and vertically
   centered on the heading text. The clickable area stays 1em.
+- The sidebar progress count reads `3 / 12` the same way.

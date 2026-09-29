@@ -99,11 +99,11 @@ describe('initChecklist', () => {
     setupPage(4);
     initChecklist();
 
-    expect(percentText()).toBe('0/4');
+    expect(percentText()).toBe('0\u00A0/\u00A04');
 
     checkboxes()[0].click();
 
-    expect(percentText()).toBe('1/4');
+    expect(percentText()).toBe('1\u00A0/\u00A04');
     expect(progressBar().style.width).toBe('25%');
   });
 
@@ -139,7 +139,7 @@ describe('initChecklist', () => {
     initChecklist();
 
     expect(checkboxes()[2].checked).toBe(true);
-    expect(percentText()).toBe('1/4');
+    expect(percentText()).toBe('1\u00A0/\u00A04');
   });
 
   it('lets a shared URL win over locally saved progress', () => {
@@ -150,7 +150,7 @@ describe('initChecklist', () => {
     initChecklist();
 
     expect(checkboxes().map((c) => c.checked)).toEqual([false, false, true, true]);
-    expect(percentText()).toBe('2/4');
+    expect(percentText()).toBe('2\u00A0/\u00A04');
   });
 
   it('copies a shareable link carrying the checked tasks', async () => {
@@ -252,7 +252,7 @@ describe('initChecklist', () => {
     click('[data-checklist-clear]');
 
     expect(checkboxes().every((c) => !c.checked)).toBe(true);
-    expect(percentText()).toBe('0/4');
+    expect(percentText()).toBe('0\u00A0/\u00A04');
     expect(window.location.search).toBe('');
     expect(window.localStorage.getItem('wfu-checklist:/resources/seo-checklist')).toBeNull();
   });
