@@ -95,6 +95,12 @@ const LINK = `${LIST} > li > a`;
  * Nesting now does the indenting, so the Designer's child-link left padding is
  * cancelled here; the doubled class outranks
  * `.cc_course_link.cc_checklist_nav-link.cc_checklist_nav-link--child`.
+ *
+ * Each link is the only child of its `li`, so the Designer's
+ * `.cc_course_link.cc_checklist_nav-link:last-child` bottom margin (meant for
+ * the end of the old flat list) would land on every row. It is cancelled on
+ * the links, which the doubled item attribute outranks, and moved to the end of the
+ * top-level list.
  */
 const LIST_CSS = `
 ${LIST} {
@@ -125,6 +131,12 @@ ${LINK} {
 }
 ${LIST} .${NAV_CHILD_CLASS}.${NAV_CHILD_CLASS} {
   padding-left: 0;
+}
+${LIST} > li > ${NAV_ITEM_SELECTOR}${NAV_ITEM_SELECTOR} {
+  margin-bottom: 0;
+}
+${NAV_SELECTOR} > ${LIST} {
+  padding-bottom: 1rem;
 }
 [${NAV_MARKER_ATTR}] {
   grid-column: 1;

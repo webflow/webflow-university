@@ -213,6 +213,19 @@ describe('initChecklistNav', () => {
     expect(css).toContain(`.${NAV_CHILD_CLASS}.${NAV_CHILD_CLASS}`);
   });
 
+  it("cancels the Designer's last-child link margin and spaces the list end instead", () => {
+    document.body.innerHTML = page(group('Development'));
+    initChecklistNav();
+
+    const css = document.getElementById('wfu-checklist-nav-scrollbar')!.textContent!;
+    expect(css).toMatch(
+      /\[data-checklist-nav-list\] > li > \[data-checklist-nav-item\]\[data-checklist-nav-item\] \{\s*margin-bottom: 0;/
+    );
+    expect(css).toMatch(
+      /\[data-checklist-nav\] > \[data-checklist-nav-list\] \{\s*padding-bottom: 1rem;/
+    );
+  });
+
   it('assigns the matching id to each heading', () => {
     document.body.innerHTML = page(group('Technical foundations'));
 
