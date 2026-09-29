@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+  # Manual re-run from the Actions tab, e.g. when a push event is dropped
+  workflow_dispatch:
 
 jobs:
   release:
