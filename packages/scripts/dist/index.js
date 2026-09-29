@@ -102,7 +102,7 @@ ${S}::-webkit-scrollbar-thumb:active {
   background: none;
   font: inherit;
   vertical-align: middle;
-  color: var(--theme--t_text-secondary);
+  color: var(--theme--t_icon-tertiary);
   cursor: pointer;
   opacity: 0;
   transition: opacity 150ms ease, color 150ms ease;
@@ -120,7 +120,7 @@ ${S}::-webkit-scrollbar-thumb:active {
 .${T}:hover,
 .${T}:focus-visible {
   opacity: 1;
-  color: var(--theme--t_text-primary);
+  color: var(--theme--t_icon-primary);
 }
 @media (hover: none) {
   .${T} {

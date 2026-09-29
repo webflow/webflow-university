@@ -45,7 +45,7 @@ const HEADING_LINK_CSS = `
   background: none;
   font: inherit;
   vertical-align: middle;
-  color: var(--theme--t_text-secondary);
+  color: var(--theme--t_icon-tertiary);
   cursor: pointer;
   opacity: 0;
   transition: opacity 150ms ease, color 150ms ease;
@@ -63,7 +63,7 @@ const HEADING_LINK_CSS = `
 .${HEADING_LINK_CLASS}:hover,
 .${HEADING_LINK_CLASS}:focus-visible {
   opacity: 1;
-  color: var(--theme--t_text-primary);
+  color: var(--theme--t_icon-primary);
 }
 @media (hover: none) {
   .${HEADING_LINK_CLASS} {
