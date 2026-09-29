@@ -63,7 +63,7 @@ const HEADING_LINK_CSS = `
 .${HEADING_LINK_CLASS}:hover,
 .${HEADING_LINK_CLASS}:focus-visible {
   opacity: 1;
-  color: var(--swatches--blue, #146ef5);
+  color: var(--theme--t_text-primary);
 }
 @media (hover: none) {
   .${HEADING_LINK_CLASS} {

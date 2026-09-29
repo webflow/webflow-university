@@ -120,7 +120,7 @@ ${S}::-webkit-scrollbar-thumb:active {
 .${T}:hover,
 .${T}:focus-visible {
   opacity: 1;
-  color: var(--swatches--blue, #146ef5);
+  color: var(--theme--t_text-primary);
 }
 @media (hover: none) {
   .${T} {
