@@ -317,4 +317,62 @@ describe('initChecklist', () => {
 
     expect(button.getAttribute('aria-label')).toBe('Clear checklist');
   });
+
+  describe('Analyze custom goals', () => {
+    function mockWf(): { ready: ReturnType<typeof vi.fn>; sendEvent: ReturnType<typeof vi.fn> } {
+      const sendEvent = vi.fn();
+      const ready = vi.fn((callback: () => void) => callback());
+      window.wf = { ready, sendEvent };
+      return { ready, sendEvent };
+    }
+
+    afterEach(() => {
+      delete window.wf;
+    });
+
+    it('fires checklist_checkbox_toggle when a task is checked or unchecked', () => {
+      setupPage(2);
+      const { sendEvent } = mockWf();
+      initChecklist();
+
+      checkboxes()[0].click();
+      checkboxes()[0].click();
+
+      expect(sendEvent).toHaveBeenCalledWith('checklist_checkbox_toggle');
+      expect(sendEvent).toHaveBeenCalledTimes(2);
+    });
+
+    it('fires checklist_click_copy_link when the share link is copied', () => {
+      setupPage(2);
+      const { sendEvent } = mockWf();
+      initChecklist();
+
+      click('[data-checklist-copy-url]');
+
+      expect(sendEvent).toHaveBeenCalledWith('checklist_click_copy_link');
+    });
+
+    it('fires checklist_click_clear when progress is cleared', () => {
+      setupPage(2);
+      const { sendEvent } = mockWf();
+      initChecklist();
+
+      click('[data-checklist-clear]');
+
+      expect(sendEvent).toHaveBeenCalledWith('checklist_click_clear');
+      // Clearing sets .checked without firing change, so no toggle events.
+      expect(sendEvent).not.toHaveBeenCalledWith('checklist_checkbox_toggle');
+    });
+
+    it('does not throw when the Analyze Browser API is absent', () => {
+      setupPage(2);
+      initChecklist();
+
+      expect(() => {
+        checkboxes()[0].click();
+        click('[data-checklist-copy-url]');
+        click('[data-checklist-clear]');
+      }).not.toThrow();
+    });
+  });
 });

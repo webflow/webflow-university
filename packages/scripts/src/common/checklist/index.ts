@@ -59,16 +59,19 @@ export function initChecklist(): void {
 
   items.forEach((item) => {
     item.checkbox.addEventListener('change', () => {
+      trackAnalyzeEvent('checklist_checkbox_toggle');
       persist(items, storageKey);
       renderProgress(items, sections);
     });
   });
 
   bindClick(COPY_URL_SELECTOR, (button) => {
+    trackAnalyzeEvent('checklist_click_copy_link');
     void copyShareUrl(items, button);
   });
 
   bindClick(CLEAR_SELECTOR, (button) => {
+    trackAnalyzeEvent('checklist_click_clear');
     clearProgress(items, sections, storageKey);
     setFeedback(button, 'Checklist cleared');
   });
@@ -191,5 +194,20 @@ function bindClick(selector: string, handler: (button: HTMLElement) => void): vo
       event.preventDefault();
       handler(button);
     });
+  });
+}
+
+/**
+ * Fire a Webflow Analyze custom goal. No-ops when the Browser API isn't on
+ * the page (local/tests, or Analyze not enabled).
+ */
+function trackAnalyzeEvent(eventName: string): void {
+  const { wf } = window;
+  if (!wf?.ready || !wf.sendEvent) {
+    return;
+  }
+
+  wf.ready(() => {
+    wf.sendEvent(eventName);
   });
 }
