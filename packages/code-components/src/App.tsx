@@ -6,6 +6,7 @@ import CalendarPage from './pages/CalendarPage';
 import AutoplayTabsPage from './pages/AutoplayTabsPage';
 import ProSpherePage from './pages/ProSpherePage';
 import ConcentricShapePage from './pages/ConcentricShapePage';
+import RetroComputerPage from './pages/RetroComputerPage';
 import StampSVGPage from './pages/StampSVGPage';
 import StampSVGBatchExportPage from './pages/StampSVGBatchExportPage';
 import CalendarCMSFromFlatlist from './components/CalendarCMS/CalendarCMSFromFlatlist';
@@ -126,6 +127,7 @@ function Navigation() {
     { to: '/autoplay-tabs', label: 'Autoplay Tabs' },
     { to: '/prosphere', label: 'ProSphere' },
     { to: '/concentric-shape', label: 'ConcentricShape' },
+    { to: '/retro-computer', label: 'RetroComputer' },
     { to: '/stamp-svg', label: 'StampSVG' },
   ];
 
@@ -205,6 +207,7 @@ function App() {
           <Route path="/autoplay-tabs" element={<AutoplayTabsPage />} />
           <Route path="/prosphere" element={<ProSpherePage />} />
           <Route path="/concentric-shape" element={<ConcentricShapePage />} />
+          <Route path="/retro-computer" element={<RetroComputerPage />} />
           <Route path="/stamp-svg" element={<StampSVGPage />} />
           <Route path="/stamp-svg-batch-export" element={<StampSVGBatchExportPage />} />
         </Routes>
