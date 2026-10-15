@@ -20,6 +20,7 @@ import {
 import { getScreenState, isPublishRunning, type ScreenState } from './publishSequence';
 import modelBase64 from './retroComputerModel';
 import { CURSOR_BLINK_MS, ScreenRenderer } from './screenRenderer';
+import { DEFAULT_MAX_PIXEL_RATIO } from './settings';
 
 export interface RetroComputerProps {
   showCords?: boolean;
@@ -36,6 +37,8 @@ export interface RetroComputerProps {
   onCameraChange?: (camera: RetroComputerCamera) => void;
   onEnterPress?: () => void;
   preserveDrawingBuffer?: boolean;
+  /** Caps the device pixel ratio (1–2). Lower is cheaper on high-density screens. */
+  maxPixelRatio?: number;
 }
 
 const CORD_NODES = ['Cord_Keyboard', 'Cord_Mouse'];
@@ -85,6 +88,20 @@ function isVisible(object: THREE.Object3D | null) {
 }
 
 const round = (value: number) => Math.round(value * 100) / 100;
+
+function useOnScreen(ref: React.RefObject<HTMLElement | null>) {
+  const [onScreen, setOnScreen] = useState(true);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(([entry]) => setOnScreen(entry.isIntersecting));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ref]);
+
+  return onScreen;
+}
 
 function useRetroComputerScene() {
   const [model, setModel] = useState<LoadedModel | null>(null);
@@ -210,6 +227,7 @@ function Model({
   showDesk,
   screen,
   reducedMotion,
+  active,
   onEnterPress,
   onEnterHover,
   onPublished,
@@ -219,12 +237,16 @@ function Model({
   showDesk: boolean;
   screen: ScreenRenderer;
   reducedMotion: boolean;
+  /** False while scrolled out of view: skip all redraws. */
+  active: boolean;
   onEnterPress: () => void;
   onEnterHover: (hovered: boolean) => void;
   onPublished: () => void;
 }) {
-  const { scene, enterKey, frame } = model;
+  const { scene, enterKey, frame, animatedSwatches } = model;
   const invalidate = useThree((state) => state.invalidate);
+  const swatchClockStart = useRef(performance.now());
+  const swatchClockRunning = animatedSwatches && !reducedMotion;
   const pressStart = useRef<number | null>(null);
   const publishStartedAt = useRef<number | null>(null);
   const screenState = useRef<ScreenState>({ phase: 'idle' });
@@ -267,20 +289,35 @@ function Model({
       const state = getScreenState(publishStartedAt.current, now, reducedMotion);
       screenState.current = state;
       if (state.phase === 'published' && isPublishRunning(previous)) onPublishedRef.current();
-      screen.render(state, now, reducedMotion);
-      invalidate();
-      const delay = isPublishRunning(state)
-        ? SCREEN_FRAME_MS
-        : CURSOR_BLINK_MS - (now % CURSOR_BLINK_MS);
+      const running = isPublishRunning(state);
+      if (active) {
+        screen.render(state, now, reducedMotion);
+        if (!swatchClockRunning) invalidate();
+      }
+      // Offscreen, keep ticking only so the After Publish Link still fires on time.
+      if (!active && !running) return;
+      const delay = running ? SCREEN_FRAME_MS : CURSOR_BLINK_MS - (now % CURSOR_BLINK_MS);
       timer = window.setTimeout(tick, delay);
     };
     refreshScreen.current = tick;
     tick();
     return () => window.clearTimeout(timer);
-  }, [screen, reducedMotion, invalidate]);
+  }, [screen, reducedMotion, active, swatchClockRunning, invalidate]);
 
-  useFrame(({ clock }) => {
-    if (!reducedMotion) frame.value = clock.elapsedTime * PIXPAL_FPS;
+  // Blender drives the animated swatches with the integer frame number, so 24 renders a second
+  // reproduce them exactly. These renders also pick up screen texture changes.
+  useEffect(() => {
+    if (!swatchClockRunning || !active) return;
+    const timer = window.setInterval(() => {
+      frame.value = Math.floor(
+        ((performance.now() - swatchClockStart.current) / 1000) * PIXPAL_FPS
+      );
+      invalidate();
+    }, 1000 / PIXPAL_FPS);
+    return () => window.clearInterval(timer);
+  }, [swatchClockRunning, active, frame, invalidate]);
+
+  useFrame(() => {
     if (!enterKey || pressStart.current === null) return;
     const progress = Math.min((performance.now() - pressStart.current) / PRESS_DURATION_MS, 1);
     enterKey.position.y = -PRESS_DEPTH * Math.sin(progress * Math.PI);
@@ -332,8 +369,11 @@ export default function RetroComputer({
   onCameraChange,
   onEnterPress,
   preserveDrawingBuffer = false,
+  maxPixelRatio = DEFAULT_MAX_PIXEL_RATIO,
 }: RetroComputerProps) {
   const model = useRetroComputerScene();
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const onScreen = useOnScreen(wrapperRef);
   const { mode, interactive } = useWebflowContext();
   const [enterHovered, setEnterHovered] = useState(false);
 
@@ -358,10 +398,9 @@ export default function RetroComputer({
     }
   };
 
-  const animateSwatches = Boolean(model?.animatedSwatches) && !reducedMotion;
-
   return (
     <div
+      ref={wrapperRef}
       style={{
         width: '100%',
         aspectRatio: '4 / 3',
@@ -371,10 +410,12 @@ export default function RetroComputer({
     >
       <Canvas
         flat
-        frameloop={animateSwatches ? 'always' : 'demand'}
-        dpr={[1, 2]}
+        frameloop={onScreen ? 'demand' : 'never'}
+        dpr={[1, Math.min(Math.max(maxPixelRatio, 1), 2)]}
         camera={{ position: cameraPosition, fov: cameraFov }}
-        gl={{ alpha: true, antialias: true, preserveDrawingBuffer }}
+        // The EffectComposer renders into its own multisampled targets with depth, so the
+        // default framebuffer only receives the final full-screen pass.
+        gl={{ alpha: true, antialias: false, depth: false, stencil: false, preserveDrawingBuffer }}
         style={{ background: 'transparent' }}
       >
         <CameraRig
@@ -396,6 +437,7 @@ export default function RetroComputer({
             showDesk={showDesk}
             screen={screen}
             reducedMotion={reducedMotion}
+            active={onScreen}
             onEnterPress={() => onEnterPress?.()}
             onEnterHover={setEnterHovered}
             onPublished={handlePublished}
