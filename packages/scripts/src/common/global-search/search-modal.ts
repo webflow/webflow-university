@@ -560,7 +560,7 @@ export function initSearchModal(): void {
 
     return Boolean(
       document.body.classList.contains('st-ui-overlay-active') ||
-        container.closest('div.st-ui-overlay:not(.dismiss)')
+      container.closest('div.st-ui-overlay:not(.dismiss)')
     );
   }
 
