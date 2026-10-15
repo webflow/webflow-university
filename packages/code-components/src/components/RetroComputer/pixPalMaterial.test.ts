@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { usesAnimatedSwatch } from './pixPalMaterial';
+import { isLitTexel, usesAnimatedSwatch } from './pixPalMaterial';
 
 // 2 x 2 RGBA texture: only the bottom-right texel has its animation mask (blue) set.
 const PIXELS = [0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 255, 255];
@@ -16,5 +16,20 @@ describe('usesAnimatedSwatch', () => {
 
   it('clamps UVs on the texture edge', () => {
     expect(usesAnimatedSwatch([1, 1], PIXELS, 2, 2)).toBe(true);
+  });
+});
+
+// 2 x 1 RGBA emission texture: a near-black texel and a red one.
+const EMISSION = [10, 10, 10, 255, 200, 0, 0, 255];
+
+describe('isLitTexel', () => {
+  it('ignores near-black texels and detects lit ones', () => {
+    expect(isLitTexel(0.25, 0.5, EMISSION, 2, 1)).toBe(false);
+    expect(isLitTexel(0.75, 0.5, EMISSION, 2, 1)).toBe(true);
+  });
+
+  it('clamps UVs on the texture edge', () => {
+    expect(isLitTexel(1, 1, EMISSION, 2, 1)).toBe(true);
+    expect(isLitTexel(-0.1, 0, EMISSION, 2, 1)).toBe(false);
   });
 });

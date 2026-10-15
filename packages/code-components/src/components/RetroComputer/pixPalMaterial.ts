@@ -46,23 +46,56 @@ export function usesAnimatedSwatch(
   return false;
 }
 
-export function sceneUsesAnimatedSwatches(scene: THREE.Object3D, attributes: THREE.Texture) {
-  const image = attributes.image as HTMLImageElement;
+function readPixels(texture: THREE.Texture): ImageData | null {
+  const image = texture.image as (CanvasImageSource & { width: number; height: number }) | null;
+  if (!image) return null;
   const canvas = document.createElement('canvas');
   canvas.width = image.width;
   canvas.height = image.height;
   const context = canvas.getContext('2d', { willReadFrequently: true });
-  if (!context) return false;
+  if (!context) return null;
   context.drawImage(image, 0, 0);
-  const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+  return context.getImageData(0, 0, canvas.width, canvas.height);
+}
+
+export function sceneUsesAnimatedSwatches(scene: THREE.Object3D, attributes: THREE.Texture) {
+  const pixels = readPixels(attributes);
+  if (!pixels) return false;
 
   let animated = false;
   scene.traverse((object) => {
     if (animated || !(object instanceof THREE.Mesh)) return;
     const uv = object.geometry.getAttribute('uv');
-    if (uv) animated = usesAnimatedSwatch(uv.array, data, canvas.width, canvas.height);
+    if (uv) animated = usesAnimatedSwatch(uv.array, pixels.data, pixels.width, pixels.height);
   });
   return animated;
+}
+
+/** True if the texel at (u, v) lights up, i.e. any channel is above a near-black threshold. */
+export function isLitTexel(
+  u: number,
+  v: number,
+  pixels: ArrayLike<number>,
+  width: number,
+  height: number
+) {
+  const x = Math.min(width - 1, Math.max(0, Math.floor(u * width)));
+  const y = Math.min(height - 1, Math.max(0, Math.floor(v * height)));
+  const i = (y * width + x) * 4;
+  return Math.max(pixels[i], pixels[i + 1], pixels[i + 2]) > 16;
+}
+
+/** A per-vertex test for "this vertex uses a glowing swatch", or null without an emissive map. */
+export function createEmissiveTest(mesh: THREE.Mesh) {
+  const material = mesh.material;
+  const uv = mesh.geometry.getAttribute('uv');
+  if (!(material instanceof THREE.MeshStandardMaterial) || !material.emissiveMap || !uv) {
+    return null;
+  }
+  const pixels = readPixels(material.emissiveMap);
+  if (!pixels) return null;
+  return (vertex: number) =>
+    isLitTexel(uv.getX(vertex), uv.getY(vertex), pixels.data, pixels.width, pixels.height);
 }
 
 const FRAGMENT_UNIFORMS = /* glsl */ `

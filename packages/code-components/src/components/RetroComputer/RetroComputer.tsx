@@ -1,25 +1,57 @@
 import { ContactShadows, OrbitControls } from '@react-three/drei';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { Bloom, EffectComposer, ToneMapping } from '@react-three/postprocessing';
+import { useWebflowContext } from '@webflow/react';
 import { ToneMappingMode } from 'postprocessing';
-import { type ComponentRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  type ComponentRef,
+  type CSSProperties,
+  type RefObject,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import { DEFAULT_CAMERA, type RetroComputerCamera, type Vector3Tuple } from './camera';
 import { parseColorList } from './celebration';
+import {
+  createCompactDisc,
+  createDiscEnvironment,
+  createDiscTexture,
+  type DiscMotion,
+  discDroop,
+  discExtension,
+  discSpin,
+  discZ,
+} from './compactDisc';
 import { applyCrtSettings, createCrtScreenMaterial } from './crtScreenMaterial';
 import { splitEnterKey } from './enterKey';
+import { splitTriangles } from './meshParts';
 import {
+  createEmissiveTest,
   loadPixPalAttributes,
   PIXPAL_FPS,
   preparePixPalMaterial,
   sceneUsesAnimatedSwatches,
 } from './pixPalMaterial';
+import { getPowerState, isPowerCycling, lightLevel } from './powerSequence';
 import { getScreenState, isPublishRunning, type ScreenState } from './publishSequence';
 import modelBase64 from './retroComputerModel';
 import { createCurvedScreenGeometry, MAX_SCREEN_BULGE } from './screenGeometry';
 import { CURSOR_BLINK_MS, ScreenRenderer } from './screenRenderer';
+import {
+  DRIVE_BAYS,
+  EJECT_PRESS_DEPTH,
+  POWER_PRESS_DEPTH,
+  splitTowerButtons,
+  type TowerButtons,
+} from './towerParts';
+import { useSnakeGame } from './useSnakeGame';
 import {
   backgroundCss,
   type CrtSettings,
@@ -57,17 +89,79 @@ export interface RetroComputerProps
 const CORD_NODES = ['Cord_Keyboard', 'Cord_Mouse'];
 const DESK_NODE = 'Desk';
 const KEYBOARD_NODE = 'Keyboard';
+const MONITOR_NODE = 'Monitor';
 const SCREEN_NODE = 'Screen';
+const TOWER_NODE = 'Tower';
 
-const PRESS_DEPTH = 0.12;
+const ENTER_PRESS_DEPTH = 0.12;
 const PRESS_DURATION_MS = 220;
 const SCREEN_FRAME_MS = 50;
 
-interface LoadedModel {
+/** Only live pages get keyboard controls, so the Designer and Editor keep their own shortcuts. */
+const KEYBOARD_MODES = new Set(['publish', 'preview', 'component-preview']);
+
+const VISUALLY_HIDDEN: CSSProperties = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  margin: -1,
+  padding: 0,
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+  border: 0,
+};
+
+interface ModelLights {
+  /** Shared by every glowing triangle on the tower and monitor, so one uniform dims them all. */
+  material: THREE.MeshStandardMaterial;
+  intensity: number;
+}
+
+interface LoadedModel extends TowerButtons {
   scene: THREE.Group;
   enterKey: THREE.Mesh | null;
+  /** One per entry in `DRIVE_BAYS`, parented to the tower. */
+  discs: THREE.Mesh[];
+  lights: ModelLights | null;
   animatedSwatches: boolean;
   frame: { value: number };
+}
+
+/** Moves the glowing parts of `meshes` (LEDs, logo) onto their own material so they can switch off. */
+function splitLights(
+  meshes: (THREE.Object3D | undefined)[],
+  attributes: THREE.Texture,
+  frame: { value: number }
+): ModelLights | null {
+  let material: THREE.MeshStandardMaterial | null = null;
+  for (const mesh of meshes) {
+    if (!(mesh instanceof THREE.Mesh) || !(mesh.material instanceof THREE.MeshStandardMaterial)) {
+      continue;
+    }
+    const lit = createEmissiveTest(mesh);
+    if (!lit) continue;
+    if (!material) {
+      material = mesh.material.clone();
+      preparePixPalMaterial(material, attributes, frame);
+    }
+    splitTriangles(mesh, `${mesh.name}Lights`, lit, material);
+  }
+  return material && { material, intensity: material.emissiveIntensity };
+}
+
+function addDiscs(tower: THREE.Mesh) {
+  const environment = createDiscEnvironment();
+  const face = createDiscTexture();
+  return DRIVE_BAYS.map(({ slot }) => {
+    const disc = createCompactDisc();
+    const material = disc.material as THREE.MeshStandardMaterial;
+    material.envMap = environment;
+    material.map = face;
+    disc.position.set(slot[0], slot[1], discZ(slot[2], 0));
+    tower.add(disc);
+    return disc;
+  });
 }
 
 function decodeBase64(base64: string): ArrayBuffer {
@@ -149,8 +243,28 @@ function useRetroComputerScene() {
         });
         const keyboard = gltf.scene.getObjectByName(KEYBOARD_NODE);
         const enterKey = keyboard instanceof THREE.Mesh ? splitEnterKey(keyboard) : null;
+        // Before the discs go in: their UVs don't point into the PixPal palette.
         const animatedSwatches = sceneUsesAnimatedSwatches(gltf.scene, attributes);
-        setModel({ scene: gltf.scene, enterKey, animatedSwatches, frame });
+        const tower = gltf.scene.getObjectByName(TOWER_NODE);
+        const buttons: TowerButtons =
+          tower instanceof THREE.Mesh
+            ? splitTowerButtons(tower)
+            : { powerButton: null, ejectButtons: [] };
+        const discs = tower instanceof THREE.Mesh ? addDiscs(tower) : [];
+        const lights = splitLights(
+          [tower, gltf.scene.getObjectByName(MONITOR_NODE)],
+          attributes,
+          frame
+        );
+        setModel({
+          scene: gltf.scene,
+          enterKey,
+          ...buttons,
+          discs,
+          lights,
+          animatedSwatches,
+          frame,
+        });
       })
       .catch((error) => console.error('RetroComputer: failed to load model', error));
 
@@ -249,8 +363,12 @@ function Model({
   reducedMotion,
   active,
   crt,
+  focused,
+  keyTarget,
+  keyboardEnabled,
   onEnterPress,
-  onEnterHover,
+  onHoverChange,
+  onAnnounce,
 }: {
   model: LoadedModel;
   showCords: boolean;
@@ -260,17 +378,37 @@ function Model({
   reducedMotion: boolean;
   /** False while scrolled out of view: skip all redraws. */
   active: boolean;
+  /** Whether the scene wrapper has keyboard focus. Snake pauses without it. */
+  focused: boolean;
+  keyTarget: RefObject<HTMLElement | null>;
+  keyboardEnabled: boolean;
   onEnterPress: () => void;
-  onEnterHover: (hovered: boolean) => void;
+  onHoverChange: (hovered: boolean) => void;
+  onAnnounce: (message: string) => void;
 }) {
-  const { scene, enterKey, frame, animatedSwatches } = model;
+  const { scene, enterKey, powerButton, ejectButtons, discs, lights, frame, animatedSwatches } =
+    model;
   const invalidate = useThree((state) => state.invalidate);
   const swatchClockStart = useRef(performance.now());
   const swatchClockRunning = animatedSwatches && !reducedMotion;
-  const pressStart = useRef<number | null>(null);
+  const presses = useRef(
+    new Map<THREE.Object3D, { startedAt: number; axis: 'y' | 'z'; depth: number }>()
+  );
   const publishStartedAt = useRef<number | null>(null);
+  const powerPressedAt = useRef<number | null>(null);
   const screenState = useRef<ScreenState>({ phase: 'idle' });
   const refreshScreen = useRef<() => void>(() => {});
+  const discMotions = useRef<(DiscMotion | null)[]>([]);
+  const discExtensions = useRef<number[]>([]);
+
+  const { game: snakeGame, quit: quitSnake } = useSnakeGame({
+    keyTarget,
+    enabled: keyboardEnabled,
+    running: focused && active,
+    canStart: () => powerPressedAt.current === null && !isPublishRunning(screenState.current),
+    onChange: () => refreshScreen.current(),
+    onAnnounce,
+  });
 
   useEffect(() => {
     for (const name of CORD_NODES) {
@@ -330,22 +468,29 @@ function Model({
     const tick = () => {
       window.clearTimeout(timer);
       const now = performance.now();
+      const power = getPowerState(powerPressedAt.current, now, reducedMotion);
+      if (!isPowerCycling(power)) powerPressedAt.current = null;
+      if (lights) lights.material.emissiveIntensity = lights.intensity * lightLevel(power);
       const state = getScreenState(publishStartedAt.current, now, reducedMotion);
       screenState.current = state;
       const running = isPublishRunning(state);
+      const animating = running || isPowerCycling(power);
       if (active) {
-        screen.render(state, now, reducedMotion);
+        const game = snakeGame.current;
+        if (isPowerCycling(power)) screen.renderPower(power, now, reducedMotion);
+        else if (game) screen.renderSnake(game, now, !focused, reducedMotion);
+        else screen.render(state, now, reducedMotion);
         if (!swatchClockRunning) invalidate();
       }
       // Offscreen, keep ticking only while a publish sequence is still in flight.
       if (!active && !running) return;
-      const delay = running ? SCREEN_FRAME_MS : CURSOR_BLINK_MS - (now % CURSOR_BLINK_MS);
+      const delay = animating ? SCREEN_FRAME_MS : CURSOR_BLINK_MS - (now % CURSOR_BLINK_MS);
       timer = window.setTimeout(tick, delay);
     };
     refreshScreen.current = tick;
     tick();
     return () => window.clearTimeout(timer);
-  }, [screen, reducedMotion, active, swatchClockRunning, invalidate]);
+  }, [screen, reducedMotion, active, focused, lights, snakeGame, swatchClockRunning, invalidate]);
 
   // Blender drives the animated swatches with the integer frame number, so 24 renders a second
   // reproduce them exactly. These renders also pick up screen texture changes.
@@ -361,37 +506,97 @@ function Model({
   }, [swatchClockRunning, active, frame, invalidate]);
 
   useFrame(() => {
-    if (!enterKey || pressStart.current === null) return;
-    const progress = Math.min((performance.now() - pressStart.current) / PRESS_DURATION_MS, 1);
-    enterKey.position.y = -PRESS_DEPTH * Math.sin(progress * Math.PI);
-    if (progress < 1) {
-      invalidate();
-    } else {
-      pressStart.current = null;
+    const now = performance.now();
+    let moving = false;
+    for (const [part, press] of presses.current) {
+      const progress = Math.min((now - press.startedAt) / PRESS_DURATION_MS, 1);
+      part.position[press.axis] = -press.depth * Math.sin(progress * Math.PI);
+      if (progress < 1) moving = true;
+      else presses.current.delete(part);
     }
+    discs.forEach((disc, index) => {
+      const motion = discMotions.current[index];
+      if (!motion) return;
+      const { extension, done } = discExtension(motion, now, reducedMotion);
+      discExtensions.current[index] = extension;
+      disc.position.z = discZ(DRIVE_BAYS[index].slot[2], extension);
+      disc.rotation.x = discDroop(extension);
+      disc.rotation.y = discSpin(extension);
+      disc.visible = !done || extension > 0;
+      if (done) discMotions.current[index] = null;
+      else moving = true;
+    });
+    if (moving) invalidate();
   });
 
-  const hitsEnterKey = (event: ThreeEvent<PointerEvent | MouseEvent>) =>
-    enterKey !== null &&
-    event.intersections.find((hit) => isVisible(hit.object))?.object === enterKey;
+  const press = (part: THREE.Object3D, axis: 'y' | 'z', depth: number) => {
+    presses.current.set(part, { startedAt: performance.now(), axis, depth });
+    invalidate();
+  };
+
+  const pressEnter = (key: THREE.Mesh) => {
+    press(key, 'y', ENTER_PRESS_DEPTH);
+    onEnterPress();
+    if (powerPressedAt.current !== null || isPublishRunning(screenState.current)) return;
+    quitSnake();
+    publishStartedAt.current = performance.now();
+    refreshScreen.current();
+  };
+
+  const pressPower = (button: THREE.Mesh) => {
+    press(button, 'z', POWER_PRESS_DEPTH);
+    if (powerPressedAt.current !== null) return;
+    quitSnake();
+    publishStartedAt.current = null;
+    powerPressedAt.current = performance.now();
+    onAnnounce('Restarting the computer.');
+    refreshScreen.current();
+  };
+
+  /** Ejects the disc in bay `index`, or loads it back in if it's out (or on its way out). */
+  const toggleDisc = (index: number) => {
+    if (powerPressedAt.current !== null) return;
+    const extension = discExtensions.current[index] ?? 0;
+    const heading = discMotions.current[index]?.to ?? (extension > 0.5 ? 1 : 0);
+    discMotions.current[index] = {
+      from: extension,
+      to: heading === 1 ? 0 : 1,
+      startedAt: performance.now(),
+    };
+    invalidate();
+  };
+
+  const hitPart = (event: ThreeEvent<PointerEvent | MouseEvent>) =>
+    event.intersections.find((hit) => isVisible(hit.object))?.object ?? null;
+
+  const isClickable = (part: THREE.Object3D | null) =>
+    part !== null &&
+    (part === enterKey ||
+      part === powerButton ||
+      ejectButtons.includes(part as THREE.Mesh) ||
+      discs.includes(part as THREE.Mesh));
 
   return (
     <primitive
       object={scene}
       onPointerMove={(event: ThreeEvent<PointerEvent>) => {
         event.stopPropagation();
-        onEnterHover(hitsEnterKey(event));
+        onHoverChange(isClickable(hitPart(event)));
       }}
-      onPointerOut={() => onEnterHover(false)}
+      onPointerOut={() => onHoverChange(false)}
       onClick={(event: ThreeEvent<MouseEvent>) => {
         event.stopPropagation();
-        if (!hitsEnterKey(event)) return;
-        pressStart.current = performance.now();
-        invalidate();
-        onEnterPress();
-        if (!isPublishRunning(screenState.current)) {
-          publishStartedAt.current = performance.now();
-          refreshScreen.current();
+        const part = hitPart(event);
+        if (!part) return;
+        if (part === enterKey) {
+          pressEnter(enterKey);
+        } else if (part === powerButton) {
+          pressPower(powerButton);
+        } else if (ejectButtons.includes(part as THREE.Mesh)) {
+          press(part, 'z', EJECT_PRESS_DEPTH);
+          toggleDisc(ejectButtons.indexOf(part as THREE.Mesh));
+        } else if (discs.includes(part as THREE.Mesh)) {
+          toggleDisc(discs.indexOf(part as THREE.Mesh));
         }
       }}
     />
@@ -420,7 +625,12 @@ export default function RetroComputer(props: RetroComputerProps) {
   const model = useRetroComputerScene();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const onScreen = useOnScreen(wrapperRef);
-  const [enterHovered, setEnterHovered] = useState(false);
+  const [partHovered, setPartHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [announcement, setAnnouncement] = useState('');
+  const hintId = useId();
+  const { mode, interactive } = useWebflowContext();
+  const keyboardEnabled = interactive && KEYBOARD_MODES.has(mode);
 
   const reducedMotion = useMemo(
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -436,11 +646,20 @@ export default function RetroComputer(props: RetroComputerProps) {
   return (
     <div
       ref={wrapperRef}
+      // A single tab stop: no focus trap, Tab moves on as usual, and keys only apply while focused.
+      tabIndex={keyboardEnabled ? 0 : undefined}
+      role={keyboardEnabled ? 'group' : undefined}
+      aria-label={keyboardEnabled ? 'Retro computer' : undefined}
+      aria-describedby={keyboardEnabled ? hintId : undefined}
+      aria-keyshortcuts={keyboardEnabled ? 'S' : undefined}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
       style={{
+        position: 'relative',
         width: '100%',
         aspectRatio: '4 / 3',
         background: backgroundCss(background),
-        cursor: enterHovered ? 'pointer' : editCamera ? 'grab' : 'default',
+        cursor: partHovered ? 'pointer' : editCamera ? 'grab' : 'default',
       }}
     >
       <Canvas
@@ -471,8 +690,12 @@ export default function RetroComputer(props: RetroComputerProps) {
             reducedMotion={reducedMotion}
             active={onScreen}
             crt={crt}
+            focused={focused}
+            keyTarget={wrapperRef}
+            keyboardEnabled={keyboardEnabled}
             onEnterPress={() => onEnterPress?.()}
-            onEnterHover={setEnterHovered}
+            onHoverChange={setPartHovered}
+            onAnnounce={setAnnouncement}
           />
         )}
 
@@ -498,6 +721,16 @@ export default function RetroComputer(props: RetroComputerProps) {
           <ToneMapping mode={ToneMappingMode.AGX} />
         </EffectComposer>
       </Canvas>
+      {keyboardEnabled && (
+        <>
+          <span id={hintId} style={VISUALLY_HIDDEN}>
+            Press S to play Snake. Arrow keys steer, Escape quits.
+          </span>
+          <span aria-live="polite" style={VISUALLY_HIDDEN}>
+            {announcement}
+          </span>
+        </>
+      )}
     </div>
   );
 }
