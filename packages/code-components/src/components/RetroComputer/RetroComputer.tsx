@@ -73,9 +73,7 @@ import {
 } from './settings';
 
 export interface RetroComputerProps
-  extends Partial<LightingSettings>,
-    Partial<BackgroundSettings>,
-    Partial<CrtSettings> {
+  extends Partial<LightingSettings>, Partial<BackgroundSettings>, Partial<CrtSettings> {
   showCords?: boolean;
   showDesk?: boolean;
   screenBackground?: string;
@@ -128,6 +126,8 @@ interface ModelLights {
 
 interface LoadedModel extends TowerButtons {
   scene: THREE.Group;
+  /** Clicking anywhere on it presses the Enter key. */
+  keyboard: THREE.Mesh | null;
   enterKey: THREE.Mesh | null;
   /** The keycap's animated swatch while powered, and a still blue for when the lights are out. */
   enterKeyMaterials: { lit: THREE.Material; still: THREE.Material } | null;
@@ -252,8 +252,9 @@ function useRetroComputerScene() {
             preparePixPalMaterial(material, attributes, frame);
           }
         });
-        const keyboard = gltf.scene.getObjectByName(KEYBOARD_NODE);
-        const enterKey = keyboard instanceof THREE.Mesh ? splitEnterKey(keyboard) : null;
+        const keyboardNode = gltf.scene.getObjectByName(KEYBOARD_NODE);
+        const keyboard = keyboardNode instanceof THREE.Mesh ? keyboardNode : null;
+        const enterKey = keyboard ? splitEnterKey(keyboard) : null;
         if (enterKey) stillEnterKey = createStillEnterKeyMaterial();
         const enterKeyMaterials =
           enterKey && stillEnterKey
@@ -274,6 +275,7 @@ function useRetroComputerScene() {
         );
         setModel({
           scene: gltf.scene,
+          keyboard,
           enterKey,
           enterKeyMaterials,
           ...buttons,
@@ -406,6 +408,7 @@ function Model({
 }) {
   const {
     scene,
+    keyboard,
     enterKey,
     enterKeyMaterials,
     powerButton,
@@ -599,7 +602,7 @@ function Model({
     };
   });
 
-  // Enter on the focused scene presses the keyboard's Enter key, exactly like clicking it.
+  // Enter on the focused scene presses the keyboard's Enter key, exactly like clicking the keyboard.
   useEffect(() => {
     const element = keyTarget.current;
     if (!keyboardEnabled || !element || !enterKey) return;
@@ -645,9 +648,11 @@ function Model({
   const hitPart = (event: ThreeEvent<PointerEvent | MouseEvent>) =>
     event.intersections.find((hit) => isVisible(hit.object))?.object ?? null;
 
+  const isKeyboard = (part: THREE.Object3D) => part === enterKey || part === keyboard;
+
   const isClickable = (part: THREE.Object3D | null) =>
     part !== null &&
-    (part === enterKey ||
+    (isKeyboard(part) ||
       part === powerButton ||
       ejectButtons.includes(part as THREE.Mesh) ||
       discs.includes(part as THREE.Mesh));
@@ -664,8 +669,8 @@ function Model({
         event.stopPropagation();
         const part = hitPart(event);
         if (!part) return;
-        if (part === enterKey) {
-          pressEnter(enterKey);
+        if (isKeyboard(part)) {
+          if (enterKey) pressEnter(enterKey);
         } else if (part === powerButton) {
           pressPower(powerButton);
         } else if (ejectButtons.includes(part as THREE.Mesh)) {

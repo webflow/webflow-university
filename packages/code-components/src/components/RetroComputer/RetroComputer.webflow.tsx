@@ -10,8 +10,10 @@ import {
 import { props } from '@webflow/data-types';
 import { declareComponent } from '@webflow/react';
 
-interface RetroComputerWebflowProps
-  extends Omit<RetroComputerProps, 'cameraPosition' | 'cameraTarget'> {
+interface RetroComputerWebflowProps extends Omit<
+  RetroComputerProps,
+  'cameraPosition' | 'cameraTarget'
+> {
   cameraPositionX?: number;
   cameraPositionY?: number;
   cameraPositionZ?: number;
@@ -54,7 +56,7 @@ const cameraNumber = (name: string, defaultValue: number) =>
 const RetroComputerWebflow = declareComponent(RetroComputerForWebflow, {
   name: 'RetroComputer',
   description:
-    'Low-poly 90s computer on a desk. Click the Enter key to watch it publish, with a little ASCII celebration.',
+    'Low-poly 90s computer on a desk. Click the keyboard to watch it publish, with a little ASCII celebration.',
   group: '3D Graphics',
   options: {
     applyTagSelectors: true,
