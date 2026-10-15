@@ -51,6 +51,8 @@ function RetroComputerPage() {
   const lighting = useControls('Lighting', {
     keyLightColor: DEFAULT_LIGHTING.keyLightColor,
     keyLightIntensity: { value: DEFAULT_LIGHTING.keyLightIntensity, min: 0, max: 20, step: 0.1 },
+    keyLightPosition: { value: DEFAULT_LIGHTING.keyLightPosition, step: 0.5 },
+    keyLightTarget: { value: DEFAULT_LIGHTING.keyLightTarget, step: 0.5 },
     fillIntensity: { value: DEFAULT_LIGHTING.fillIntensity, min: 0, max: 3, step: 0.01 },
     rimLightColor: DEFAULT_LIGHTING.rimLightColor,
     rimLightIntensity: { value: DEFAULT_LIGHTING.rimLightIntensity, min: 0, max: 5, step: 0.01 },

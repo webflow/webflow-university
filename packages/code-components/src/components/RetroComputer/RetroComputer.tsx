@@ -346,8 +346,6 @@ function useRetroComputerScene() {
   return model;
 }
 
-const KEY_LIGHT_POSITION: Vector3Tuple = [-26, 12, -3];
-const KEY_LIGHT_TARGET: Vector3Tuple = [2, 1, 3];
 const RIM_LIGHT_POSITION: Vector3Tuple = [16, 10, -14];
 
 /** Warm key from the front left that pools on the desk, a cool rim from behind, and a dim fill. */
@@ -357,9 +355,9 @@ function StudioLights({ lighting }: { lighting: LightingSettings }) {
   return (
     <>
       <hemisphereLight intensity={lighting.fillIntensity} color="#f6f1ea" groundColor="#2a1f18" />
-      <primitive object={keyTarget} position={KEY_LIGHT_TARGET} />
+      <primitive object={keyTarget} position={lighting.keyLightTarget} />
       <spotLight
-        position={KEY_LIGHT_POSITION}
+        position={lighting.keyLightPosition}
         target={keyTarget}
         color={lighting.keyLightColor}
         intensity={lighting.keyLightIntensity}
