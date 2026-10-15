@@ -258,7 +258,7 @@ function useRetroComputerScene() {
     let cancelled = false;
     let loaded: THREE.Group | null = null;
     let attributesTexture: THREE.Texture | null = null;
-    let stillEnterKey: THREE.Material | null = null;
+    let stillEnterKey: THREE.MeshStandardMaterial | null = null;
 
     Promise.all([
       new GLTFLoader().parseAsync(decodeBase64(modelBase64), ''),
