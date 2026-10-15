@@ -7,7 +7,7 @@ export interface RetroComputerCamera {
 }
 
 export const DEFAULT_CAMERA: RetroComputerCamera = {
-  position: [-9.85, 6.02, 22.23],
-  target: [3.21, 4.68, 1.81],
-  fov: 30,
+  position: [-5, 5, 26],
+  target: [3.21, 4.68, 2],
+  fov: 27,
 };
