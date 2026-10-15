@@ -31,6 +31,13 @@ import {
 } from './compactDisc';
 import { applyCrtSettings, createCrtScreenMaterial } from './crtScreenMaterial';
 import { createStillEnterKeyMaterial, splitEnterKey } from './enterKey';
+import {
+  createHoverHighlight,
+  type HoverFade,
+  hoverLevel,
+  RESTING_HOVER,
+  retargetHover,
+} from './keyboardHover';
 import { splitTriangles } from './meshParts';
 import {
   createEmissiveTest,
@@ -131,6 +138,8 @@ interface LoadedModel extends TowerButtons {
   enterKey: THREE.Mesh | null;
   /** The keycap's animated swatch while powered, and a still blue for when the lights are out. */
   enterKeyMaterials: { lit: THREE.Material; still: THREE.Material } | null;
+  /** Brightens the keyboard and Enter key (0 resting, 1 hovered). */
+  highlightKeyboard: ((level: number) => void) | null;
   /** One per entry in `DRIVE_BAYS`, parented to the tower. */
   discs: THREE.Mesh[];
   lights: ModelLights | null;
@@ -254,12 +263,26 @@ function useRetroComputerScene() {
         });
         const keyboardNode = gltf.scene.getObjectByName(KEYBOARD_NODE);
         const keyboard = keyboardNode instanceof THREE.Mesh ? keyboardNode : null;
+        // Its own copy of the shared PixPal material, so hovering brightens only the keyboard.
+        const keyboardMaterial =
+          keyboard?.material instanceof THREE.MeshStandardMaterial
+            ? keyboard.material.clone()
+            : null;
+        if (keyboard && keyboardMaterial) {
+          preparePixPalMaterial(keyboardMaterial, attributes, frame);
+          keyboard.material = keyboardMaterial;
+        }
         const enterKey = keyboard ? splitEnterKey(keyboard) : null;
         if (enterKey) stillEnterKey = createStillEnterKeyMaterial();
         const enterKeyMaterials =
           enterKey && stillEnterKey
             ? { lit: enterKey.material as THREE.Material, still: stillEnterKey }
             : null;
+        const highlightKeyboard = keyboardMaterial
+          ? createHoverHighlight(
+              stillEnterKey ? [keyboardMaterial, stillEnterKey] : [keyboardMaterial]
+            )
+          : null;
         // Before the discs go in: their UVs don't point into the PixPal palette.
         const animatedSwatches = sceneUsesAnimatedSwatches(gltf.scene, attributes);
         const tower = gltf.scene.getObjectByName(TOWER_NODE);
@@ -278,6 +301,7 @@ function useRetroComputerScene() {
           keyboard,
           enterKey,
           enterKeyMaterials,
+          highlightKeyboard,
           ...buttons,
           discs,
           lights,
@@ -411,6 +435,7 @@ function Model({
     keyboard,
     enterKey,
     enterKeyMaterials,
+    highlightKeyboard,
     powerButton,
     ejectButtons,
     discs,
@@ -430,6 +455,7 @@ function Model({
   const refreshScreen = useRef<() => void>(() => {});
   const discMotions = useRef<(DiscMotion | null)[]>([]);
   const discExtensions = useRef<number[]>([]);
+  const keyboardHover = useRef<HoverFade>(RESTING_HOVER);
   const pressEnterKey = useRef<() => void>(() => {});
 
   const poweredOn = () =>
@@ -578,6 +604,11 @@ function Model({
       if (done) discMotions.current[index] = null;
       else moving = true;
     });
+    if (highlightKeyboard) {
+      const { level, done } = hoverLevel(keyboardHover.current, now, reducedMotion);
+      highlightKeyboard(level);
+      if (!done) moving = true;
+    }
     if (moving) invalidate();
   });
 
@@ -657,14 +688,26 @@ function Model({
       ejectButtons.includes(part as THREE.Mesh) ||
       discs.includes(part as THREE.Mesh));
 
+  const hoverKeyboard = (hovered: boolean) => {
+    const next = retargetHover(keyboardHover.current, hovered ? 1 : 0, performance.now());
+    if (next === keyboardHover.current) return;
+    keyboardHover.current = next;
+    invalidate();
+  };
+
   return (
     <primitive
       object={scene}
       onPointerMove={(event: ThreeEvent<PointerEvent>) => {
         event.stopPropagation();
-        onHoverChange(isClickable(hitPart(event)));
+        const part = hitPart(event);
+        onHoverChange(isClickable(part));
+        hoverKeyboard(part !== null && isKeyboard(part));
       }}
-      onPointerOut={() => onHoverChange(false)}
+      onPointerOut={() => {
+        onHoverChange(false);
+        hoverKeyboard(false);
+      }}
       onClick={(event: ThreeEvent<MouseEvent>) => {
         event.stopPropagation();
         const part = hitPart(event);
