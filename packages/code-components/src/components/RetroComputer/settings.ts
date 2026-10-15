@@ -25,11 +25,11 @@ export interface CrtSettings {
 
 export const DEFAULT_LIGHTING: LightingSettings = {
   keyLightColor: '#ffb27a',
-  keyLightIntensity: 4,
-  fillIntensity: 0.35,
+  keyLightIntensity: 7,
+  fillIntensity: 0.45,
   rimLightColor: '#9db4ff',
   rimLightIntensity: 0.6,
-  environmentIntensity: 0.25,
+  environmentIntensity: 0.2,
   bloomIntensity: 0.8,
   bloomThreshold: 3,
 };
@@ -49,6 +49,16 @@ export const DEFAULT_CRT: CrtSettings = {
 };
 
 export const DEFAULT_MAX_PIXEL_RATIO = 2;
+
+/** Fills in defaults for every key the caller left undefined (Webflow can omit unset props). */
+export function resolveSettings<T extends object>(defaults: T, values: Partial<T>): T {
+  const resolved = { ...defaults };
+  for (const key of Object.keys(defaults) as (keyof T)[]) {
+    const value = values[key];
+    if (value !== undefined && value !== null) resolved[key] = value as T[keyof T];
+  }
+  return resolved;
+}
 
 /** CSS background for the wrapper: a soft glow behind the computer, drawn by the browser instead of WebGL. */
 export function backgroundCss({

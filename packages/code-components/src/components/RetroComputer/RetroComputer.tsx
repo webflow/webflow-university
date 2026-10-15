@@ -9,6 +9,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import { DEFAULT_CAMERA, type RetroComputerCamera, type Vector3Tuple } from './camera';
+import { applyCrtSettings, createCrtScreenMaterial } from './crtScreenMaterial';
 import { splitEnterKey } from './enterKey';
 import { getNavigableHref, type RetroComputerLink } from './link';
 import {
@@ -19,13 +20,26 @@ import {
 } from './pixPalMaterial';
 import { getScreenState, isPublishRunning, type ScreenState } from './publishSequence';
 import modelBase64 from './retroComputerModel';
+import { createCurvedScreenGeometry, MAX_SCREEN_BULGE } from './screenGeometry';
 import { CURSOR_BLINK_MS, ScreenRenderer } from './screenRenderer';
-import { DEFAULT_MAX_PIXEL_RATIO } from './settings';
+import {
+  backgroundCss,
+  type CrtSettings,
+  DEFAULT_BACKGROUND,
+  DEFAULT_CRT,
+  DEFAULT_LIGHTING,
+  DEFAULT_MAX_PIXEL_RATIO,
+  type BackgroundSettings,
+  type LightingSettings,
+  resolveSettings,
+} from './settings';
 
-export interface RetroComputerProps {
+export interface RetroComputerProps
+  extends Partial<LightingSettings>,
+    Partial<BackgroundSettings>,
+    Partial<CrtSettings> {
   showCords?: boolean;
   showDesk?: boolean;
-  backgroundColor?: string;
   screenBackground?: string;
   screenText?: string;
   enterLink?: RetroComputerLink;
@@ -151,7 +165,7 @@ function useRetroComputerScene() {
   return model;
 }
 
-function StudioEnvironment() {
+function StudioEnvironment({ intensity }: { intensity: number }) {
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
   const invalidate = useThree((state) => state.invalidate);
@@ -161,7 +175,6 @@ function StudioEnvironment() {
     const room = new RoomEnvironment();
     const environment = pmrem.fromScene(room, 0.04).texture;
     scene.environment = environment;
-    scene.environmentIntensity = 0.4;
     invalidate();
     return () => {
       scene.environment = null;
@@ -171,7 +184,42 @@ function StudioEnvironment() {
     };
   }, [gl, scene, invalidate]);
 
+  useEffect(() => {
+    scene.environmentIntensity = intensity;
+    invalidate();
+  }, [scene, intensity, invalidate]);
+
   return null;
+}
+
+const KEY_LIGHT_POSITION: Vector3Tuple = [-26, 12, -3];
+const KEY_LIGHT_TARGET: Vector3Tuple = [2, 1, 3];
+const RIM_LIGHT_POSITION: Vector3Tuple = [16, 10, -14];
+
+/** Warm key from the front left that pools on the desk, a cool rim from behind, and a dim fill. */
+function StudioLights({ lighting }: { lighting: LightingSettings }) {
+  const keyTarget = useMemo(() => new THREE.Object3D(), []);
+
+  return (
+    <>
+      <hemisphereLight intensity={lighting.fillIntensity} color="#f6f1ea" groundColor="#2a1f18" />
+      <primitive object={keyTarget} position={KEY_LIGHT_TARGET} />
+      <spotLight
+        position={KEY_LIGHT_POSITION}
+        target={keyTarget}
+        color={lighting.keyLightColor}
+        intensity={lighting.keyLightIntensity}
+        angle={0.4}
+        penumbra={1}
+        decay={0}
+      />
+      <directionalLight
+        position={RIM_LIGHT_POSITION}
+        color={lighting.rimLightColor}
+        intensity={lighting.rimLightIntensity}
+      />
+    </>
+  );
 }
 
 function CameraRig({
@@ -228,6 +276,7 @@ function Model({
   screen,
   reducedMotion,
   active,
+  crt,
   onEnterPress,
   onEnterHover,
   onPublished,
@@ -236,6 +285,7 @@ function Model({
   showCords: boolean;
   showDesk: boolean;
   screen: ScreenRenderer;
+  crt: CrtSettings;
   reducedMotion: boolean;
   /** False while scrolled out of view: skip all redraws. */
   active: boolean;
@@ -267,18 +317,48 @@ function Model({
     invalidate();
   }, [scene, showCords, showDesk, invalidate]);
 
+  const [screenMaterial, setScreenMaterial] = useState<THREE.ShaderMaterial | null>(null);
+
   useEffect(() => {
     const screenMesh = scene.getObjectByName(SCREEN_NODE);
     if (!(screenMesh instanceof THREE.Mesh)) return;
     const previous = screenMesh.material;
-    const material = new THREE.MeshBasicMaterial({ map: screen.texture, toneMapped: false });
+    const material = createCrtScreenMaterial(screen.texture);
     screenMesh.material = material;
-    invalidate();
+    setScreenMaterial(material);
     return () => {
       screenMesh.material = previous;
       material.dispose();
     };
-  }, [scene, screen, invalidate]);
+  }, [scene, screen]);
+
+  const { screenGlow, scanlines, vignette, curvature, chromaticAberration } = crt;
+  useEffect(() => {
+    if (!screenMaterial) return;
+    applyCrtSettings(screenMaterial, {
+      screenGlow,
+      scanlines,
+      vignette,
+      curvature,
+      chromaticAberration,
+    });
+    invalidate();
+  }, [screenMaterial, screenGlow, scanlines, vignette, curvature, chromaticAberration, invalidate]);
+
+  const bulge = Math.min(Math.max(curvature, 0), 1) * MAX_SCREEN_BULGE;
+  useEffect(() => {
+    const screenMesh = scene.getObjectByName(SCREEN_NODE);
+    if (!(screenMesh instanceof THREE.Mesh) || bulge === 0) return;
+    const flat = screenMesh.geometry;
+    const curved = createCurvedScreenGeometry(flat, bulge);
+    screenMesh.geometry = curved;
+    invalidate();
+    return () => {
+      screenMesh.geometry = flat;
+      curved.dispose();
+      invalidate();
+    };
+  }, [scene, bulge, invalidate]);
 
   useEffect(() => {
     let timer: number | undefined;
@@ -355,22 +435,25 @@ function Model({
   );
 }
 
-export default function RetroComputer({
-  showCords = true,
-  showDesk = true,
-  backgroundColor = '#0b0b0c',
-  screenBackground = '#0a0e16',
-  screenText = '#4b8bff',
-  enterLink,
-  cameraPosition = DEFAULT_CAMERA.position,
-  cameraTarget = DEFAULT_CAMERA.target,
-  cameraFov = DEFAULT_CAMERA.fov,
-  editCamera = false,
-  onCameraChange,
-  onEnterPress,
-  preserveDrawingBuffer = false,
-  maxPixelRatio = DEFAULT_MAX_PIXEL_RATIO,
-}: RetroComputerProps) {
+export default function RetroComputer(props: RetroComputerProps) {
+  const {
+    showCords = true,
+    showDesk = true,
+    screenBackground = '#0a0e16',
+    screenText = '#4b8bff',
+    enterLink,
+    cameraPosition = DEFAULT_CAMERA.position,
+    cameraTarget = DEFAULT_CAMERA.target,
+    cameraFov = DEFAULT_CAMERA.fov,
+    editCamera = false,
+    onCameraChange,
+    onEnterPress,
+    preserveDrawingBuffer = false,
+    maxPixelRatio = DEFAULT_MAX_PIXEL_RATIO,
+  } = props;
+  const lighting = resolveSettings(DEFAULT_LIGHTING, props);
+  const background = resolveSettings(DEFAULT_BACKGROUND, props);
+  const crt = resolveSettings(DEFAULT_CRT, props);
   const model = useRetroComputerScene();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const onScreen = useOnScreen(wrapperRef);
@@ -404,7 +487,7 @@ export default function RetroComputer({
       style={{
         width: '100%',
         aspectRatio: '4 / 3',
-        background: backgroundColor,
+        background: backgroundCss(background),
         cursor: enterHovered ? 'pointer' : editCamera ? 'grab' : 'default',
       }}
     >
@@ -425,10 +508,8 @@ export default function RetroComputer({
           editable={editCamera}
           onChange={onCameraChange}
         />
-        <StudioEnvironment />
-        <hemisphereLight intensity={1.1} color="#ffffff" groundColor="#6f675c" />
-        <directionalLight position={[-8, 16, 14]} intensity={1.9} />
-        <directionalLight position={[12, 6, -6]} intensity={0.5} />
+        <StudioEnvironment intensity={lighting.environmentIntensity} />
+        <StudioLights lighting={lighting} />
 
         {model && (
           <Model
@@ -438,6 +519,7 @@ export default function RetroComputer({
             screen={screen}
             reducedMotion={reducedMotion}
             active={onScreen}
+            crt={crt}
             onEnterPress={() => onEnterPress?.()}
             onEnterHover={setEnterHovered}
             onPublished={handlePublished}
@@ -458,9 +540,9 @@ export default function RetroComputer({
         <EffectComposer multisampling={4}>
           <Bloom
             mipmapBlur
-            luminanceThreshold={3}
+            luminanceThreshold={lighting.bloomThreshold}
             luminanceSmoothing={0.2}
-            intensity={0.8}
+            intensity={lighting.bloomIntensity}
             radius={0.55}
           />
           <ToneMapping mode={ToneMappingMode.AGX} />

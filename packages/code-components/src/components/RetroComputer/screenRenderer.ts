@@ -76,7 +76,6 @@ export class ScreenRenderer {
     }
 
     ctx.restore();
-    this.drawCrtOverlay();
     this.texture.needsUpdate = true;
   }
 
@@ -227,25 +226,5 @@ export class ScreenRenderer {
         top + (cell.row + 0.5) * GRID_LINE_HEIGHT
       );
     }
-  }
-
-  private drawCrtOverlay() {
-    const ctx = this.context;
-    ctx.save();
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
-    for (let y = 0; y < HEIGHT; y += 6) ctx.fillRect(0, y, WIDTH, 2);
-    const vignette = ctx.createRadialGradient(
-      WIDTH / 2,
-      HEIGHT / 2,
-      HEIGHT * 0.35,
-      WIDTH / 2,
-      HEIGHT / 2,
-      HEIGHT * 0.85
-    );
-    vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
-    vignette.addColorStop(1, 'rgba(0, 0, 0, 0.45)');
-    ctx.fillStyle = vignette;
-    ctx.fillRect(0, 0, WIDTH, HEIGHT);
-    ctx.restore();
   }
 }

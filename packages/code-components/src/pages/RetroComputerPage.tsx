@@ -6,6 +6,12 @@ import {
   type RetroComputerCamera,
   type Vector3Tuple,
 } from '../components/RetroComputer/camera';
+import {
+  DEFAULT_BACKGROUND,
+  DEFAULT_CRT,
+  DEFAULT_LIGHTING,
+  DEFAULT_MAX_PIXEL_RATIO,
+} from '../components/RetroComputer/settings';
 
 const RetroComputer = lazy(() => import('../components/RetroComputer/RetroComputer'));
 
@@ -32,15 +38,39 @@ const buttonStyle: React.CSSProperties = {
 function RetroComputerPage() {
   const sceneRef = useRef<HTMLDivElement>(null);
   const [enterPresses, setEnterPresses] = useState(0);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<'camera' | 'look' | null>(null);
 
   const modelControls = useControls('Model', {
     showCords: true,
     showDesk: true,
   });
 
-  const { backgroundColor, pageBackground } = useControls('Scene', {
-    backgroundColor: '#0b0b0c',
+  const lighting = useControls('Lighting', {
+    keyLightColor: DEFAULT_LIGHTING.keyLightColor,
+    keyLightIntensity: { value: DEFAULT_LIGHTING.keyLightIntensity, min: 0, max: 20, step: 0.1 },
+    fillIntensity: { value: DEFAULT_LIGHTING.fillIntensity, min: 0, max: 3, step: 0.01 },
+    rimLightColor: DEFAULT_LIGHTING.rimLightColor,
+    rimLightIntensity: { value: DEFAULT_LIGHTING.rimLightIntensity, min: 0, max: 5, step: 0.01 },
+    environmentIntensity: {
+      value: DEFAULT_LIGHTING.environmentIntensity,
+      min: 0,
+      max: 2,
+      step: 0.01,
+      label: 'reflections',
+    },
+    bloomIntensity: { value: DEFAULT_LIGHTING.bloomIntensity, min: 0, max: 3, step: 0.01 },
+    bloomThreshold: { value: DEFAULT_LIGHTING.bloomThreshold, min: 0, max: 10, step: 0.1 },
+  });
+
+  const { pageBackground, ...background } = useControls('Background', {
+    backgroundColor: DEFAULT_BACKGROUND.backgroundColor,
+    backgroundGlowColor: DEFAULT_BACKGROUND.backgroundGlowColor,
+    backgroundGlowStrength: {
+      value: DEFAULT_BACKGROUND.backgroundGlowStrength,
+      min: 0,
+      max: 1,
+      step: 0.01,
+    },
     pageBackground: {
       value: 'Dark' as PageBackgroundName,
       options: Object.keys(PAGE_BACKGROUNDS) as PageBackgroundName[],
@@ -50,6 +80,21 @@ function RetroComputerPage() {
   const screenControls = useControls('Screen', {
     screenBackground: '#0a0e16',
     screenText: '#4b8bff',
+    screenGlow: { value: DEFAULT_CRT.screenGlow, min: 0, max: 2, step: 0.01 },
+    scanlines: { value: DEFAULT_CRT.scanlines, min: 0, max: 1, step: 0.01 },
+    vignette: { value: DEFAULT_CRT.vignette, min: 0, max: 1, step: 0.01 },
+    curvature: { value: DEFAULT_CRT.curvature, min: 0, max: 1, step: 0.01 },
+    chromaticAberration: {
+      value: DEFAULT_CRT.chromaticAberration,
+      min: 0,
+      max: 1,
+      step: 0.01,
+      label: 'color fringing',
+    },
+  });
+
+  const { maxPixelRatio } = useControls('Performance', {
+    maxPixelRatio: { value: DEFAULT_MAX_PIXEL_RATIO, min: 1, max: 2, step: 0.1 },
   });
 
   const [camera, setCamera] = useControls('Camera', () => ({
@@ -70,16 +115,13 @@ function RetroComputerPage() {
     [setCamera]
   );
 
-  const handleCopyCamera = useCallback(async () => {
-    const settings = JSON.stringify(
-      { position: camera.position, target: camera.target, fov: camera.fov },
-      null,
-      2
-    );
-    await navigator.clipboard.writeText(settings);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
-  }, [camera.position, camera.target, camera.fov]);
+  const copySettings = useCallback(async (kind: 'camera' | 'look', settings: object) => {
+    await navigator.clipboard.writeText(JSON.stringify(settings, null, 2));
+    setCopied(kind);
+    window.setTimeout(() => setCopied(null), 1500);
+  }, []);
+
+  const lookSettings = { ...lighting, ...background, ...screenControls, maxPixelRatio };
 
   const handleSavePng = useCallback(() => {
     const canvas = sceneRef.current?.querySelector('canvas');
@@ -108,7 +150,9 @@ function RetroComputerPage() {
           <RetroComputer
             {...modelControls}
             {...screenControls}
-            backgroundColor={backgroundColor}
+            {...lighting}
+            {...background}
+            maxPixelRatio={maxPixelRatio}
             enterLink={enterHref ? { href: enterHref } : undefined}
             cameraPosition={camera.position as Vector3Tuple}
             cameraTarget={camera.target as Vector3Tuple}
@@ -132,8 +176,25 @@ function RetroComputerPage() {
           fontSize: '13px',
         }}
       >
-        <button type="button" onClick={handleCopyCamera} style={buttonStyle}>
-          {copied ? 'Copied!' : 'Copy camera settings'}
+        <button
+          type="button"
+          onClick={() =>
+            copySettings('camera', {
+              position: camera.position,
+              target: camera.target,
+              fov: camera.fov,
+            })
+          }
+          style={buttonStyle}
+        >
+          {copied === 'camera' ? 'Copied!' : 'Copy camera settings'}
+        </button>
+        <button
+          type="button"
+          onClick={() => copySettings('look', lookSettings)}
+          style={buttonStyle}
+        >
+          {copied === 'look' ? 'Copied!' : 'Copy look settings'}
         </button>
         <button type="button" onClick={handleSavePng} style={buttonStyle}>
           Save PNG
