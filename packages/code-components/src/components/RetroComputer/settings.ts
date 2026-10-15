@@ -4,7 +4,6 @@ export interface LightingSettings {
   fillIntensity: number;
   rimLightColor: string;
   rimLightIntensity: number;
-  environmentIntensity: number;
   bloomIntensity: number;
   bloomThreshold: number;
 }
@@ -29,7 +28,6 @@ export const DEFAULT_LIGHTING: LightingSettings = {
   fillIntensity: 0.45,
   rimLightColor: '#9db4ff',
   rimLightIntensity: 0.6,
-  environmentIntensity: 0.2,
   bloomIntensity: 0.8,
   bloomThreshold: 3,
 };

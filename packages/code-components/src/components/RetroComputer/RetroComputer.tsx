@@ -1,18 +1,15 @@
 import { ContactShadows, OrbitControls } from '@react-three/drei';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { Bloom, EffectComposer, ToneMapping } from '@react-three/postprocessing';
-import { useWebflowContext } from '@webflow/react';
 import { ToneMappingMode } from 'postprocessing';
 import { type ComponentRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import { DEFAULT_CAMERA, type RetroComputerCamera, type Vector3Tuple } from './camera';
 import { parseColorList } from './celebration';
 import { applyCrtSettings, createCrtScreenMaterial } from './crtScreenMaterial';
 import { splitEnterKey } from './enterKey';
-import { getNavigableHref, type RetroComputerLink } from './link';
 import {
   loadPixPalAttributes,
   PIXPAL_FPS,
@@ -43,7 +40,6 @@ export interface RetroComputerProps
   showDesk?: boolean;
   screenBackground?: string;
   screenText?: string;
-  enterLink?: RetroComputerLink;
   cameraPosition?: Vector3Tuple;
   cameraTarget?: Vector3Tuple;
   cameraFov?: number;
@@ -168,33 +164,6 @@ function useRetroComputerScene() {
   return model;
 }
 
-function StudioEnvironment({ intensity }: { intensity: number }) {
-  const gl = useThree((state) => state.gl);
-  const scene = useThree((state) => state.scene);
-  const invalidate = useThree((state) => state.invalidate);
-
-  useEffect(() => {
-    const pmrem = new THREE.PMREMGenerator(gl);
-    const room = new RoomEnvironment();
-    const environment = pmrem.fromScene(room, 0.04).texture;
-    scene.environment = environment;
-    invalidate();
-    return () => {
-      scene.environment = null;
-      environment.dispose();
-      room.clear();
-      pmrem.dispose();
-    };
-  }, [gl, scene, invalidate]);
-
-  useEffect(() => {
-    scene.environmentIntensity = intensity;
-    invalidate();
-  }, [scene, intensity, invalidate]);
-
-  return null;
-}
-
 const KEY_LIGHT_POSITION: Vector3Tuple = [-26, 12, -3];
 const KEY_LIGHT_TARGET: Vector3Tuple = [2, 1, 3];
 const RIM_LIGHT_POSITION: Vector3Tuple = [16, 10, -14];
@@ -282,7 +251,6 @@ function Model({
   crt,
   onEnterPress,
   onEnterHover,
-  onPublished,
 }: {
   model: LoadedModel;
   showCords: boolean;
@@ -294,7 +262,6 @@ function Model({
   active: boolean;
   onEnterPress: () => void;
   onEnterHover: (hovered: boolean) => void;
-  onPublished: () => void;
 }) {
   const { scene, enterKey, frame, animatedSwatches } = model;
   const invalidate = useThree((state) => state.invalidate);
@@ -304,11 +271,6 @@ function Model({
   const publishStartedAt = useRef<number | null>(null);
   const screenState = useRef<ScreenState>({ phase: 'idle' });
   const refreshScreen = useRef<() => void>(() => {});
-  const onPublishedRef = useRef(onPublished);
-
-  useEffect(() => {
-    onPublishedRef.current = onPublished;
-  });
 
   useEffect(() => {
     for (const name of CORD_NODES) {
@@ -368,16 +330,14 @@ function Model({
     const tick = () => {
       window.clearTimeout(timer);
       const now = performance.now();
-      const previous = screenState.current;
       const state = getScreenState(publishStartedAt.current, now, reducedMotion);
       screenState.current = state;
-      if (state.phase === 'published' && isPublishRunning(previous)) onPublishedRef.current();
       const running = isPublishRunning(state);
       if (active) {
         screen.render(state, now, reducedMotion);
         if (!swatchClockRunning) invalidate();
       }
-      // Offscreen, keep ticking only so the After Publish Link still fires on time.
+      // Offscreen, keep ticking only while a publish sequence is still in flight.
       if (!active && !running) return;
       const delay = running ? SCREEN_FRAME_MS : CURSOR_BLINK_MS - (now % CURSOR_BLINK_MS);
       timer = window.setTimeout(tick, delay);
@@ -444,7 +404,6 @@ export default function RetroComputer(props: RetroComputerProps) {
     showDesk = true,
     screenBackground = '#0a0e16',
     screenText = '#4b8bff',
-    enterLink,
     cameraPosition = DEFAULT_CAMERA.position,
     cameraTarget = DEFAULT_CAMERA.target,
     cameraFov = DEFAULT_CAMERA.fov,
@@ -461,7 +420,6 @@ export default function RetroComputer(props: RetroComputerProps) {
   const model = useRetroComputerScene();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const onScreen = useOnScreen(wrapperRef);
-  const { mode, interactive } = useWebflowContext();
   const [enterHovered, setEnterHovered] = useState(false);
 
   const reducedMotion = useMemo(
@@ -474,16 +432,6 @@ export default function RetroComputer(props: RetroComputerProps) {
     [screenBackground, screenText, fireworkColors]
   );
   useEffect(() => () => screen.dispose(), [screen]);
-
-  const handlePublished = () => {
-    const href = getNavigableHref(enterLink);
-    if (!href || !interactive || mode === 'design') return;
-    if (enterLink?.target === '_blank') {
-      window.open(href, '_blank', 'noopener');
-    } else {
-      window.location.assign(href);
-    }
-  };
 
   return (
     <div
@@ -512,7 +460,6 @@ export default function RetroComputer(props: RetroComputerProps) {
           editable={editCamera}
           onChange={onCameraChange}
         />
-        <StudioEnvironment intensity={lighting.environmentIntensity} />
         <StudioLights lighting={lighting} />
 
         {model && (
@@ -526,7 +473,6 @@ export default function RetroComputer(props: RetroComputerProps) {
             crt={crt}
             onEnterPress={() => onEnterPress?.()}
             onEnterHover={setEnterHovered}
-            onPublished={handlePublished}
           />
         )}
 

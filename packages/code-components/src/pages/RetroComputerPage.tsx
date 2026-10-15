@@ -52,13 +52,6 @@ function RetroComputerPage() {
     fillIntensity: { value: DEFAULT_LIGHTING.fillIntensity, min: 0, max: 3, step: 0.01 },
     rimLightColor: DEFAULT_LIGHTING.rimLightColor,
     rimLightIntensity: { value: DEFAULT_LIGHTING.rimLightIntensity, min: 0, max: 5, step: 0.01 },
-    environmentIntensity: {
-      value: DEFAULT_LIGHTING.environmentIntensity,
-      min: 0,
-      max: 2,
-      step: 0.01,
-      label: 'reflections',
-    },
     bloomIntensity: { value: DEFAULT_LIGHTING.bloomIntensity, min: 0, max: 3, step: 0.01 },
     bloomThreshold: { value: DEFAULT_LIGHTING.bloomThreshold, min: 0, max: 10, step: 0.1 },
   });
@@ -106,10 +99,6 @@ function RetroComputerPage() {
     fov: { value: DEFAULT_CAMERA.fov, min: 10, max: 70, step: 1 },
   }));
 
-  const { enterHref } = useControls('Interaction', {
-    enterHref: '',
-  });
-
   const handleEnterPress = useCallback(() => setEnterPresses((count) => count + 1), []);
 
   const handleCameraChange = useCallback(
@@ -155,7 +144,6 @@ function RetroComputerPage() {
             {...lighting}
             {...background}
             maxPixelRatio={maxPixelRatio}
-            enterLink={enterHref ? { href: enterHref } : undefined}
             cameraPosition={camera.position as Vector3Tuple}
             cameraTarget={camera.target as Vector3Tuple}
             cameraFov={camera.fov}

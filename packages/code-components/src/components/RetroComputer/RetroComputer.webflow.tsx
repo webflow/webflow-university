@@ -111,15 +111,6 @@ const RetroComputerWebflow = declareComponent(RetroComputerForWebflow, {
       decimals: 2,
       group: 'Lighting',
     }),
-    environmentIntensity: props.Number({
-      name: 'Reflections',
-      defaultValue: DEFAULT_LIGHTING.environmentIntensity,
-      min: 0,
-      max: 2,
-      decimals: 2,
-      group: 'Lighting',
-      tooltip: 'Studio environment reflections. Mostly visible on the chrome badge.',
-    }),
     bloomIntensity: props.Number({
       name: 'Bloom Intensity',
       defaultValue: DEFAULT_LIGHTING.bloomIntensity,
@@ -247,12 +238,6 @@ const RetroComputerWebflow = declareComponent(RetroComputerForWebflow, {
       decimals: 0,
       group: 'Camera',
       tooltip: 'Vertical field of view in degrees. Lower zooms in with less perspective.',
-    }),
-    enterLink: props.Link({
-      name: 'After Publish Link',
-      group: 'Interaction',
-      tooltip:
-        'Optional page to open once the publish animation finishes. Links are not followed in the Designer.',
     }),
   },
 });
