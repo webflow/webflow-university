@@ -7,6 +7,7 @@ import {
   type Vector3Tuple,
 } from '../components/RetroComputer/camera';
 import { FIREWORK_COLORS } from '../components/RetroComputer/celebration';
+import { DEFAULT_HOVER_BRIGHTNESS } from '../components/RetroComputer/partHover';
 import {
   DEFAULT_BACKGROUND,
   DEFAULT_CRT,
@@ -44,11 +45,14 @@ function RetroComputerPage() {
   const modelControls = useControls('Model', {
     showCords: true,
     showDesk: true,
+    hoverBrightness: { value: DEFAULT_HOVER_BRIGHTNESS, min: 1, max: 2, step: 0.01 },
   });
 
   const lighting = useControls('Lighting', {
     keyLightColor: DEFAULT_LIGHTING.keyLightColor,
     keyLightIntensity: { value: DEFAULT_LIGHTING.keyLightIntensity, min: 0, max: 20, step: 0.1 },
+    keyLightPosition: { value: DEFAULT_LIGHTING.keyLightPosition, step: 0.5 },
+    keyLightTarget: { value: DEFAULT_LIGHTING.keyLightTarget, step: 0.5 },
     fillIntensity: { value: DEFAULT_LIGHTING.fillIntensity, min: 0, max: 3, step: 0.01 },
     rimLightColor: DEFAULT_LIGHTING.rimLightColor,
     rimLightIntensity: { value: DEFAULT_LIGHTING.rimLightIntensity, min: 0, max: 5, step: 0.01 },
@@ -112,7 +116,13 @@ function RetroComputerPage() {
     window.setTimeout(() => setCopied(null), 1500);
   }, []);
 
-  const lookSettings = { ...lighting, ...background, ...screenControls, maxPixelRatio };
+  const lookSettings = {
+    ...lighting,
+    ...background,
+    ...screenControls,
+    hoverBrightness: modelControls.hoverBrightness,
+    maxPixelRatio,
+  };
 
   const handleSavePng = useCallback(() => {
     const canvas = sceneRef.current?.querySelector('canvas');

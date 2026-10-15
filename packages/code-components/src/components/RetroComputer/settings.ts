@@ -1,6 +1,11 @@
+import type { Vector3Tuple } from './camera';
+
 export interface LightingSettings {
   keyLightColor: string;
   keyLightIntensity: number;
+  /** Where the key spotlight sits and the point it aims at, in scene units. */
+  keyLightPosition: Vector3Tuple;
+  keyLightTarget: Vector3Tuple;
   fillIntensity: number;
   rimLightColor: string;
   rimLightIntensity: number;
@@ -24,11 +29,13 @@ export interface CrtSettings {
 
 export const DEFAULT_LIGHTING: LightingSettings = {
   keyLightColor: '#ffb27a',
-  keyLightIntensity: 7,
+  keyLightIntensity: 10,
+  keyLightPosition: [-26, 12, -3],
+  keyLightTarget: [2, 1, 3],
   fillIntensity: 0.45,
   rimLightColor: '#9db4ff',
   rimLightIntensity: 0.6,
-  bloomIntensity: 0.8,
+  bloomIntensity: 0.5,
   bloomThreshold: 3,
 };
 
@@ -41,8 +48,8 @@ export const DEFAULT_BACKGROUND: BackgroundSettings = {
 export const DEFAULT_CRT: CrtSettings = {
   screenGlow: 0.4,
   scanlines: 0.35,
-  vignette: 0.5,
-  curvature: 0.5,
+  vignette: 0.75,
+  curvature: 1,
   chromaticAberration: 0.25,
 };
 
