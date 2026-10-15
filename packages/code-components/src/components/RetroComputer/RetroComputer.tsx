@@ -33,11 +33,12 @@ import { applyCrtSettings, createCrtScreenMaterial } from './crtScreenMaterial';
 import { createStillEnterKeyMaterial, splitEnterKey } from './enterKey';
 import {
   createHoverHighlight,
+  DEFAULT_HOVER_BRIGHTNESS,
   type HoverFade,
   hoverLevel,
   RESTING_HOVER,
   retargetHover,
-} from './keyboardHover';
+} from './partHover';
 import { splitTriangles } from './meshParts';
 import {
   createEmissiveTest,
@@ -97,6 +98,8 @@ export interface RetroComputerProps
   maxPixelRatio?: number;
   /** Comma separated CSS colors for the publish fireworks. */
   fireworkColors?: string;
+  /** How much the keyboard and tower buttons brighten on hover. 1 turns it off. */
+  hoverBrightness?: number;
 }
 
 const CORD_NODES = ['Cord_Keyboard', 'Cord_Mouse'];
@@ -131,6 +134,12 @@ interface ModelLights {
   intensity: number;
 }
 
+/** A clickable part that brightens on hover; `parts` are the meshes that count as hovering it. */
+interface HoverTarget {
+  parts: THREE.Object3D[];
+  highlight: (level: number, brightness: number) => void;
+}
+
 interface LoadedModel extends TowerButtons {
   scene: THREE.Group;
   /** Clicking anywhere on it presses the Enter key. */
@@ -138,8 +147,8 @@ interface LoadedModel extends TowerButtons {
   enterKey: THREE.Mesh | null;
   /** The keycap's animated swatch while powered, and a still blue for when the lights are out. */
   enterKeyMaterials: { lit: THREE.Material; still: THREE.Material } | null;
-  /** Brightens the keyboard and Enter key (0 resting, 1 hovered). */
-  highlightKeyboard: ((level: number) => void) | null;
+  /** The keyboard (with its Enter key), power button and eject buttons. */
+  hoverTargets: HoverTarget[];
   /** One per entry in `DRIVE_BAYS`, parented to the tower. */
   discs: THREE.Mesh[];
   lights: ModelLights | null;
@@ -167,6 +176,19 @@ function splitLights(
     splitTriangles(mesh, `${mesh.name}Lights`, lit, material);
   }
   return material && { material, intensity: material.emissiveIntensity };
+}
+
+/** Gives `mesh` its own copy of the shared PixPal material, so tinting it leaves the rest alone. */
+function ownMaterial(
+  mesh: THREE.Mesh | null,
+  attributes: THREE.Texture,
+  frame: { value: number }
+): THREE.MeshStandardMaterial | null {
+  if (!mesh || !(mesh.material instanceof THREE.MeshStandardMaterial)) return null;
+  const material = mesh.material.clone();
+  preparePixPalMaterial(material, attributes, frame);
+  mesh.material = material;
+  return material;
 }
 
 function addDiscs(tower: THREE.Mesh) {
@@ -263,26 +285,13 @@ function useRetroComputerScene() {
         });
         const keyboardNode = gltf.scene.getObjectByName(KEYBOARD_NODE);
         const keyboard = keyboardNode instanceof THREE.Mesh ? keyboardNode : null;
-        // Its own copy of the shared PixPal material, so hovering brightens only the keyboard.
-        const keyboardMaterial =
-          keyboard?.material instanceof THREE.MeshStandardMaterial
-            ? keyboard.material.clone()
-            : null;
-        if (keyboard && keyboardMaterial) {
-          preparePixPalMaterial(keyboardMaterial, attributes, frame);
-          keyboard.material = keyboardMaterial;
-        }
+        const keyboardMaterial = ownMaterial(keyboard, attributes, frame);
         const enterKey = keyboard ? splitEnterKey(keyboard) : null;
         if (enterKey) stillEnterKey = createStillEnterKeyMaterial();
         const enterKeyMaterials =
           enterKey && stillEnterKey
             ? { lit: enterKey.material as THREE.Material, still: stillEnterKey }
             : null;
-        const highlightKeyboard = keyboardMaterial
-          ? createHoverHighlight(
-              stillEnterKey ? [keyboardMaterial, stillEnterKey] : [keyboardMaterial]
-            )
-          : null;
         // Before the discs go in: their UVs don't point into the PixPal palette.
         const animatedSwatches = sceneUsesAnimatedSwatches(gltf.scene, attributes);
         const tower = gltf.scene.getObjectByName(TOWER_NODE);
@@ -290,6 +299,21 @@ function useRetroComputerScene() {
           tower instanceof THREE.Mesh
             ? splitTowerButtons(tower)
             : { powerButton: null, ejectButtons: [] };
+        const hoverTargets: HoverTarget[] = [];
+        if (keyboard && keyboardMaterial) {
+          hoverTargets.push({
+            parts: enterKey ? [keyboard, enterKey] : [keyboard],
+            highlight: createHoverHighlight(
+              stillEnterKey ? [keyboardMaterial, stillEnterKey] : [keyboardMaterial]
+            ),
+          });
+        }
+        for (const button of [buttons.powerButton, ...buttons.ejectButtons]) {
+          const material = ownMaterial(button, attributes, frame);
+          if (button && material) {
+            hoverTargets.push({ parts: [button], highlight: createHoverHighlight([material]) });
+          }
+        }
         const discs = tower instanceof THREE.Mesh ? addDiscs(tower) : [];
         const lights = splitLights(
           [tower, gltf.scene.getObjectByName(MONITOR_NODE)],
@@ -301,7 +325,7 @@ function useRetroComputerScene() {
           keyboard,
           enterKey,
           enterKeyMaterials,
-          highlightKeyboard,
+          hoverTargets,
           ...buttons,
           discs,
           lights,
@@ -407,6 +431,7 @@ function Model({
   reducedMotion,
   active,
   crt,
+  hoverBrightness,
   focused,
   keyTarget,
   keyboardEnabled,
@@ -419,6 +444,7 @@ function Model({
   showDesk: boolean;
   screen: ScreenRenderer;
   crt: CrtSettings;
+  hoverBrightness: number;
   reducedMotion: boolean;
   /** False while scrolled out of view: skip all redraws. */
   active: boolean;
@@ -435,7 +461,7 @@ function Model({
     keyboard,
     enterKey,
     enterKeyMaterials,
-    highlightKeyboard,
+    hoverTargets,
     powerButton,
     ejectButtons,
     discs,
@@ -455,7 +481,8 @@ function Model({
   const refreshScreen = useRef<() => void>(() => {});
   const discMotions = useRef<(DiscMotion | null)[]>([]);
   const discExtensions = useRef<number[]>([]);
-  const keyboardHover = useRef<HoverFade>(RESTING_HOVER);
+  /** One per entry in `hoverTargets`. */
+  const hoverFades = useRef<HoverFade[]>([]);
   const pressEnterKey = useRef<() => void>(() => {});
 
   const poweredOn = () =>
@@ -583,6 +610,8 @@ function Model({
     return () => window.clearInterval(timer);
   }, [swatchClockRunning, active, frame, invalidate]);
 
+  useEffect(() => invalidate(), [hoverBrightness, invalidate]);
+
   useFrame(() => {
     const now = performance.now();
     let moving = false;
@@ -604,11 +633,12 @@ function Model({
       if (done) discMotions.current[index] = null;
       else moving = true;
     });
-    if (highlightKeyboard) {
-      const { level, done } = hoverLevel(keyboardHover.current, now, reducedMotion);
-      highlightKeyboard(level);
+    hoverTargets.forEach((target, index) => {
+      const fade = hoverFades.current[index] ?? RESTING_HOVER;
+      const { level, done } = hoverLevel(fade, now, reducedMotion);
+      target.highlight(level, hoverBrightness);
       if (!done) moving = true;
-    }
+    });
     if (moving) invalidate();
   });
 
@@ -688,11 +718,19 @@ function Model({
       ejectButtons.includes(part as THREE.Mesh) ||
       discs.includes(part as THREE.Mesh));
 
-  const hoverKeyboard = (hovered: boolean) => {
-    const next = retargetHover(keyboardHover.current, hovered ? 1 : 0, performance.now());
-    if (next === keyboardHover.current) return;
-    keyboardHover.current = next;
-    invalidate();
+  /** Fades the target under the pointer up and every other target back down. */
+  const hoverPart = (part: THREE.Object3D | null) => {
+    const now = performance.now();
+    let changed = false;
+    hoverTargets.forEach((target, index) => {
+      const fade = hoverFades.current[index] ?? RESTING_HOVER;
+      const hovered = part !== null && target.parts.includes(part);
+      const next = retargetHover(fade, hovered ? 1 : 0, now, reducedMotion);
+      if (next === fade) return;
+      hoverFades.current[index] = next;
+      changed = true;
+    });
+    if (changed) invalidate();
   };
 
   return (
@@ -702,11 +740,11 @@ function Model({
         event.stopPropagation();
         const part = hitPart(event);
         onHoverChange(isClickable(part));
-        hoverKeyboard(part !== null && isKeyboard(part));
+        hoverPart(part);
       }}
       onPointerOut={() => {
         onHoverChange(false);
-        hoverKeyboard(false);
+        hoverPart(null);
       }}
       onClick={(event: ThreeEvent<MouseEvent>) => {
         event.stopPropagation();
@@ -742,6 +780,7 @@ export default function RetroComputer(props: RetroComputerProps) {
     preserveDrawingBuffer = false,
     maxPixelRatio = DEFAULT_MAX_PIXEL_RATIO,
     fireworkColors,
+    hoverBrightness = DEFAULT_HOVER_BRIGHTNESS,
   } = props;
   const lighting = resolveSettings(DEFAULT_LIGHTING, props);
   const background = resolveSettings(DEFAULT_BACKGROUND, props);
@@ -814,6 +853,7 @@ export default function RetroComputer(props: RetroComputerProps) {
             reducedMotion={reducedMotion}
             active={onScreen}
             crt={crt}
+            hoverBrightness={hoverBrightness}
             focused={focused}
             keyTarget={wrapperRef}
             keyboardEnabled={keyboardEnabled}

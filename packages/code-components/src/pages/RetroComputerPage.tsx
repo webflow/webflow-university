@@ -7,6 +7,7 @@ import {
   type Vector3Tuple,
 } from '../components/RetroComputer/camera';
 import { FIREWORK_COLORS } from '../components/RetroComputer/celebration';
+import { DEFAULT_HOVER_BRIGHTNESS } from '../components/RetroComputer/partHover';
 import {
   DEFAULT_BACKGROUND,
   DEFAULT_CRT,
@@ -44,6 +45,7 @@ function RetroComputerPage() {
   const modelControls = useControls('Model', {
     showCords: true,
     showDesk: true,
+    hoverBrightness: { value: DEFAULT_HOVER_BRIGHTNESS, min: 1, max: 2, step: 0.01 },
   });
 
   const lighting = useControls('Lighting', {
@@ -112,7 +114,13 @@ function RetroComputerPage() {
     window.setTimeout(() => setCopied(null), 1500);
   }, []);
 
-  const lookSettings = { ...lighting, ...background, ...screenControls, maxPixelRatio };
+  const lookSettings = {
+    ...lighting,
+    ...background,
+    ...screenControls,
+    hoverBrightness: modelControls.hoverBrightness,
+    maxPixelRatio,
+  };
 
   const handleSavePng = useCallback(() => {
     const canvas = sceneRef.current?.querySelector('canvas');

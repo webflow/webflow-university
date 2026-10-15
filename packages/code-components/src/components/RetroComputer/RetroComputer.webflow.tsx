@@ -1,6 +1,7 @@
 import RetroComputer, { type RetroComputerProps } from './RetroComputer';
 import { DEFAULT_CAMERA } from './camera';
 import { FIREWORK_COLORS } from './celebration';
+import { DEFAULT_HOVER_BRIGHTNESS } from './partHover';
 import {
   DEFAULT_BACKGROUND,
   DEFAULT_CRT,
@@ -215,6 +216,16 @@ const RetroComputerWebflow = declareComponent(RetroComputerForWebflow, {
       decimals: 2,
       group: 'Screen',
       tooltip: 'Red and blue fringes toward the edges of the screen',
+    }),
+    hoverBrightness: props.Number({
+      name: 'Hover Brightness',
+      defaultValue: DEFAULT_HOVER_BRIGHTNESS,
+      min: 1,
+      max: 2,
+      decimals: 2,
+      group: 'Model',
+      tooltip:
+        'How much the keyboard, power button and CD-ROM eject buttons brighten on hover. 1 turns it off.',
     }),
     maxPixelRatio: props.Number({
       name: 'Max Pixel Ratio',
