@@ -19,7 +19,7 @@ export const CURSOR_BLINK_MS = 530;
 const SPINNER_TURN_MS = 900;
 const CHECK_COLOR = '#5fd38d';
 
-export const IDLE_TEXT = 'Press ENTER to publish';
+export const IDLE_TEXT = 'Ready to publish?';
 export const PUBLISHING_TITLE = 'Publishing in progress...';
 export const PUBLISHED_TEXT = 'Published a few seconds ago';
 
@@ -28,10 +28,12 @@ export class ScreenRenderer {
   private readonly context: CanvasRenderingContext2D;
   private readonly background: string;
   private readonly foreground: string;
+  private readonly fireworkColors: string[];
 
-  constructor(background: string, foreground: string) {
+  constructor(background: string, foreground: string, fireworkColors = FIREWORK_COLORS) {
     this.background = background;
     this.foreground = foreground;
+    this.fireworkColors = fireworkColors.length > 0 ? fireworkColors : FIREWORK_COLORS;
     const canvas = document.createElement('canvas');
     canvas.width = WIDTH;
     canvas.height = HEIGHT;
@@ -217,7 +219,10 @@ export class ScreenRenderer {
     const top = (HEIGHT - rows * GRID_LINE_HEIGHT) / 2;
 
     for (const cell of celebrationFrame(elapsedMs, cols, rows)) {
-      const color = cell.color === 0 ? this.foreground : FIREWORK_COLORS[cell.color - 1];
+      const color =
+        cell.color === 0
+          ? this.foreground
+          : this.fireworkColors[(cell.color - 1) % this.fireworkColors.length];
       ctx.fillStyle = color;
       ctx.shadowColor = color;
       ctx.fillText(

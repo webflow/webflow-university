@@ -3,12 +3,22 @@ import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Bloom, EffectComposer, ToneMapping } from '@react-three/postprocessing';
 import { useWebflowContext } from '@webflow/react';
 import { ToneMappingMode } from 'postprocessing';
-import { type ComponentRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  type ComponentRef,
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import { DEFAULT_CAMERA, type RetroComputerCamera, type Vector3Tuple } from './camera';
+import { parseColorList } from './celebration';
 import { applyCrtSettings, createCrtScreenMaterial } from './crtScreenMaterial';
 import { splitEnterKey } from './enterKey';
 import { getNavigableHref, type RetroComputerLink } from './link';
@@ -32,6 +42,7 @@ import {
   type BackgroundSettings,
   type LightingSettings,
   resolveSettings,
+  type TunerValues,
 } from './settings';
 
 export interface RetroComputerProps
@@ -53,7 +64,18 @@ export interface RetroComputerProps
   preserveDrawingBuffer?: boolean;
   /** Caps the device pixel ratio (1–2). Lower is cheaper on high-density screens. */
   maxPixelRatio?: number;
+  /** Comma separated CSS colors for the publish fireworks. */
+  fireworkColors?: string;
+  /** Shows a DialKit panel over the scene for dialling in the look. Values aren't saved. */
+  showControls?: boolean;
 }
+
+const RetroComputerTuner = lazy(() =>
+  import('./RetroComputerTuner').catch((error: unknown) => {
+    console.error('RetroComputer: failed to load the tuning panel', error);
+    return { default: () => null };
+  })
+);
 
 const CORD_NODES = ['Cord_Keyboard', 'Cord_Mouse'];
 const DESK_NODE = 'Desk';
@@ -435,7 +457,21 @@ function Model({
   );
 }
 
-export default function RetroComputer(props: RetroComputerProps) {
+export default function RetroComputer(componentProps: RetroComputerProps) {
+  const showControls = componentProps.showControls ?? false;
+  const [tuned, setTuned] = useState<TunerValues | null>(null);
+  const [orbitedCamera, setOrbitedCamera] = useState<RetroComputerCamera | null>(null);
+  const tuning = showControls && tuned !== null;
+  const props: RetroComputerProps = tuning
+    ? {
+        ...componentProps,
+        ...tuned,
+        editCamera: tuned.orbitCamera,
+        cameraPosition: orbitedCamera?.position ?? componentProps.cameraPosition,
+        cameraTarget: orbitedCamera?.target ?? componentProps.cameraTarget,
+      }
+    : componentProps;
+
   const {
     showCords = true,
     showDesk = true,
@@ -450,6 +486,7 @@ export default function RetroComputer(props: RetroComputerProps) {
     onEnterPress,
     preserveDrawingBuffer = false,
     maxPixelRatio = DEFAULT_MAX_PIXEL_RATIO,
+    fireworkColors,
   } = props;
   const lighting = resolveSettings(DEFAULT_LIGHTING, props);
   const background = resolveSettings(DEFAULT_BACKGROUND, props);
@@ -466,10 +503,40 @@ export default function RetroComputer(props: RetroComputerProps) {
   );
 
   const screen = useMemo(
-    () => new ScreenRenderer(screenBackground, screenText),
-    [screenBackground, screenText]
+    () => new ScreenRenderer(screenBackground, screenText, parseColorList(fireworkColors)),
+    [screenBackground, screenText, fireworkColors]
   );
   useEffect(() => () => screen.dispose(), [screen]);
+
+  const handleCameraChange = (camera: RetroComputerCamera) => {
+    if (tuning) setOrbitedCamera(camera);
+    onCameraChange?.(camera);
+  };
+
+  const tunerInitial: TunerValues = {
+    ...lighting,
+    ...background,
+    ...crt,
+    screenBackground,
+    screenText,
+    fireworkColors: parseColorList(fireworkColors).join(', '),
+    cameraFov,
+    orbitCamera: false,
+  };
+
+  const copyTunedSettings = () => {
+    if (!tuned) return;
+    const look: Partial<TunerValues> = { ...tuned };
+    delete look.orbitCamera;
+    const settings = JSON.stringify(
+      { ...look, cameraPosition, cameraTarget, cameraFov: tuned.cameraFov },
+      null,
+      2
+    );
+    navigator.clipboard
+      ?.writeText(settings)
+      .catch(() => window.prompt('Copy these settings', settings));
+  };
 
   const handlePublished = () => {
     const href = getNavigableHref(enterLink);
@@ -485,6 +552,7 @@ export default function RetroComputer(props: RetroComputerProps) {
     <div
       ref={wrapperRef}
       style={{
+        position: 'relative',
         width: '100%',
         aspectRatio: '4 / 3',
         background: backgroundCss(background),
@@ -506,7 +574,7 @@ export default function RetroComputer(props: RetroComputerProps) {
           target={cameraTarget}
           fov={cameraFov}
           editable={editCamera}
-          onChange={onCameraChange}
+          onChange={handleCameraChange}
         />
         <StudioEnvironment intensity={lighting.environmentIntensity} />
         <StudioLights lighting={lighting} />
@@ -548,6 +616,15 @@ export default function RetroComputer(props: RetroComputerProps) {
           <ToneMapping mode={ToneMappingMode.AGX} />
         </EffectComposer>
       </Canvas>
+      {showControls && (
+        <Suspense fallback={null}>
+          <RetroComputerTuner
+            initial={tunerInitial}
+            onChange={setTuned}
+            onCopy={copyTunedSettings}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

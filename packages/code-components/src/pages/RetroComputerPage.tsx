@@ -6,6 +6,7 @@ import {
   type RetroComputerCamera,
   type Vector3Tuple,
 } from '../components/RetroComputer/camera';
+import { FIREWORK_COLORS } from '../components/RetroComputer/celebration';
 import {
   DEFAULT_BACKGROUND,
   DEFAULT_CRT,
@@ -80,6 +81,7 @@ function RetroComputerPage() {
   const screenControls = useControls('Screen', {
     screenBackground: '#0a0e16',
     screenText: '#4b8bff',
+    fireworkColors: FIREWORK_COLORS.join(', '),
     screenGlow: { value: DEFAULT_CRT.screenGlow, min: 0, max: 2, step: 0.01 },
     scanlines: { value: DEFAULT_CRT.scanlines, min: 0, max: 1, step: 0.01 },
     vignette: { value: DEFAULT_CRT.vignette, min: 0, max: 1, step: 0.01 },
@@ -95,6 +97,10 @@ function RetroComputerPage() {
 
   const { maxPixelRatio } = useControls('Performance', {
     maxPixelRatio: { value: DEFAULT_MAX_PIXEL_RATIO, min: 1, max: 2, step: 0.1 },
+  });
+
+  const { showControls } = useControls('Developer', {
+    showControls: { value: false, label: 'DialKit panel' },
   });
 
   const [camera, setCamera] = useControls('Camera', () => ({
@@ -153,6 +159,7 @@ function RetroComputerPage() {
             {...lighting}
             {...background}
             maxPixelRatio={maxPixelRatio}
+            showControls={showControls}
             enterLink={enterHref ? { href: enterHref } : undefined}
             cameraPosition={camera.position as Vector3Tuple}
             cameraTarget={camera.target as Vector3Tuple}

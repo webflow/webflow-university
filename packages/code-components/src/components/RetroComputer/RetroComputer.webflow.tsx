@@ -1,4 +1,5 @@
 import RetroComputer from './RetroComputer';
+import { FIREWORK_COLORS } from './celebration';
 import {
   DEFAULT_BACKGROUND,
   DEFAULT_CRT,
@@ -128,6 +129,13 @@ const RetroComputerWebflow = declareComponent(RetroComputer, {
       group: 'Screen',
       tooltip: 'Any CSS color for the terminal text',
     }),
+    fireworkColors: props.Text({
+      name: 'Firework Colors',
+      defaultValue: FIREWORK_COLORS.join(', '),
+      group: 'Screen',
+      tooltip:
+        'Comma separated CSS colors for the publish fireworks, used in order and repeated if there are fewer than four.',
+    }),
     screenGlow: props.Number({
       name: 'Screen Glow',
       defaultValue: DEFAULT_CRT.screenGlow,
@@ -182,6 +190,13 @@ const RetroComputerWebflow = declareComponent(RetroComputer, {
       group: 'Performance',
       tooltip:
         'Caps rendering resolution on high-density (retina) screens. 1.5 is noticeably cheaper with little visible difference.',
+    }),
+    showControls: props.Boolean({
+      name: 'Show Tuning Panel',
+      defaultValue: false,
+      group: 'Developer',
+      tooltip:
+        'Shows a DialKit panel over the scene to dial in lighting, screen and camera live. Changes are not saved: use "Copy settings" and paste the values into these props. Turn off before publishing.',
     }),
     enterLink: props.Link({
       name: 'After Publish Link',

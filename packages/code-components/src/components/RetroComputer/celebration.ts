@@ -2,11 +2,20 @@ export interface AsciiCell {
   col: number;
   row: number;
   char: string;
-  /** 0 is the screen text color, 1+ index into FIREWORK_COLORS (offset by one). */
+  /** 0 is the screen text color, 1+ picks a firework color (offset by one, wrapping). */
   color: number;
 }
 
 export const FIREWORK_COLORS = ['#7ee0a1', '#ffd166', '#ff7ab6', '#ffffff'];
+
+/** Parses a comma separated list of CSS colors; commas inside `rgb(...)` and friends are kept. */
+export function parseColorList(value: string | undefined, fallback = FIREWORK_COLORS): string[] {
+  const colors = (value ?? '')
+    .split(/,(?![^(]*\))/)
+    .map((color) => color.trim())
+    .filter(Boolean);
+  return colors.length > 0 ? colors : fallback;
+}
 
 const ROCKET = ['  ^  ', ' /W\\ ', ' |=| ', '/|_|\\'];
 const FLAMES = [" *'* ", " '*' "];
