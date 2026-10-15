@@ -23,15 +23,6 @@ export interface CrtSettings {
   chromaticAberration: number;
 }
 
-/** Everything the DialKit tuning panel can change. */
-export interface TunerValues extends LightingSettings, BackgroundSettings, CrtSettings {
-  screenBackground: string;
-  screenText: string;
-  fireworkColors: string;
-  cameraFov: number;
-  orbitCamera: boolean;
-}
-
 export const DEFAULT_LIGHTING: LightingSettings = {
   keyLightColor: '#ffb27a',
   keyLightIntensity: 7,

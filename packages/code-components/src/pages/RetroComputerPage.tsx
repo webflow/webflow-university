@@ -99,10 +99,6 @@ function RetroComputerPage() {
     maxPixelRatio: { value: DEFAULT_MAX_PIXEL_RATIO, min: 1, max: 2, step: 0.1 },
   });
 
-  const { showControls } = useControls('Developer', {
-    showControls: { value: false, label: 'DialKit panel' },
-  });
-
   const [camera, setCamera] = useControls('Camera', () => ({
     orbitToAdjust: { value: true, label: 'orbit to adjust' },
     position: { value: DEFAULT_CAMERA.position, step: 0.1 },
@@ -159,7 +155,6 @@ function RetroComputerPage() {
             {...lighting}
             {...background}
             maxPixelRatio={maxPixelRatio}
-            showControls={showControls}
             enterLink={enterHref ? { href: enterHref } : undefined}
             cameraPosition={camera.position as Vector3Tuple}
             cameraTarget={camera.target as Vector3Tuple}

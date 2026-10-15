@@ -1,4 +1,5 @@
-import RetroComputer from './RetroComputer';
+import RetroComputer, { type RetroComputerProps } from './RetroComputer';
+import { DEFAULT_CAMERA } from './camera';
 import { FIREWORK_COLORS } from './celebration';
 import {
   DEFAULT_BACKGROUND,
@@ -9,7 +10,48 @@ import {
 import { props } from '@webflow/data-types';
 import { declareComponent } from '@webflow/react';
 
-const RetroComputerWebflow = declareComponent(RetroComputer, {
+interface RetroComputerWebflowProps
+  extends Omit<RetroComputerProps, 'cameraPosition' | 'cameraTarget'> {
+  cameraPositionX?: number;
+  cameraPositionY?: number;
+  cameraPositionZ?: number;
+  cameraTargetX?: number;
+  cameraTargetY?: number;
+  cameraTargetZ?: number;
+}
+
+/** Webflow has no vector prop, so the camera arrives as separate X/Y/Z numbers. */
+function RetroComputerForWebflow({
+  cameraPositionX = DEFAULT_CAMERA.position[0],
+  cameraPositionY = DEFAULT_CAMERA.position[1],
+  cameraPositionZ = DEFAULT_CAMERA.position[2],
+  cameraTargetX = DEFAULT_CAMERA.target[0],
+  cameraTargetY = DEFAULT_CAMERA.target[1],
+  cameraTargetZ = DEFAULT_CAMERA.target[2],
+  ...rest
+}: RetroComputerWebflowProps) {
+  return (
+    <RetroComputer
+      {...rest}
+      cameraPosition={[cameraPositionX, cameraPositionY, cameraPositionZ]}
+      cameraTarget={[cameraTargetX, cameraTargetY, cameraTargetZ]}
+    />
+  );
+}
+
+const cameraNumber = (name: string, defaultValue: number) =>
+  props.Number({
+    name,
+    defaultValue,
+    min: -100,
+    max: 100,
+    decimals: 2,
+    group: 'Camera',
+    tooltip:
+      'Camera position and the point it looks at, in scene units. Use "Copy camera settings" on the dev page to find values.',
+  });
+
+const RetroComputerWebflow = declareComponent(RetroComputerForWebflow, {
   name: 'RetroComputer',
   description:
     'Low-poly 90s computer on a desk. Click the Enter key to watch it publish, with a little ASCII celebration.',
@@ -191,12 +233,20 @@ const RetroComputerWebflow = declareComponent(RetroComputer, {
       tooltip:
         'Caps rendering resolution on high-density (retina) screens. 1.5 is noticeably cheaper with little visible difference.',
     }),
-    showControls: props.Boolean({
-      name: 'Show Tuning Panel',
-      defaultValue: false,
-      group: 'Developer',
-      tooltip:
-        'Shows a DialKit panel over the scene to dial in lighting, screen and camera live. Changes are not saved: use "Copy settings" and paste the values into these props. Turn off before publishing.',
+    cameraPositionX: cameraNumber('Position X', DEFAULT_CAMERA.position[0]),
+    cameraPositionY: cameraNumber('Position Y', DEFAULT_CAMERA.position[1]),
+    cameraPositionZ: cameraNumber('Position Z', DEFAULT_CAMERA.position[2]),
+    cameraTargetX: cameraNumber('Target X', DEFAULT_CAMERA.target[0]),
+    cameraTargetY: cameraNumber('Target Y', DEFAULT_CAMERA.target[1]),
+    cameraTargetZ: cameraNumber('Target Z', DEFAULT_CAMERA.target[2]),
+    cameraFov: props.Number({
+      name: 'Field of View',
+      defaultValue: DEFAULT_CAMERA.fov,
+      min: 10,
+      max: 70,
+      decimals: 0,
+      group: 'Camera',
+      tooltip: 'Vertical field of view in degrees. Lower zooms in with less perspective.',
     }),
     enterLink: props.Link({
       name: 'After Publish Link',
