@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 
 import { celebrationFrame, FIREWORK_COLORS } from './celebration';
+import { BOOT_LINES, type PowerState, SHUTDOWN_TEXT } from './powerSequence';
 import { PUBLISH_STEPS, type ScreenState, type StepStatus } from './publishSequence';
+import { hasWon, type SnakeGame } from './snake';
 
 // Matches the 6.67 x 5.13 screen face on the monitor model.
 const WIDTH = 1300;
@@ -18,8 +20,16 @@ const GLOW = 14;
 export const CURSOR_BLINK_MS = 530;
 const SPINNER_TURN_MS = 900;
 const CHECK_COLOR = '#5fd38d';
+const OFF_COLOR = '#020304';
+const BEAM_COLOR = '#eef4ff';
+/** The CRT image squeezes to a line for this share of the collapse, then the line to a dot. */
+const LINE_SHARE = 0.65;
 
-export const IDLE_TEXT = 'Press ENTER to publish';
+const SNAKE_CELL = 45;
+const SNAKE_HEADER_Y = 130;
+const SNAKE_BOARD_TOP = 180;
+
+export const IDLE_TEXT = 'Ready to publish?';
 export const PUBLISHING_TITLE = 'Publishing in progress...';
 export const PUBLISHED_TEXT = 'Published a few seconds ago';
 
@@ -28,10 +38,12 @@ export class ScreenRenderer {
   private readonly context: CanvasRenderingContext2D;
   private readonly background: string;
   private readonly foreground: string;
+  private readonly fireworkColors: string[];
 
-  constructor(background: string, foreground: string) {
+  constructor(background: string, foreground: string, fireworkColors = FIREWORK_COLORS) {
     this.background = background;
     this.foreground = foreground;
+    this.fireworkColors = fireworkColors.length > 0 ? fireworkColors : FIREWORK_COLORS;
     const canvas = document.createElement('canvas');
     canvas.width = WIDTH;
     canvas.height = HEIGHT;
@@ -76,7 +88,146 @@ export class ScreenRenderer {
     }
 
     ctx.restore();
-    this.drawCrtOverlay();
+    this.texture.needsUpdate = true;
+  }
+
+  renderPower(state: PowerState, now: number, reducedMotion: boolean) {
+    const ctx = this.context;
+    ctx.save();
+    const lit = state.phase === 'shutting-down' || state.phase === 'booting';
+    ctx.fillStyle = lit ? this.background : OFF_COLOR;
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = this.foreground;
+    ctx.shadowBlur = GLOW;
+    const cursorOn = reducedMotion || Math.floor(now / CURSOR_BLINK_MS) % 2 === 0;
+
+    switch (state.phase) {
+      case 'shutting-down':
+        this.drawPrompt(SHUTDOWN_TEXT, cursorOn, false);
+        break;
+      case 'collapsing':
+        this.drawCollapse(state.progress);
+        break;
+      case 'warming-up':
+        this.drawWarmUp(state.progress);
+        break;
+      case 'booting':
+        this.drawBootLog(state.lines, cursorOn);
+        break;
+      default:
+        break;
+    }
+
+    ctx.restore();
+    this.texture.needsUpdate = true;
+  }
+
+  renderSnake(game: SnakeGame, now: number, paused: boolean, reducedMotion: boolean) {
+    const ctx = this.context;
+    ctx.save();
+    ctx.fillStyle = this.background;
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = this.foreground;
+    ctx.shadowBlur = GLOW;
+
+    const boardWidth = game.cols * SNAKE_CELL;
+    const boardHeight = game.rows * SNAKE_CELL;
+    const left = (WIDTH - boardWidth) / 2;
+    const top = SNAKE_BOARD_TOP;
+
+    this.setFont(FONT_SIZE, 700);
+    ctx.fillStyle = this.foreground;
+    ctx.fillText('SNAKE', left, SNAKE_HEADER_Y);
+    this.setFont();
+    ctx.textAlign = 'right';
+    ctx.fillText(`Score ${game.score}`, left + boardWidth, SNAKE_HEADER_Y);
+    ctx.textAlign = 'left';
+
+    ctx.globalAlpha = 0.4;
+    ctx.strokeStyle = this.foreground;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(left - 6, top - 6, boardWidth + 12, boardHeight + 12);
+    ctx.globalAlpha = 1;
+
+    if (game.food) {
+      const food = this.fireworkColors[0];
+      ctx.fillStyle = food;
+      ctx.shadowColor = food;
+      ctx.beginPath();
+      ctx.arc(
+        left + (game.food.x + 0.5) * SNAKE_CELL,
+        top + (game.food.y + 0.5) * SNAKE_CELL,
+        SNAKE_CELL * 0.3,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+      ctx.shadowColor = this.foreground;
+    }
+
+    // One path for the whole body keeps it to a single (relatively expensive) shadow pass.
+    const inset = 4;
+    ctx.fillStyle = this.foreground;
+    ctx.globalAlpha = 0.8;
+    ctx.beginPath();
+    for (const cell of game.snake.slice(1)) {
+      ctx.rect(
+        left + cell.x * SNAKE_CELL + inset,
+        top + cell.y * SNAKE_CELL + inset,
+        SNAKE_CELL - inset * 2,
+        SNAKE_CELL - inset * 2
+      );
+    }
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    const head = game.snake[0];
+    ctx.fillRect(
+      left + head.x * SNAKE_CELL + inset / 2,
+      top + head.y * SNAKE_CELL + inset / 2,
+      SNAKE_CELL - inset,
+      SNAKE_CELL - inset
+    );
+
+    const footerY = top + boardHeight + 50;
+    this.setFont(GRID_FONT_SIZE);
+    ctx.globalAlpha = 0.55;
+    ctx.fillText('Arrow keys to steer, Esc to quit', left, footerY);
+    ctx.globalAlpha = 1;
+
+    if (game.over || paused) {
+      ctx.save();
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 0.78;
+      ctx.fillStyle = this.background;
+      ctx.fillRect(left - 6, top - 6, boardWidth + 12, boardHeight + 12);
+      ctx.restore();
+      const cursorOn = reducedMotion || Math.floor(now / CURSOR_BLINK_MS) % 2 === 0;
+      const centerY = top + boardHeight / 2;
+      const title = game.over ? (hasWon(game) ? 'You win!' : 'Game over') : 'Paused';
+      const hint = game.over ? 'Press S to play again' : 'Click the computer to resume';
+      ctx.textAlign = 'center';
+      this.setFont(FONT_SIZE * 1.3, 700);
+      ctx.fillText(title, WIDTH / 2, centerY - LINE_HEIGHT * 0.6);
+      ctx.textAlign = 'left';
+      this.setFont();
+      const hintWidth = ctx.measureText(hint).width;
+      const charWidth = ctx.measureText('M').width;
+      const hintLeft = (WIDTH - hintWidth - charWidth * 1.4) / 2;
+      const hintY = centerY + LINE_HEIGHT * 0.6;
+      ctx.fillText(hint, hintLeft, hintY);
+      if (cursorOn) {
+        ctx.fillRect(
+          hintLeft + hintWidth + charWidth * 0.4,
+          hintY - FONT_SIZE * 0.5,
+          charWidth,
+          FONT_SIZE
+        );
+      }
+    }
+
+    ctx.restore();
     this.texture.needsUpdate = true;
   }
 
@@ -207,6 +358,66 @@ export class ScreenRenderer {
     }
   }
 
+  /** The classic CRT switch-off: the picture squeezes into a bright line, then a dot. */
+  private drawCollapse(progress: number) {
+    let width = WIDTH;
+    let height: number;
+    let alpha: number;
+    if (progress < LINE_SHARE) {
+      const t = progress / LINE_SHARE;
+      height = Math.max(HEIGHT * (1 - t) ** 2, 6);
+      alpha = 0.35 + 0.65 * t;
+    } else {
+      const t = (progress - LINE_SHARE) / (1 - LINE_SHARE);
+      height = 6;
+      width = Math.max(WIDTH * (1 - t) ** 2, 10);
+      alpha = 1 - t * 0.6;
+    }
+    this.drawBeam(width, height, alpha);
+  }
+
+  private drawWarmUp(progress: number) {
+    const ctx = this.context;
+    const height = HEIGHT * Math.sqrt(progress);
+    ctx.save();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = this.background;
+    ctx.fillRect(0, (HEIGHT - height) / 2, WIDTH, height);
+    ctx.restore();
+    this.drawBeam(WIDTH, 6, 1 - progress);
+  }
+
+  private drawBeam(width: number, height: number, alpha: number) {
+    const ctx = this.context;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = BEAM_COLOR;
+    ctx.shadowColor = BEAM_COLOR;
+    ctx.shadowBlur = GLOW * 2;
+    ctx.fillRect((WIDTH - width) / 2, (HEIGHT - height) / 2, width, height);
+    ctx.restore();
+  }
+
+  private drawBootLog(lines: number, cursorOn: boolean) {
+    const ctx = this.context;
+    this.setFont();
+    ctx.fillStyle = this.foreground;
+    const charWidth = ctx.measureText('M').width;
+    const top = PADDING_Y + LINE_HEIGHT / 2;
+    const shown = BOOT_LINES.slice(0, lines);
+    shown.forEach((line, index) => ctx.fillText(line, PADDING_X, top + index * LINE_HEIGHT));
+    if (cursorOn) {
+      const last = shown[shown.length - 1] ?? '';
+      const y = top + (shown.length - 1) * LINE_HEIGHT;
+      ctx.fillRect(
+        PADDING_X + ctx.measureText(last).width + charWidth * 0.4,
+        y - FONT_SIZE * 0.5,
+        charWidth,
+        FONT_SIZE
+      );
+    }
+  }
+
   private drawCelebration(elapsedMs: number) {
     const ctx = this.context;
     this.setFont(GRID_FONT_SIZE, 700);
@@ -218,7 +429,10 @@ export class ScreenRenderer {
     const top = (HEIGHT - rows * GRID_LINE_HEIGHT) / 2;
 
     for (const cell of celebrationFrame(elapsedMs, cols, rows)) {
-      const color = cell.color === 0 ? this.foreground : FIREWORK_COLORS[cell.color - 1];
+      const color =
+        cell.color === 0
+          ? this.foreground
+          : this.fireworkColors[(cell.color - 1) % this.fireworkColors.length];
       ctx.fillStyle = color;
       ctx.shadowColor = color;
       ctx.fillText(
@@ -227,25 +441,5 @@ export class ScreenRenderer {
         top + (cell.row + 0.5) * GRID_LINE_HEIGHT
       );
     }
-  }
-
-  private drawCrtOverlay() {
-    const ctx = this.context;
-    ctx.save();
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
-    for (let y = 0; y < HEIGHT; y += 6) ctx.fillRect(0, y, WIDTH, 2);
-    const vignette = ctx.createRadialGradient(
-      WIDTH / 2,
-      HEIGHT / 2,
-      HEIGHT * 0.35,
-      WIDTH / 2,
-      HEIGHT / 2,
-      HEIGHT * 0.85
-    );
-    vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
-    vignette.addColorStop(1, 'rgba(0, 0, 0, 0.45)');
-    ctx.fillStyle = vignette;
-    ctx.fillRect(0, 0, WIDTH, HEIGHT);
-    ctx.restore();
   }
 }

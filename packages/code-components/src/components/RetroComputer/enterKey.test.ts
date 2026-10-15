@@ -1,7 +1,12 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 
-import { ENTER_KEY_NODE, splitEnterKey } from './enterKey';
+import {
+  createStillEnterKeyMaterial,
+  ENTER_KEY_BLUE,
+  ENTER_KEY_NODE,
+  splitEnterKey,
+} from './enterKey';
 
 function quad(x0: number, x1: number, z0: number, z1: number, y: number) {
   return [x0, y, z0, x1, y, z0, x1, y, z1, x0, y, z1];
@@ -47,5 +52,16 @@ describe('splitEnterKey', () => {
     expect(splitEnterKey(keyboard)).toBeNull();
     expect(keyboard.children).toHaveLength(0);
     expect(geometry.index?.count).toBe(6);
+  });
+});
+
+describe('createStillEnterKeyMaterial', () => {
+  it('is an untextured, matte copy of the swatch blue', () => {
+    const material = createStillEnterKeyMaterial();
+
+    expect(material.map).toBeNull();
+    expect(material.color.getHexString(THREE.SRGBColorSpace)).toBe(ENTER_KEY_BLUE.slice(1));
+    expect(material.roughness).toBe(1);
+    expect(material.metalness).toBe(0);
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { celebrationFrame } from './celebration';
+import { celebrationFrame, FIREWORK_COLORS, parseColorList } from './celebration';
 import { CELEBRATION_MS } from './publishSequence';
 
 const COLS = 54;
@@ -40,5 +40,24 @@ describe('celebrationFrame', () => {
         expect(cell.char).toHaveLength(1);
       }
     }
+  });
+});
+
+describe('parseColorList', () => {
+  it('splits a comma separated list and trims each color', () => {
+    expect(parseColorList(' #ff0000, gold ,#00f')).toEqual(['#ff0000', 'gold', '#00f']);
+  });
+
+  it('keeps commas inside color functions', () => {
+    expect(parseColorList('rgb(255, 0, 0), hsl(200 50% 50% / 0.5),#fff')).toEqual([
+      'rgb(255, 0, 0)',
+      'hsl(200 50% 50% / 0.5)',
+      '#fff',
+    ]);
+  });
+
+  it('falls back to the default fireworks palette when empty', () => {
+    expect(parseColorList(undefined)).toEqual(FIREWORK_COLORS);
+    expect(parseColorList(' , ')).toEqual(FIREWORK_COLORS);
   });
 });
