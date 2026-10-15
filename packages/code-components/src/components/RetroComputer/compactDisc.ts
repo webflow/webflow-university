@@ -107,19 +107,26 @@ export function createDiscTexture(): THREE.Texture | null {
  * reflect. The scene has no environment map, and a bare metal disc would only catch the odd
  * highlight; the camera mostly sees the underside, so the lower half matters as much as the top.
  * It is prefiltered once, the first time a disc is drawn.
+ *
+ * Painted on a 256×128 grid but rendered at 512×256: three.js's PMREM blur levels come out
+ * black for narrower equirect maps, which left the (slightly rough) disc black from most angles.
  */
 export function createDiscEnvironment(): THREE.Texture | null {
+  const width = 256;
+  const height = 128;
+  const scale = 2;
   const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 128;
+  canvas.width = width * scale;
+  canvas.height = height * scale;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
-  const room = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  ctx.scale(scale, scale);
+  const room = ctx.createLinearGradient(0, 0, 0, height);
   room.addColorStop(0, '#b9bcc4');
   room.addColorStop(0.5, '#e9ddd0');
   room.addColorStop(1, '#8d8a86');
   ctx.fillStyle = room;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, width, height);
   ctx.fillStyle = '#ffffff';
   for (const [x, y, width, height] of [
     [20, 14, 60, 26],
