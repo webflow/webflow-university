@@ -30,7 +30,7 @@ import {
   discZ,
 } from './compactDisc';
 import { applyCrtSettings, createCrtScreenMaterial } from './crtScreenMaterial';
-import { splitEnterKey } from './enterKey';
+import { createStillEnterKeyMaterial, splitEnterKey } from './enterKey';
 import { splitTriangles } from './meshParts';
 import {
   createEmissiveTest,
@@ -129,6 +129,8 @@ interface ModelLights {
 interface LoadedModel extends TowerButtons {
   scene: THREE.Group;
   enterKey: THREE.Mesh | null;
+  /** The keycap's animated swatch while powered, and a still blue for when the lights are out. */
+  enterKeyMaterials: { lit: THREE.Material; still: THREE.Material } | null;
   /** One per entry in `DRIVE_BAYS`, parented to the tower. */
   discs: THREE.Mesh[];
   lights: ModelLights | null;
@@ -225,6 +227,7 @@ function useRetroComputerScene() {
     let cancelled = false;
     let loaded: THREE.Group | null = null;
     let attributesTexture: THREE.Texture | null = null;
+    let stillEnterKey: THREE.Material | null = null;
 
     Promise.all([
       new GLTFLoader().parseAsync(decodeBase64(modelBase64), ''),
@@ -251,6 +254,11 @@ function useRetroComputerScene() {
         });
         const keyboard = gltf.scene.getObjectByName(KEYBOARD_NODE);
         const enterKey = keyboard instanceof THREE.Mesh ? splitEnterKey(keyboard) : null;
+        if (enterKey) stillEnterKey = createStillEnterKeyMaterial();
+        const enterKeyMaterials =
+          enterKey && stillEnterKey
+            ? { lit: enterKey.material as THREE.Material, still: stillEnterKey }
+            : null;
         // Before the discs go in: their UVs don't point into the PixPal palette.
         const animatedSwatches = sceneUsesAnimatedSwatches(gltf.scene, attributes);
         const tower = gltf.scene.getObjectByName(TOWER_NODE);
@@ -267,6 +275,7 @@ function useRetroComputerScene() {
         setModel({
           scene: gltf.scene,
           enterKey,
+          enterKeyMaterials,
           ...buttons,
           discs,
           lights,
@@ -280,6 +289,7 @@ function useRetroComputerScene() {
       cancelled = true;
       if (loaded) disposeScene(loaded);
       attributesTexture?.dispose();
+      stillEnterKey?.dispose();
     };
   }, []);
 
@@ -394,8 +404,17 @@ function Model({
   onHoverChange: (hovered: boolean) => void;
   onAnnounce: (message: string) => void;
 }) {
-  const { scene, enterKey, powerButton, ejectButtons, discs, lights, frame, animatedSwatches } =
-    model;
+  const {
+    scene,
+    enterKey,
+    enterKeyMaterials,
+    powerButton,
+    ejectButtons,
+    discs,
+    lights,
+    frame,
+    animatedSwatches,
+  } = model;
   const invalidate = useThree((state) => state.invalidate);
   const swatchClockStart = useRef(performance.now());
   const swatchClockRunning = animatedSwatches && !reducedMotion;
@@ -482,7 +501,11 @@ function Model({
       const now = performance.now();
       const powerState = getPowerState(power.current, now, reducedMotion);
       if (power.current?.action === 'boot' && isPoweredOn(powerState)) power.current = null;
-      if (lights) lights.material.emissiveIntensity = lights.intensity * lightLevel(powerState);
+      const level = lightLevel(powerState);
+      if (lights) lights.material.emissiveIntensity = lights.intensity * level;
+      if (enterKey && enterKeyMaterials) {
+        enterKey.material = level < 1 ? enterKeyMaterials.still : enterKeyMaterials.lit;
+      }
       const previous = screenState.current;
       const state = getScreenState(publishStartedAt.current, now, reducedMotion);
       screenState.current = state;
@@ -510,6 +533,8 @@ function Model({
     active,
     focused,
     lights,
+    enterKey,
+    enterKeyMaterials,
     snakeGame,
     swatchClockRunning,
     onAnnounce,
