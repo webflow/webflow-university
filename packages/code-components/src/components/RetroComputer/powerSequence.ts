@@ -1,6 +1,5 @@
 export const SHUTDOWN_MESSAGE_MS = 1100;
 export const COLLAPSE_MS = 360;
-export const OFF_MS = 1300;
 export const WARM_UP_MS = 420;
 export const BOOT_LINE_MS = 380;
 export const BOOT_HOLD_MS = 600;
@@ -13,6 +12,12 @@ export const BOOT_LINES = [
   'Loading Designer...',
 ] as const;
 
+/** The last power button press: a shutdown stays off until a boot follows it. */
+export interface PowerAction {
+  action: 'shutdown' | 'boot';
+  startedAt: number;
+}
+
 export type PowerState =
   | { phase: 'on' }
   | { phase: 'shutting-down' }
@@ -23,33 +28,39 @@ export type PowerState =
 
 /** The CRT collapse and warm-up are skipped for reduced motion; the messages stay. */
 function durations(reducedMotion: boolean) {
-  const collapse = reducedMotion ? 0 : COLLAPSE_MS;
-  const warmUp = reducedMotion ? 0 : WARM_UP_MS;
-  const boot = BOOT_LINES.length * BOOT_LINE_MS + BOOT_HOLD_MS;
-  return { collapse, warmUp, boot };
+  return {
+    collapse: reducedMotion ? 0 : COLLAPSE_MS,
+    warmUp: reducedMotion ? 0 : WARM_UP_MS,
+    boot: BOOT_LINES.length * BOOT_LINE_MS + BOOT_HOLD_MS,
+  };
 }
 
-export function powerCycleMs(reducedMotion = false) {
-  const { collapse, warmUp, boot } = durations(reducedMotion);
-  return SHUTDOWN_MESSAGE_MS + collapse + OFF_MS + warmUp + boot;
+export function shutdownMs(reducedMotion = false) {
+  return SHUTDOWN_MESSAGE_MS + durations(reducedMotion).collapse;
 }
 
-/** Where a power cycle that started at `pressedAt` is at `now`. */
+export function bootMs(reducedMotion = false) {
+  const { warmUp, boot } = durations(reducedMotion);
+  return warmUp + boot;
+}
+
+/** Where the computer is at `now`, given the last power button press. */
 export function getPowerState(
-  pressedAt: number | null,
+  power: PowerAction | null,
   now: number,
   reducedMotion = false
 ): PowerState {
-  if (pressedAt === null) return { phase: 'on' };
+  if (power === null) return { phase: 'on' };
   const { collapse, warmUp, boot } = durations(reducedMotion);
-  let elapsed = Math.max(0, now - pressedAt);
+  let elapsed = Math.max(0, now - power.startedAt);
 
-  if (elapsed < SHUTDOWN_MESSAGE_MS) return { phase: 'shutting-down' };
-  elapsed -= SHUTDOWN_MESSAGE_MS;
-  if (elapsed < collapse) return { phase: 'collapsing', progress: elapsed / collapse };
-  elapsed -= collapse;
-  if (elapsed < OFF_MS) return { phase: 'off' };
-  elapsed -= OFF_MS;
+  if (power.action === 'shutdown') {
+    if (elapsed < SHUTDOWN_MESSAGE_MS) return { phase: 'shutting-down' };
+    elapsed -= SHUTDOWN_MESSAGE_MS;
+    if (elapsed < collapse) return { phase: 'collapsing', progress: elapsed / collapse };
+    return { phase: 'off' };
+  }
+
   if (elapsed < warmUp) return { phase: 'warming-up', progress: elapsed / warmUp };
   elapsed -= warmUp;
   if (elapsed < boot) {
@@ -59,7 +70,21 @@ export function getPowerState(
   return { phase: 'on' };
 }
 
-export const isPowerCycling = (state: PowerState) => state.phase !== 'on';
+/**
+ * What a power button press does in `state`: shut down when on, boot when off. Presses while
+ * shutting down or booting are ignored.
+ */
+export function nextPowerAction(state: PowerState, now: number): PowerAction | null {
+  if (state.phase === 'on') return { action: 'shutdown', startedAt: now };
+  if (state.phase === 'off') return { action: 'boot', startedAt: now };
+  return null;
+}
+
+export const isPoweredOn = (state: PowerState) => state.phase === 'on';
+
+/** Whether the screen is animating and needs frequent redraws. */
+export const isPowerAnimating = (state: PowerState) =>
+  state.phase !== 'on' && state.phase !== 'off';
 
 /** How bright the tower's lights are: they fade with the CRT and come back at power on. */
 export function lightLevel(state: PowerState) {

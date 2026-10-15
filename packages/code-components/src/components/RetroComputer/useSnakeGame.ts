@@ -1,5 +1,6 @@
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 
+import { isPlainSceneKey } from './sceneKeys';
 import {
   createSnakeGame,
   directionForKey,
@@ -55,16 +56,7 @@ export function useSnakeGame({
     if (!enabled || !element) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (
-        event.target !== element ||
-        event.defaultPrevented ||
-        event.isComposing ||
-        event.altKey ||
-        event.ctrlKey ||
-        event.metaKey
-      ) {
-        return;
-      }
+      if (!isPlainSceneKey(event, element)) return;
       const current = game.current;
 
       if (event.key === 's' || event.key === 'S') {

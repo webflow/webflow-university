@@ -3,51 +3,70 @@ import { describe, expect, it } from 'vitest';
 import {
   BOOT_LINE_MS,
   BOOT_LINES,
+  bootMs,
   COLLAPSE_MS,
   getPowerState,
-  isPowerCycling,
+  isPowerAnimating,
+  isPoweredOn,
   lightLevel,
-  OFF_MS,
-  powerCycleMs,
+  nextPowerAction,
   SHUTDOWN_MESSAGE_MS,
+  shutdownMs,
   WARM_UP_MS,
 } from './powerSequence';
-
-const offStart = SHUTDOWN_MESSAGE_MS + COLLAPSE_MS;
-const bootStart = offStart + OFF_MS + WARM_UP_MS;
 
 describe('getPowerState', () => {
   it('is on when the button has not been pressed', () => {
     expect(getPowerState(null, 5000)).toEqual({ phase: 'on' });
   });
 
-  it('walks through shutdown, off, warm up and boot', () => {
-    const at = (ms: number) => getPowerState(1000, 1000 + ms);
+  it('shuts down and then stays off', () => {
+    const at = (ms: number) => getPowerState({ action: 'shutdown', startedAt: 1000 }, 1000 + ms);
     expect(at(0)).toEqual({ phase: 'shutting-down' });
     expect(at(SHUTDOWN_MESSAGE_MS + COLLAPSE_MS / 2)).toEqual({
       phase: 'collapsing',
       progress: 0.5,
     });
-    expect(at(offStart)).toEqual({ phase: 'off' });
-    expect(at(offStart + OFF_MS + WARM_UP_MS / 4)).toEqual({
-      phase: 'warming-up',
-      progress: 0.25,
-    });
-    expect(at(bootStart)).toEqual({ phase: 'booting', lines: 1 });
-    expect(at(bootStart + BOOT_LINE_MS * 2)).toEqual({ phase: 'booting', lines: 3 });
-    expect(at(bootStart + BOOT_LINE_MS * BOOT_LINES.length + 100)).toEqual({
+    expect(at(shutdownMs())).toEqual({ phase: 'off' });
+    expect(at(shutdownMs() + 60 * 60 * 1000)).toEqual({ phase: 'off' });
+  });
+
+  it('warms up, boots and comes back on', () => {
+    const at = (ms: number) => getPowerState({ action: 'boot', startedAt: 1000 }, 1000 + ms);
+    expect(at(WARM_UP_MS / 4)).toEqual({ phase: 'warming-up', progress: 0.25 });
+    expect(at(WARM_UP_MS)).toEqual({ phase: 'booting', lines: 1 });
+    expect(at(WARM_UP_MS + BOOT_LINE_MS * 2)).toEqual({ phase: 'booting', lines: 3 });
+    expect(at(WARM_UP_MS + BOOT_LINE_MS * BOOT_LINES.length + 100)).toEqual({
       phase: 'booting',
       lines: BOOT_LINES.length,
     });
-    expect(at(powerCycleMs())).toEqual({ phase: 'on' });
+    expect(at(bootMs())).toEqual({ phase: 'on' });
   });
 
   it('skips the CRT collapse and warm up for reduced motion', () => {
-    const at = (ms: number) => getPowerState(0, ms, true);
-    expect(at(SHUTDOWN_MESSAGE_MS)).toEqual({ phase: 'off' });
-    expect(at(SHUTDOWN_MESSAGE_MS + OFF_MS)).toEqual({ phase: 'booting', lines: 1 });
-    expect(powerCycleMs(true)).toBe(powerCycleMs() - COLLAPSE_MS - WARM_UP_MS);
-    expect(at(powerCycleMs(true))).toEqual({ phase: 'on' });
+    expect(getPowerState({ action: 'shutdown', startedAt: 0 }, SHUTDOWN_MESSAGE_MS, true)).toEqual({
+      phase: 'off',
+    });
+    expect(getPowerState({ action: 'boot', startedAt: 0 }, 0, true)).toEqual({
+      phase: 'booting',
+      lines: 1,
+    });
+    expect(shutdownMs(true)).toBe(shutdownMs() - COLLAPSE_MS);
+    expect(bootMs(true)).toBe(bootMs() - WARM_UP_MS);
+  });
+});
+
+describe('nextPowerAction', () => {
+  it('shuts down when on and boots when off', () => {
+    expect(nextPowerAction({ phase: 'on' }, 5)).toEqual({ action: 'shutdown', startedAt: 5 });
+    expect(nextPowerAction({ phase: 'off' }, 9)).toEqual({ action: 'boot', startedAt: 9 });
+  });
+
+  it('ignores presses mid shutdown or boot', () => {
+    expect(nextPowerAction({ phase: 'shutting-down' }, 0)).toBeNull();
+    expect(nextPowerAction({ phase: 'collapsing', progress: 0.5 }, 0)).toBeNull();
+    expect(nextPowerAction({ phase: 'warming-up', progress: 0.5 }, 0)).toBeNull();
+    expect(nextPowerAction({ phase: 'booting', lines: 2 }, 0)).toBeNull();
   });
 });
 
@@ -61,10 +80,12 @@ describe('lightLevel', () => {
   });
 });
 
-describe('isPowerCycling', () => {
-  it('is true for every phase except on', () => {
-    expect(isPowerCycling({ phase: 'on' })).toBe(false);
-    expect(isPowerCycling({ phase: 'off' })).toBe(true);
-    expect(isPowerCycling({ phase: 'booting', lines: 1 })).toBe(true);
+describe('isPoweredOn and isPowerAnimating', () => {
+  it('only animates during transitions', () => {
+    expect(isPoweredOn({ phase: 'on' })).toBe(true);
+    expect(isPoweredOn({ phase: 'off' })).toBe(false);
+    expect(isPowerAnimating({ phase: 'on' })).toBe(false);
+    expect(isPowerAnimating({ phase: 'off' })).toBe(false);
+    expect(isPowerAnimating({ phase: 'booting', lines: 1 })).toBe(true);
   });
 });

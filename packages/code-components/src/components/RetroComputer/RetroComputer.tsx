@@ -39,9 +39,17 @@ import {
   preparePixPalMaterial,
   sceneUsesAnimatedSwatches,
 } from './pixPalMaterial';
-import { getPowerState, isPowerCycling, lightLevel } from './powerSequence';
+import {
+  getPowerState,
+  isPowerAnimating,
+  isPoweredOn,
+  lightLevel,
+  nextPowerAction,
+  type PowerAction,
+} from './powerSequence';
 import { getScreenState, isPublishRunning, type ScreenState } from './publishSequence';
 import modelBase64 from './retroComputerModel';
+import { isPlainSceneKey } from './sceneKeys';
 import { createCurvedScreenGeometry, MAX_SCREEN_BULGE } from './screenGeometry';
 import { CURSOR_BLINK_MS, ScreenRenderer } from './screenRenderer';
 import {
@@ -395,17 +403,21 @@ function Model({
     new Map<THREE.Object3D, { startedAt: number; axis: 'y' | 'z'; depth: number }>()
   );
   const publishStartedAt = useRef<number | null>(null);
-  const powerPressedAt = useRef<number | null>(null);
+  const power = useRef<PowerAction | null>(null);
   const screenState = useRef<ScreenState>({ phase: 'idle' });
   const refreshScreen = useRef<() => void>(() => {});
   const discMotions = useRef<(DiscMotion | null)[]>([]);
   const discExtensions = useRef<number[]>([]);
+  const pressEnterKey = useRef<() => void>(() => {});
+
+  const poweredOn = () =>
+    isPoweredOn(getPowerState(power.current, performance.now(), reducedMotion));
 
   const { game: snakeGame, quit: quitSnake } = useSnakeGame({
     keyTarget,
     enabled: keyboardEnabled,
     running: focused && active,
-    canStart: () => powerPressedAt.current === null && !isPublishRunning(screenState.current),
+    canStart: () => poweredOn() && !isPublishRunning(screenState.current),
     onChange: () => refreshScreen.current(),
     onAnnounce,
   });
@@ -468,16 +480,18 @@ function Model({
     const tick = () => {
       window.clearTimeout(timer);
       const now = performance.now();
-      const power = getPowerState(powerPressedAt.current, now, reducedMotion);
-      if (!isPowerCycling(power)) powerPressedAt.current = null;
-      if (lights) lights.material.emissiveIntensity = lights.intensity * lightLevel(power);
+      const powerState = getPowerState(power.current, now, reducedMotion);
+      if (power.current?.action === 'boot' && isPoweredOn(powerState)) power.current = null;
+      if (lights) lights.material.emissiveIntensity = lights.intensity * lightLevel(powerState);
+      const previous = screenState.current;
       const state = getScreenState(publishStartedAt.current, now, reducedMotion);
       screenState.current = state;
       const running = isPublishRunning(state);
-      const animating = running || isPowerCycling(power);
+      if (state.phase === 'published' && isPublishRunning(previous)) onAnnounce('Published.');
+      const animating = running || isPowerAnimating(powerState);
       if (active) {
         const game = snakeGame.current;
-        if (isPowerCycling(power)) screen.renderPower(power, now, reducedMotion);
+        if (!isPoweredOn(powerState)) screen.renderPower(powerState, now, reducedMotion);
         else if (game) screen.renderSnake(game, now, !focused, reducedMotion);
         else screen.render(state, now, reducedMotion);
         if (!swatchClockRunning) invalidate();
@@ -490,7 +504,17 @@ function Model({
     refreshScreen.current = tick;
     tick();
     return () => window.clearTimeout(timer);
-  }, [screen, reducedMotion, active, focused, lights, snakeGame, swatchClockRunning, invalidate]);
+  }, [
+    screen,
+    reducedMotion,
+    active,
+    focused,
+    lights,
+    snakeGame,
+    swatchClockRunning,
+    onAnnounce,
+    invalidate,
+  ]);
 
   // Blender drives the animated swatches with the integer frame number, so 24 renders a second
   // reproduce them exactly. These renders also pick up screen texture changes.
@@ -537,25 +561,52 @@ function Model({
   const pressEnter = (key: THREE.Mesh) => {
     press(key, 'y', ENTER_PRESS_DEPTH);
     onEnterPress();
-    if (powerPressedAt.current !== null || isPublishRunning(screenState.current)) return;
+    if (!poweredOn() || isPublishRunning(screenState.current)) return;
     quitSnake();
     publishStartedAt.current = performance.now();
+    onAnnounce('Publishing your site.');
     refreshScreen.current();
   };
 
+  useEffect(() => {
+    pressEnterKey.current = () => {
+      if (enterKey) pressEnter(enterKey);
+    };
+  });
+
+  // Enter on the focused scene presses the keyboard's Enter key, exactly like clicking it.
+  useEffect(() => {
+    const element = keyTarget.current;
+    if (!keyboardEnabled || !element || !enterKey) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Enter' || event.repeat || !isPlainSceneKey(event, element)) return;
+      event.preventDefault();
+      pressEnterKey.current();
+    };
+    element.addEventListener('keydown', onKeyDown);
+    return () => element.removeEventListener('keydown', onKeyDown);
+  }, [keyboardEnabled, keyTarget, enterKey]);
+
+  /** Shuts down when on and boots when off; the computer stays dark in between. */
   const pressPower = (button: THREE.Mesh) => {
     press(button, 'z', POWER_PRESS_DEPTH);
-    if (powerPressedAt.current !== null) return;
-    quitSnake();
-    publishStartedAt.current = null;
-    powerPressedAt.current = performance.now();
-    onAnnounce('Restarting the computer.');
+    const now = performance.now();
+    const next = nextPowerAction(getPowerState(power.current, now, reducedMotion), now);
+    if (!next) return;
+    if (next.action === 'shutdown') {
+      quitSnake();
+      publishStartedAt.current = null;
+      onAnnounce('Shutting down.');
+    } else {
+      onAnnounce('Starting up.');
+    }
+    power.current = next;
     refreshScreen.current();
   };
 
   /** Ejects the disc in bay `index`, or loads it back in if it's out (or on its way out). */
   const toggleDisc = (index: number) => {
-    if (powerPressedAt.current !== null) return;
+    if (!poweredOn()) return;
     const extension = discExtensions.current[index] ?? 0;
     const heading = discMotions.current[index]?.to ?? (extension > 0.5 ? 1 : 0);
     discMotions.current[index] = {
@@ -651,7 +702,7 @@ export default function RetroComputer(props: RetroComputerProps) {
       role={keyboardEnabled ? 'group' : undefined}
       aria-label={keyboardEnabled ? 'Retro computer' : undefined}
       aria-describedby={keyboardEnabled ? hintId : undefined}
-      aria-keyshortcuts={keyboardEnabled ? 'S' : undefined}
+      aria-keyshortcuts={keyboardEnabled ? 'Enter S' : undefined}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
       style={{
@@ -724,7 +775,7 @@ export default function RetroComputer(props: RetroComputerProps) {
       {keyboardEnabled && (
         <>
           <span id={hintId} style={VISUALLY_HIDDEN}>
-            Press S to play Snake. Arrow keys steer, Escape quits.
+            Press Enter to publish. Press S to play Snake: arrow keys steer, Escape quits.
           </span>
           <span aria-live="polite" style={VISUALLY_HIDDEN}>
             {announcement}
