@@ -13,7 +13,7 @@ import { declareComponent } from '@webflow/react';
 
 interface RetroComputerWebflowProps extends Omit<
   RetroComputerProps,
-  'cameraPosition' | 'cameraTarget'
+  'cameraPosition' | 'cameraTarget' | 'keyLightPosition' | 'keyLightTarget'
 > {
   cameraPositionX?: number;
   cameraPositionY?: number;
@@ -21,9 +21,15 @@ interface RetroComputerWebflowProps extends Omit<
   cameraTargetX?: number;
   cameraTargetY?: number;
   cameraTargetZ?: number;
+  keyLightPositionX?: number;
+  keyLightPositionY?: number;
+  keyLightPositionZ?: number;
+  keyLightTargetX?: number;
+  keyLightTargetY?: number;
+  keyLightTargetZ?: number;
 }
 
-/** Webflow has no vector prop, so the camera arrives as separate X/Y/Z numbers. */
+/** Webflow has no vector prop, so the camera and key light arrive as separate X/Y/Z numbers. */
 function RetroComputerForWebflow({
   cameraPositionX = DEFAULT_CAMERA.position[0],
   cameraPositionY = DEFAULT_CAMERA.position[1],
@@ -31,6 +37,12 @@ function RetroComputerForWebflow({
   cameraTargetX = DEFAULT_CAMERA.target[0],
   cameraTargetY = DEFAULT_CAMERA.target[1],
   cameraTargetZ = DEFAULT_CAMERA.target[2],
+  keyLightPositionX = DEFAULT_LIGHTING.keyLightPosition[0],
+  keyLightPositionY = DEFAULT_LIGHTING.keyLightPosition[1],
+  keyLightPositionZ = DEFAULT_LIGHTING.keyLightPosition[2],
+  keyLightTargetX = DEFAULT_LIGHTING.keyLightTarget[0],
+  keyLightTargetY = DEFAULT_LIGHTING.keyLightTarget[1],
+  keyLightTargetZ = DEFAULT_LIGHTING.keyLightTarget[2],
   ...rest
 }: RetroComputerWebflowProps) {
   return (
@@ -38,21 +50,24 @@ function RetroComputerForWebflow({
       {...rest}
       cameraPosition={[cameraPositionX, cameraPositionY, cameraPositionZ]}
       cameraTarget={[cameraTargetX, cameraTargetY, cameraTargetZ]}
+      keyLightPosition={[keyLightPositionX, keyLightPositionY, keyLightPositionZ]}
+      keyLightTarget={[keyLightTargetX, keyLightTargetY, keyLightTargetZ]}
     />
   );
 }
 
-const cameraNumber = (name: string, defaultValue: number) =>
-  props.Number({
-    name,
-    defaultValue,
-    min: -100,
-    max: 100,
-    decimals: 2,
-    group: 'Camera',
-    tooltip:
-      'Camera position and the point it looks at, in scene units. Use "Copy camera settings" on the dev page to find values.',
-  });
+const sceneNumber = (group: string, tooltip: string) => (name: string, defaultValue: number) =>
+  props.Number({ name, defaultValue, min: -100, max: 100, decimals: 2, group, tooltip });
+
+const cameraNumber = sceneNumber(
+  'Camera',
+  'Camera position and the point it looks at, in scene units. Use "Copy camera settings" on the dev page to find values.'
+);
+
+const keyLightNumber = sceneNumber(
+  'Lighting',
+  'Key light position and the point it aims at, in scene units. Use "Copy look settings" on the dev page to find values.'
+);
 
 const RetroComputerWebflow = declareComponent(RetroComputerForWebflow, {
   name: 'RetroComputer',
@@ -91,6 +106,12 @@ const RetroComputerWebflow = declareComponent(RetroComputerForWebflow, {
       group: 'Lighting',
       tooltip: 'Brightness of the key light and the pool of light on the desk',
     }),
+    keyLightPositionX: keyLightNumber('Key Light X', DEFAULT_LIGHTING.keyLightPosition[0]),
+    keyLightPositionY: keyLightNumber('Key Light Y', DEFAULT_LIGHTING.keyLightPosition[1]),
+    keyLightPositionZ: keyLightNumber('Key Light Z', DEFAULT_LIGHTING.keyLightPosition[2]),
+    keyLightTargetX: keyLightNumber('Key Light Target X', DEFAULT_LIGHTING.keyLightTarget[0]),
+    keyLightTargetY: keyLightNumber('Key Light Target Y', DEFAULT_LIGHTING.keyLightTarget[1]),
+    keyLightTargetZ: keyLightNumber('Key Light Target Z', DEFAULT_LIGHTING.keyLightTarget[2]),
     fillIntensity: props.Number({
       name: 'Fill Intensity',
       defaultValue: DEFAULT_LIGHTING.fillIntensity,
