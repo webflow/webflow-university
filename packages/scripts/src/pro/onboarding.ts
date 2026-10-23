@@ -8,15 +8,17 @@
  * Updating the hash earlier makes Chrome scroll to the stage while a section
  * above it is still collapsing, so the final position is short of the target.
  *
- * The link button on each card copies that URL and crossfades to a checkmark
- * with the checklist copy confirmation.
+ * The copy button beside each card copies that URL and crossfades to a
+ * checkmark with the checklist copy confirmation. It is a sibling of the card
+ * link rather than a child: a button inside a link is invalid HTML, and screen
+ * readers fold the button's label into the link's name.
  */
 
 import { setFeedback, showCopyConfirmation, stackCopyIcons } from '../common/checklist/feedback.js';
 import { getSectionUrl } from '../common/checklist/heading-links.js';
 
 const CARD_SELECTOR = 'a.cc_glance_card[href]';
-const COPY_SELECTOR = '.cc_glance_link';
+const COPY_SELECTOR = '.cc_glance_copy-button';
 const LINK_LABEL = 'Copy link to this section';
 
 /**
@@ -64,9 +66,6 @@ export function initOnboardingGlance(): void {
         ) {
           return;
         }
-        if (event.target instanceof Element && event.target.closest(COPY_SELECTOR)) {
-          return;
-        }
         // Webflow's delegated `a[href*="#"]` handler on document ignores
         // defaultPrevented and smooth-scrolls to a position measured before
         // the accordions finish resizing, overriding the scroll below.
@@ -77,7 +76,7 @@ export function initOnboardingGlance(): void {
       { signal }
     );
 
-    const button = card.querySelector<HTMLElement>(COPY_SELECTOR);
+    const button = card.parentElement?.querySelector<HTMLElement>(`:scope > ${COPY_SELECTOR}`);
     if (!button) {
       return;
     }

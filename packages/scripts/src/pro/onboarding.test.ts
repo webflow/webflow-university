@@ -7,14 +7,14 @@ import { initOnboardingGlance } from './onboarding';
 
 function page(): string {
   return `
-    <a href="#get-started" class="cc_glance_card">
-      <span>Get started</span>
-      <button class="cc_glance_link"><div class="icon-1"><svg></svg></div></button>
-    </a>
-    <a href="#prepare-to-launch" class="cc_glance_card">
-      <span>Prepare to launch</span>
-      <button class="cc_glance_link"><div class="icon-1"><svg></svg></div></button>
-    </a>
+    <div class="u-relative">
+      <a href="#get-started" class="cc_glance_card"><span>Get started</span></a>
+      <button class="cc_glance_copy-button"><div class="icon-1"><svg></svg></div></button>
+    </div>
+    <div class="u-relative">
+      <a href="#prepare-to-launch" class="cc_glance_card"><span>Prepare to launch</span></a>
+      <button class="cc_glance_copy-button"><div class="icon-1"><svg></svg></div></button>
+    </div>
     <details id="get-started" class="cc_accordion-item" open></details>
     <details id="prepare-to-launch" class="cc_accordion-item"></details>
     <details id="unrelated" class="cc_accordion-item" open></details>
@@ -30,7 +30,7 @@ function details(id: string): HTMLDetailsElement {
 }
 
 function copyButtons(): HTMLButtonElement[] {
-  return Array.from(document.querySelectorAll<HTMLButtonElement>('.cc_glance_link'));
+  return Array.from(document.querySelectorAll<HTMLButtonElement>('.cc_glance_copy-button'));
 }
 
 function mockDetailsContentTransition(duration: string): void {
@@ -236,6 +236,17 @@ describe('initOnboardingGlance', () => {
     expect(window.location.hash).toBe('#get-started');
     expect(scroll).toHaveBeenCalledOnce();
     expect(scroll.mock.instances[0]).toBe(details('get-started'));
+  });
+
+  it('labels the copy button beside each card without adding it to the link name', () => {
+    document.body.innerHTML = page();
+    initOnboardingGlance();
+
+    copyButtons().forEach((button) => {
+      expect(button.getAttribute('aria-label')).toBe('Copy link to this section');
+      expect(button.type).toBe('button');
+      expect(button.closest('a')).toBeNull();
+    });
   });
 
   it('does not bind the copy button twice', async () => {
