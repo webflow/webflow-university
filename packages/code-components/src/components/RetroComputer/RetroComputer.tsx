@@ -69,9 +69,11 @@ import {
 } from './towerParts';
 import { useSnakeGame } from './useSnakeGame';
 import {
+  aspectRatioCss,
   backgroundCss,
   type CrtSettings,
   DEFAULT_ACCESSIBLE_NAME,
+  DEFAULT_ASPECT_RATIO,
   DEFAULT_BACKGROUND,
   DEFAULT_CRT,
   DEFAULT_LIGHTING,
@@ -90,6 +92,8 @@ export interface RetroComputerProps
   cameraPosition?: Vector3Tuple;
   cameraTarget?: Vector3Tuple;
   cameraFov?: number;
+  /** Width to height, like "3:2". The component spans its container's width. */
+  aspectRatio?: string;
   /** Lets you orbit the camera to dial in a view; reports it through `onCameraChange`. */
   editCamera?: boolean;
   onCameraChange?: (camera: RetroComputerCamera) => void;
@@ -775,6 +779,7 @@ export default function RetroComputer(props: RetroComputerProps) {
     cameraPosition = DEFAULT_CAMERA.position,
     cameraTarget = DEFAULT_CAMERA.target,
     cameraFov = DEFAULT_CAMERA.fov,
+    aspectRatio = DEFAULT_ASPECT_RATIO,
     editCamera = false,
     onCameraChange,
     onEnterPress,
@@ -823,7 +828,7 @@ export default function RetroComputer(props: RetroComputerProps) {
       style={{
         position: 'relative',
         width: '100%',
-        aspectRatio: '4 / 3',
+        aspectRatio: aspectRatioCss(aspectRatio),
         background: backgroundCss(background),
         cursor: partHovered ? 'pointer' : editCamera ? 'grab' : 'default',
       }}

@@ -3,7 +3,9 @@ import { DEFAULT_CAMERA } from './camera';
 import { FIREWORK_COLORS } from './celebration';
 import { DEFAULT_HOVER_BRIGHTNESS } from './partHover';
 import {
+  ASPECT_RATIOS,
   DEFAULT_ACCESSIBLE_NAME,
+  DEFAULT_ASPECT_RATIO,
   DEFAULT_BACKGROUND,
   DEFAULT_CRT,
   DEFAULT_LIGHTING,
@@ -280,6 +282,14 @@ const RetroComputerWebflow = declareComponent(RetroComputerForWebflow, {
       decimals: 0,
       group: 'Camera',
       tooltip: 'Vertical field of view in degrees. Lower zooms in with less perspective.',
+    }),
+    aspectRatio: props.Variant({
+      name: 'Aspect Ratio',
+      options: ASPECT_RATIOS,
+      defaultValue: DEFAULT_ASPECT_RATIO,
+      group: 'Camera',
+      tooltip:
+        'Width to height of the scene. It always fills the width of its container, so this sets the height. Wider ratios show more of the desk at the sides.',
     }),
   },
 });

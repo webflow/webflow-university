@@ -57,6 +57,18 @@ export const DEFAULT_MAX_PIXEL_RATIO = 2;
 
 export const DEFAULT_ACCESSIBLE_NAME = 'Interactive 3D retro computer';
 
+export const ASPECT_RATIOS = ['16:9', '16:10', '3:2', '4:3', '1:1', '4:5', '3:4'];
+export const DEFAULT_ASPECT_RATIO = '4:3';
+
+/** Turns "3:2" or "3/2" into the CSS `3 / 2`, falling back to the default for anything else. */
+export function aspectRatioCss(aspectRatio: string): string {
+  const match = /^\s*(\d*\.?\d+)\s*[:/]\s*(\d*\.?\d+)\s*$/.exec(aspectRatio);
+  const width = Number(match?.[1]);
+  const height = Number(match?.[2]);
+  if (!(width > 0 && height > 0)) return aspectRatioCss(DEFAULT_ASPECT_RATIO);
+  return `${width} / ${height}`;
+}
+
 /** Fills in defaults for every key the caller left undefined (Webflow can omit unset props). */
 export function resolveSettings<T extends object>(defaults: T, values: Partial<T>): T {
   const resolved = { ...defaults };
