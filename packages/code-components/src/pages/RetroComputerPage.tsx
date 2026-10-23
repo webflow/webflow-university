@@ -9,6 +9,8 @@ import {
 import { FIREWORK_COLORS } from '../components/RetroComputer/celebration';
 import { DEFAULT_HOVER_BRIGHTNESS } from '../components/RetroComputer/partHover';
 import {
+  ASPECT_RATIOS,
+  DEFAULT_ASPECT_RATIO,
   DEFAULT_BACKGROUND,
   DEFAULT_CRT,
   DEFAULT_LIGHTING,
@@ -101,6 +103,7 @@ function RetroComputerPage() {
     position: { value: DEFAULT_CAMERA.position, step: 0.1 },
     target: { value: DEFAULT_CAMERA.target, step: 0.1 },
     fov: { value: DEFAULT_CAMERA.fov, min: 10, max: 70, step: 1 },
+    aspectRatio: { value: DEFAULT_ASPECT_RATIO, options: ASPECT_RATIOS },
   }));
 
   const handleEnterPress = useCallback(() => setEnterPresses((count) => count + 1), []);
@@ -157,6 +160,7 @@ function RetroComputerPage() {
             cameraPosition={camera.position as Vector3Tuple}
             cameraTarget={camera.target as Vector3Tuple}
             cameraFov={camera.fov}
+            aspectRatio={camera.aspectRatio}
             editCamera={camera.orbitToAdjust}
             onCameraChange={handleCameraChange}
             onEnterPress={handleEnterPress}
