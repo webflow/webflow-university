@@ -4,6 +4,7 @@ import { FIREWORK_COLORS } from './celebration';
 import { DEFAULT_HOVER_BRIGHTNESS } from './partHover';
 import {
   ASPECT_RATIOS,
+  DEFAULT_ACCESSIBLE_NAME,
   DEFAULT_ASPECT_RATIO,
   DEFAULT_BACKGROUND,
   DEFAULT_CRT,
@@ -249,6 +250,13 @@ const RetroComputerWebflow = declareComponent(RetroComputerForWebflow, {
       group: 'Model',
       tooltip:
         'How much the keyboard, power button and CD-ROM eject buttons brighten on hover. 1 turns it off.',
+    }),
+    accessibleName: props.Text({
+      name: 'Accessible Name',
+      defaultValue: DEFAULT_ACCESSIBLE_NAME,
+      group: 'Accessibility',
+      tooltip:
+        'What screen readers announce when the scene gets keyboard focus, followed by the keyboard instructions. Describe it for this page, like "Animation of publishing a site".',
     }),
     maxPixelRatio: props.Number({
       name: 'Max Pixel Ratio',

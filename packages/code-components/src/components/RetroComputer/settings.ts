@@ -55,6 +55,8 @@ export const DEFAULT_CRT: CrtSettings = {
 
 export const DEFAULT_MAX_PIXEL_RATIO = 2;
 
+export const DEFAULT_ACCESSIBLE_NAME = 'Interactive 3D retro computer';
+
 export const ASPECT_RATIOS = ['16:9', '16:10', '3:2', '4:3', '1:1', '4:5', '3:4'];
 export const DEFAULT_ASPECT_RATIO = '4:3';
 

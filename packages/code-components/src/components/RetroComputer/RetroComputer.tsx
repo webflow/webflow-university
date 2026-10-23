@@ -72,6 +72,7 @@ import {
   aspectRatioCss,
   backgroundCss,
   type CrtSettings,
+  DEFAULT_ACCESSIBLE_NAME,
   DEFAULT_ASPECT_RATIO,
   DEFAULT_BACKGROUND,
   DEFAULT_CRT,
@@ -104,6 +105,8 @@ export interface RetroComputerProps
   fireworkColors?: string;
   /** How much the keyboard and tower buttons brighten on hover. 1 turns it off. */
   hoverBrightness?: number;
+  /** What screen readers call the scene. The keyboard instructions are read after it. */
+  accessibleName?: string;
 }
 
 const CORD_NODES = ['Cord_Keyboard', 'Cord_Mouse'];
@@ -784,6 +787,7 @@ export default function RetroComputer(props: RetroComputerProps) {
     maxPixelRatio = DEFAULT_MAX_PIXEL_RATIO,
     fireworkColors,
     hoverBrightness = DEFAULT_HOVER_BRIGHTNESS,
+    accessibleName,
   } = props;
   const lighting = resolveSettings(DEFAULT_LIGHTING, props);
   const background = resolveSettings(DEFAULT_BACKGROUND, props);
@@ -814,8 +818,9 @@ export default function RetroComputer(props: RetroComputerProps) {
       ref={wrapperRef}
       // A single tab stop: no focus trap, Tab moves on as usual, and keys only apply while focused.
       tabIndex={keyboardEnabled ? 0 : undefined}
-      role={keyboardEnabled ? 'group' : undefined}
-      aria-label={keyboardEnabled ? 'Retro computer' : undefined}
+      // `application` makes screen readers pass S and the arrow keys through instead of browsing.
+      role={keyboardEnabled ? 'application' : undefined}
+      aria-label={keyboardEnabled ? accessibleName?.trim() || DEFAULT_ACCESSIBLE_NAME : undefined}
       aria-describedby={keyboardEnabled ? hintId : undefined}
       aria-keyshortcuts={keyboardEnabled ? 'Enter S' : undefined}
       onFocus={() => setFocused(true)}
