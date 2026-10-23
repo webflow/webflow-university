@@ -818,6 +818,8 @@ export default function RetroComputer(props: RetroComputerProps) {
       style={{
         position: 'relative',
         width: '100%',
+        // Fills a wrapper that has a height; falls back to 4:3 when the wrapper's height is auto.
+        height: '100%',
         aspectRatio: '4 / 3',
         background: backgroundCss(background),
         cursor: partHovered ? 'pointer' : editCamera ? 'grab' : 'default',
