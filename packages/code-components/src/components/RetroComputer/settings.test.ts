@@ -20,9 +20,9 @@ describe('aspectRatioCss', () => {
     expect(aspectRatioCss(' 2.39 : 1 ')).toBe('2.39 / 1');
   });
 
-  it('falls back to 4:3 for anything it cannot read', () => {
-    for (const value of ['', 'wide', '16', '0:1', '3:0', '-3:2']) {
-      expect(aspectRatioCss(value)).toBe('4 / 3');
+  it('falls back to 3:2 for anything it cannot read', () => {
+    for (const value of ['', 'wide', '16', '0:1', '4:0', '-4:3']) {
+      expect(aspectRatioCss(value)).toBe('3 / 2');
     }
   });
 });
