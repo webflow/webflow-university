@@ -55,6 +55,8 @@ export const DEFAULT_CRT: CrtSettings = {
 
 export const DEFAULT_MAX_PIXEL_RATIO = 2;
 
+export const DEFAULT_ACCESSIBLE_NAME = 'Interactive 3D retro computer';
+
 /** Fills in defaults for every key the caller left undefined (Webflow can omit unset props). */
 export function resolveSettings<T extends object>(defaults: T, values: Partial<T>): T {
   const resolved = { ...defaults };
