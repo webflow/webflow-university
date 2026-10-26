@@ -12,7 +12,12 @@ import {
   DEFAULT_LIGHTING,
   DEFAULT_MAX_PIXEL_RATIO,
 } from './settings';
-import { DEFAULT_BADGE_TEXT, DEFAULT_NOTE_TEXT } from './stickers';
+import {
+  DEFAULT_BADGE_TEXT,
+  DEFAULT_NOTE_POSITION,
+  DEFAULT_NOTE_TEXT,
+  NOTE_POSITIONS,
+} from './stickers';
 import { props } from '@webflow/data-types';
 import { declareComponent } from '@webflow/react';
 
@@ -106,7 +111,15 @@ const RetroComputerWebflow = declareComponent(RetroComputerForWebflow, {
       name: 'Show Sticky Note',
       defaultValue: true,
       group: 'Stickers',
-      tooltip: 'Show the handwritten sticky note on the side of the tower',
+      tooltip: 'Show the handwritten sticky note',
+    }),
+    notePosition: props.Variant({
+      name: 'Sticky Note Position',
+      options: NOTE_POSITIONS,
+      defaultValue: DEFAULT_NOTE_POSITION,
+      group: 'Stickers',
+      tooltip:
+        'Where the note is stuck: the bottom corner of the monitor, or high up on the side of the tower',
     }),
     noteText: props.Text({
       name: 'Sticky Note Text',
