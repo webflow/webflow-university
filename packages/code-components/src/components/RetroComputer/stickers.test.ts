@@ -4,9 +4,12 @@ import { describe, expect, it } from 'vitest';
 import {
   createInsideBadge,
   createStickyNote,
+  DEFAULT_NOTE_POSITION,
   INSIDE_BADGE_NODE,
   layoutText,
+  NOTE_POSITIONS,
   noteLift,
+  placeNote,
   STICKY_NOTE_NODE,
 } from './stickers';
 
@@ -72,23 +75,64 @@ const normalOf = (mesh: THREE.Mesh) =>
   new THREE.Vector3().fromBufferAttribute(mesh.geometry.attributes.normal, 0);
 
 describe('createStickyNote', () => {
-  it('sits on the left side of the tower facing out', () => {
+  it('only curls away from the surface it faces', () => {
     const note = createStickyNote();
     expect(note.object.name).toBe(STICKY_NOTE_NODE);
-    expect(note.object.position.x).toBeLessThan(-1);
     const [front] = note.object.children as THREE.Mesh[];
-    expect(normalOf(front).x).toBeLessThan(-0.9);
-  });
-
-  it('only curls away from the case', () => {
-    const [front] = createStickyNote().object.children as THREE.Mesh[];
+    expect(normalOf(front).z).toBeCloseTo(1);
     front.geometry.computeBoundingBox();
-    expect(front.geometry.boundingBox?.max.x).toBeCloseTo(0);
-    expect(front.geometry.boundingBox?.min.x).toBeLessThan(-0.2);
+    expect(front.geometry.boundingBox?.min.z).toBeCloseTo(0);
+    expect(front.geometry.boundingBox?.max.z).toBeGreaterThan(0.2);
   });
 
   it('accepts text without a 2D canvas', () => {
     expect(() => createStickyNote().setText('Remember to publish')).not.toThrow();
+  });
+});
+
+describe('placeNote', () => {
+  const setup = () => {
+    const parents = { monitor: new THREE.Object3D(), tower: new THREE.Object3D() };
+    const note = createStickyNote().object;
+    return { parents, note };
+  };
+  const facing = (note: THREE.Object3D) =>
+    new THREE.Vector3(0, 0, 1).applyQuaternion(note.quaternion);
+
+  it('has an option for every placement and defaults to the monitor', () => {
+    expect(NOTE_POSITIONS).toEqual(['Monitor', 'Tower Side']);
+    expect(DEFAULT_NOTE_POSITION).toBe('Monitor');
+  });
+
+  it('sticks to the front of the monitor, smaller than on the tower', () => {
+    const { parents, note } = setup();
+    placeNote(note, 'Monitor', parents);
+    expect(note.parent).toBe(parents.monitor);
+    expect(facing(note).z).toBeCloseTo(1);
+    expect(note.scale.x).toBeLessThan(1);
+  });
+
+  it('moves to the left side of the tower', () => {
+    const { parents, note } = setup();
+    placeNote(note, 'Monitor', parents);
+    placeNote(note, 'Tower Side', parents);
+    expect(note.parent).toBe(parents.tower);
+    expect(parents.monitor.children).not.toContain(note);
+    expect(facing(note).x).toBeCloseTo(-1);
+    expect(note.position.x).toBeLessThan(-1);
+  });
+
+  it('falls back to the default for an unknown position', () => {
+    const { parents, note } = setup();
+    placeNote(note, 'Keyboard', parents);
+    expect(note.parent).toBe(parents.monitor);
+  });
+
+  it('comes off when that part of the model is missing', () => {
+    const { parents, note } = setup();
+    placeNote(note, 'Tower Side', parents);
+    placeNote(note, 'Monitor', { ...parents, monitor: null });
+    expect(note.parent).toBeNull();
   });
 });
 

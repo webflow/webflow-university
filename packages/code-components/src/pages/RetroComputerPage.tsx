@@ -17,7 +17,12 @@ import {
   DEFAULT_LIGHTING,
   DEFAULT_MAX_PIXEL_RATIO,
 } from '../components/RetroComputer/settings';
-import { DEFAULT_BADGE_TEXT, DEFAULT_NOTE_TEXT } from '../components/RetroComputer/stickers';
+import {
+  DEFAULT_BADGE_TEXT,
+  DEFAULT_NOTE_POSITION,
+  DEFAULT_NOTE_TEXT,
+  NOTE_POSITIONS,
+} from '../components/RetroComputer/stickers';
 
 const RetroComputer = lazy(() => import('../components/RetroComputer/RetroComputer'));
 
@@ -56,6 +61,7 @@ function RetroComputerPage() {
   const stickerControls = useControls('Stickers', {
     showNote: true,
     noteText: DEFAULT_NOTE_TEXT,
+    notePosition: { value: DEFAULT_NOTE_POSITION, options: NOTE_POSITIONS },
     showBadge: true,
     badgeText: DEFAULT_BADGE_TEXT,
   });

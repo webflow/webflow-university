@@ -8,18 +8,45 @@ export const DEFAULT_BADGE_TEXT = 'webflow';
 export const STICKY_NOTE_NODE = 'StickyNote';
 export const INSIDE_BADGE_NODE = 'InsideBadge';
 
-// Placements in the Tower mesh's local glTF space (Y up, the front faces +Z, the left side -X).
-const NOTE_CENTRE: Vector3Tuple = [-1.01, 7.7, 2];
+export const NOTE_POSITIONS = ['Monitor', 'Tower Side'];
+export const DEFAULT_NOTE_POSITION = 'Monitor';
+
+interface NotePlacement {
+  parent: 'monitor' | 'tower';
+  /** Centre of the note, in the parent mesh's local glTF space (Y up, the front faces +Z). */
+  position: Vector3Tuple;
+  /** Turn about Y from facing +Z, then a lean in the note's own plane. */
+  turn: number;
+  tilt: number;
+  size: number;
+}
+
+const NOTE_PLACEMENTS: Record<string, NotePlacement> = {
+  // The bottom-right corner of the bezel, its top overhanging the glass (0.34 behind the bezel).
+  Monitor: { parent: 'monitor', position: [2.85, 2.14, 4.06], turn: 0, tilt: -0.08, size: 1.35 },
+  // High up on the tower's left side, near the front.
+  'Tower Side': {
+    parent: 'tower',
+    position: [-1.01, 7.7, 2],
+    turn: -Math.PI / 2,
+    tilt: 0.1,
+    size: 2.1,
+  },
+};
+
+// In the Tower mesh's local glTF space, below the power button.
 const BADGE_CENTRE: Vector3Tuple = [2.81, 0.5, 4.265];
 
+/** The note is modelled at this size and scaled to each placement. */
 const NOTE_SIZE = 2.1;
 const NOTE_ROWS = 14;
 /** The top of the note stays stuck down; below this fraction it peels away from the case. */
 const NOTE_CURL_START = 0.4;
 /** How far the bottom edge lifts off the case. */
 const NOTE_CURL = 0.38;
-const NOTE_TILT = 0.1;
 const NOTE_COLOR = '#ffd93d';
+/** Bright paper still reads as yellow in shade, like on the monitor's front. Far below bloom. */
+const NOTE_GLOW = 0.55;
 const NOTE_INK = '#1f1f24';
 const NOTE_TEXTURE_SIZE = 256;
 /** System handwriting faces, so nothing is bundled: Bradley Hand on macOS, Segoe Print on Windows. */
@@ -34,7 +61,7 @@ const BADGE_SWIRL = '#0a5fb4';
 const BADGE_INK = '#0b2a6f';
 const BADGE_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
-/** A decal on the tower whose text can be repainted. */
+/** A decal on the computer whose text can be repainted. */
 export interface Sticker {
   object: THREE.Object3D;
   setText: (text: string) => void;
@@ -155,7 +182,7 @@ function paintNote(ctx: CanvasRenderingContext2D, text: string) {
   ctx.restore();
 }
 
-/** A square of paper, flat along its top and curling off the case towards the bottom. */
+/** A square of paper facing +Z, flat along its top and curling towards +Z at the bottom. */
 function createNoteGeometry() {
   const geometry = new THREE.PlaneGeometry(NOTE_SIZE, NOTE_SIZE, 1, NOTE_ROWS);
   const position = geometry.attributes.position;
@@ -163,10 +190,28 @@ function createNoteGeometry() {
     position.setZ(i, noteLift((NOTE_SIZE / 2 - position.getY(i)) / NOTE_SIZE));
   }
   geometry.computeVertexNormals();
-  geometry.rotateZ(NOTE_TILT);
-  // Face out of the tower's left side, reading from back to front.
-  geometry.rotateY(-Math.PI / 2);
   return geometry;
+}
+
+/**
+ * Sticks `note` to the monitor or tower for a `NOTE_POSITIONS` value, falling back to the default
+ * for anything else. Hides it if that part is missing from the model.
+ */
+export function placeNote(
+  note: THREE.Object3D,
+  position: string,
+  parents: { monitor: THREE.Object3D | null; tower: THREE.Object3D | null }
+) {
+  const placement = NOTE_PLACEMENTS[position] ?? NOTE_PLACEMENTS[DEFAULT_NOTE_POSITION];
+  const parent = parents[placement.parent];
+  if (!parent) {
+    note.removeFromParent();
+    return;
+  }
+  parent.add(note);
+  note.position.set(...placement.position);
+  note.rotation.set(0, placement.turn, placement.tilt);
+  note.scale.setScalar(placement.size / NOTE_SIZE);
 }
 
 const decalMaterial = (parameters: THREE.MeshStandardMaterialParameters) =>
@@ -177,26 +222,31 @@ const decalMaterial = (parameters: THREE.MeshStandardMaterialParameters) =>
     ...parameters,
   });
 
-/** A handwritten sticky note on the tower's left side. Parent it to the Tower mesh. */
+/** A handwritten sticky note. Stick it somewhere with `placeNote`. */
 export function createStickyNote(): Sticker {
   const geometry = createNoteGeometry();
-  const front = decalMaterial({ color: NOTE_COLOR, roughness: 0.85, metalness: 0 });
+  const paper = { roughness: 0.85, metalness: 0, emissiveIntensity: NOTE_GLOW };
+  const front = decalMaterial({ ...paper, color: NOTE_COLOR, emissive: NOTE_COLOR });
   const back = decalMaterial({
+    ...paper,
     color: NOTE_COLOR,
-    roughness: 0.85,
-    metalness: 0,
+    emissive: NOTE_COLOR,
     side: THREE.BackSide,
   });
   const note = new THREE.Group();
   note.name = STICKY_NOTE_NODE;
   note.add(new THREE.Mesh(geometry, front), new THREE.Mesh(geometry, back));
-  note.position.set(...NOTE_CENTRE);
-  return createPaintedSticker(
+  const sticker = createPaintedSticker(
     note,
     front,
     createCanvas(NOTE_TEXTURE_SIZE, NOTE_TEXTURE_SIZE),
     paintNote
   );
+  if (front.map) {
+    front.emissive.set('#ffffff');
+    front.emissiveMap = front.map;
+  }
+  return sticker;
 }
 
 const badgeFont = (weight: string, size: number) => `${weight} ${size}px ${BADGE_FONT}`;
