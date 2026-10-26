@@ -131,6 +131,16 @@ function HomePage() {
               specular lighting, and optional pointer light. No canvas or heavy rendering library.
             </p>
           </div>
+
+          <div style={cardStyle}>
+            <Link to="/eyeballing-game" style={linkStyle}>
+              Eyeballing Game →
+            </Link>
+            <p style={cardDescriptionStyle}>
+              An eight-round design eye test. Match stroke widths, variable font axes, radius,
+              opacity, shadows, and padding by eye, racing the clock with a lockout for misses.
+            </p>
+          </div>
         </div>
       </section>
     </div>

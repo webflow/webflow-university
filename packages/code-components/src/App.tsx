@@ -9,6 +9,7 @@ import ConcentricShapePage from './pages/ConcentricShapePage';
 import RetroComputerPage from './pages/RetroComputerPage';
 import StampSVGPage from './pages/StampSVGPage';
 import StampSVGBatchExportPage from './pages/StampSVGBatchExportPage';
+import EyeballingGamePage from './pages/EyeballingGamePage';
 import CalendarCMSFromFlatlist from './components/CalendarCMS/CalendarCMSFromFlatlist';
 import TimeSlotsAndRegistration from './components/TimeSlotsAndRegistration/TimeSlotsAndRegistration';
 
@@ -129,6 +130,7 @@ function Navigation() {
     { to: '/concentric-shape', label: 'ConcentricShape' },
     { to: '/retro-computer', label: 'RetroComputer' },
     { to: '/stamp-svg', label: 'StampSVG' },
+    { to: '/eyeballing-game', label: 'Eyeballing Game' },
   ];
 
   return (
@@ -210,6 +212,7 @@ function App() {
           <Route path="/retro-computer" element={<RetroComputerPage />} />
           <Route path="/stamp-svg" element={<StampSVGPage />} />
           <Route path="/stamp-svg-batch-export" element={<StampSVGBatchExportPage />} />
+          <Route path="/eyeballing-game" element={<EyeballingGamePage />} />
         </Routes>
       </div>
     </>
