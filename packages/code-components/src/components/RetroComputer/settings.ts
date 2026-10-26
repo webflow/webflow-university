@@ -55,6 +55,9 @@ export const DEFAULT_CRT: CrtSettings = {
 
 export const DEFAULT_MAX_PIXEL_RATIO = 2;
 
+/** Matches the desk's PixPal wood swatch (`#3d2e1f`). */
+export const DEFAULT_DESK_COLOR = '#3d2e1f';
+
 export const DEFAULT_ACCESSIBLE_NAME = 'Interactive 3D retro computer';
 
 export const ASPECT_RATIOS = ['16:9', '16:10', '3:2', '4:3', '1:1', '4:5', '3:4'];

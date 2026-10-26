@@ -105,10 +105,23 @@ uniform float pixPalFrame;
 
 // Mirrors the Blender material: roughness = 1 - G, metallic = R, and colour/emission UVs scroll
 // by B * frame / 36 for animated swatches.
-const MAP_FRAGMENT = /* glsl */ `
+const MAP_FRAGMENT_HEADER = /* glsl */ `
 vec4 pixPalAttr = texture2D( pixPalAttributes, vMapUv );
 vec2 pixPalUv = vMapUv + vec2( 0.0, pixPalAttr.b * pixPalFrame / ${FRAMES_PER_CYCLE.toFixed(1)} );
+`;
+
+/** Albedo from the PixPal palette (default). */
+const MAP_FRAGMENT = /* glsl */ `
+${MAP_FRAGMENT_HEADER}
 diffuseColor *= texture2D( map, pixPalUv );
+`;
+
+/**
+ * Albedo from `material.color` only. Keeps PixPal roughness/metalness so parts like the desk
+ * can be recolored without muddy multiply-tints over a brown swatch.
+ */
+const MAP_FRAGMENT_COLOR = /* glsl */ `
+${MAP_FRAGMENT_HEADER}
 `;
 
 const EMISSIVE_FRAGMENT = /* glsl */ `
@@ -120,11 +133,14 @@ const EMISSIVE_FRAGMENT = /* glsl */ `
 const ROUGHNESS_FRAGMENT = 'float roughnessFactor = roughness * ( 1.0 - pixPalAttr.g );';
 const METALNESS_FRAGMENT = 'float metalnessFactor = metalness * pixPalAttr.r;';
 
+export type PixPalAlbedo = 'map' | 'color';
+
 /** Prepares a material exported from Blender's ImphenziaPixPal material for three.js. */
 export function preparePixPalMaterial(
   material: THREE.Material,
   attributes: THREE.Texture,
-  frame: { value: number }
+  frame: { value: number },
+  albedo: PixPalAlbedo = 'map'
 ) {
   if (!(material instanceof THREE.MeshStandardMaterial) || !material.map) return;
 
@@ -138,16 +154,17 @@ export function preparePixPalMaterial(
   material.roughness = 1;
   material.metalness = 1;
 
+  const mapFragment = albedo === 'color' ? MAP_FRAGMENT_COLOR : MAP_FRAGMENT;
   material.onBeforeCompile = (shader) => {
     shader.uniforms.pixPalAttributes = { value: attributes };
     shader.uniforms.pixPalFrame = frame;
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>\n${FRAGMENT_UNIFORMS}`)
-      .replace('#include <map_fragment>', MAP_FRAGMENT)
+      .replace('#include <map_fragment>', mapFragment)
       .replace('#include <emissivemap_fragment>', EMISSIVE_FRAGMENT)
       .replace('#include <roughnessmap_fragment>', ROUGHNESS_FRAGMENT)
       .replace('#include <metalnessmap_fragment>', METALNESS_FRAGMENT);
   };
-  material.customProgramCacheKey = () => 'pixpal';
+  material.customProgramCacheKey = () => (albedo === 'color' ? 'pixpal-color' : 'pixpal');
   material.needsUpdate = true;
 }
