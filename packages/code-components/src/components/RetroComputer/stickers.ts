@@ -22,8 +22,8 @@ interface NotePlacement {
 }
 
 const NOTE_PLACEMENTS: Record<string, NotePlacement> = {
-  // The bottom-right corner of the bezel, its top overhanging the glass (0.34 behind the bezel).
-  Monitor: { parent: 'monitor', position: [2.85, 2.14, 4.06], turn: 0, tilt: -0.08, size: 1.35 },
+  // Stuck along the bottom edge of the bezel, right of centre, hanging down over the stand.
+  Monitor: { parent: 'monitor', position: [2.85, 1.31, 4.06], turn: 0, tilt: -0.087, size: 1.35 },
   // High up on the tower's left side, near the front.
   'Tower Side': {
     parent: 'tower',

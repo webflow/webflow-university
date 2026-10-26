@@ -119,7 +119,7 @@ const RetroComputerWebflow = declareComponent(RetroComputerForWebflow, {
       defaultValue: DEFAULT_NOTE_POSITION,
       group: 'Stickers',
       tooltip:
-        'Where the note is stuck: the bottom corner of the monitor, or high up on the side of the tower',
+        'Where the note is stuck: hanging off the bottom edge of the monitor, or high up on the side of the tower',
     }),
     noteText: props.Text({
       name: 'Sticky Note Text',
