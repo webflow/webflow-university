@@ -8,9 +8,11 @@ import {
   DEFAULT_ASPECT_RATIO,
   DEFAULT_BACKGROUND,
   DEFAULT_CRT,
+  DEFAULT_DESK_COLOR,
   DEFAULT_LIGHTING,
   DEFAULT_MAX_PIXEL_RATIO,
 } from './settings';
+import { DEFAULT_BADGE_TEXT, DEFAULT_NOTE_TEXT } from './stickers';
 import { props } from '@webflow/data-types';
 import { declareComponent } from '@webflow/react';
 
@@ -93,6 +95,37 @@ const RetroComputerWebflow = declareComponent(RetroComputerForWebflow, {
       defaultValue: true,
       group: 'Model',
       tooltip: 'Show the desk the computer sits on',
+    }),
+    deskColor: props.Text({
+      name: 'Desk Color',
+      defaultValue: DEFAULT_DESK_COLOR,
+      group: 'Model',
+      tooltip: 'Color of the desk surface. Any CSS color.',
+    }),
+    showNote: props.Boolean({
+      name: 'Show Sticky Note',
+      defaultValue: true,
+      group: 'Stickers',
+      tooltip: 'Show the handwritten sticky note on the side of the tower',
+    }),
+    noteText: props.Text({
+      name: 'Sticky Note Text',
+      defaultValue: DEFAULT_NOTE_TEXT,
+      group: 'Stickers',
+      tooltip:
+        'Handwritten on the sticky note. Longer text wraps and shrinks to fit, up to 4 lines.',
+    }),
+    showBadge: props.Boolean({
+      name: 'Show Badge',
+      defaultValue: true,
+      group: 'Stickers',
+      tooltip: 'Show the foil "inside" badge on the front of the tower',
+    }),
+    badgeText: props.Text({
+      name: 'Badge Text',
+      defaultValue: DEFAULT_BADGE_TEXT,
+      group: 'Stickers',
+      tooltip: 'Brand name printed above "inside" on the badge. Keep it to a word or two.',
     }),
     keyLightColor: props.Text({
       name: 'Key Light Color',

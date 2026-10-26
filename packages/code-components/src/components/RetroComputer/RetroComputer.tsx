@@ -67,6 +67,13 @@ import {
   splitTowerButtons,
   type TowerButtons,
 } from './towerParts';
+import {
+  createInsideBadge,
+  createStickyNote,
+  DEFAULT_BADGE_TEXT,
+  DEFAULT_NOTE_TEXT,
+  type Sticker,
+} from './stickers';
 import { useSnakeGame } from './useSnakeGame';
 import {
   aspectRatioCss,
@@ -76,6 +83,7 @@ import {
   DEFAULT_ASPECT_RATIO,
   DEFAULT_BACKGROUND,
   DEFAULT_CRT,
+  DEFAULT_DESK_COLOR,
   DEFAULT_LIGHTING,
   DEFAULT_MAX_PIXEL_RATIO,
   type BackgroundSettings,
@@ -87,6 +95,8 @@ export interface RetroComputerProps
   extends Partial<LightingSettings>, Partial<BackgroundSettings>, Partial<CrtSettings> {
   showCords?: boolean;
   showDesk?: boolean;
+  /** CSS colour for the desk surface. Replaces the exported wood swatch. */
+  deskColor?: string;
   screenBackground?: string;
   screenText?: string;
   cameraPosition?: Vector3Tuple;
@@ -105,6 +115,13 @@ export interface RetroComputerProps
   fireworkColors?: string;
   /** How much the keyboard and tower buttons brighten on hover. 1 turns it off. */
   hoverBrightness?: number;
+  /** The handwritten sticky note on the tower's left side. */
+  showNote?: boolean;
+  noteText?: string;
+  /** The foil "inside" badge on the tower's front. */
+  showBadge?: boolean;
+  /** Brand name printed above "inside" on the badge. */
+  badgeText?: string;
   /** What screen readers call the scene. The keyboard instructions are read after it. */
   accessibleName?: string;
 }
@@ -156,8 +173,12 @@ interface LoadedModel extends TowerButtons {
   enterKeyMaterials: { lit: THREE.Material; still: THREE.Material } | null;
   /** The keyboard (with its Enter key), power button and eject buttons. */
   hoverTargets: HoverTarget[];
+  /** Own copies of desk materials so tinting them leaves the rest of the scene alone. */
+  deskMaterials: THREE.MeshStandardMaterial[];
   /** One per entry in `DRIVE_BAYS`, parented to the tower. */
   discs: THREE.Mesh[];
+  /** Parented to the tower. */
+  stickers: { note: Sticker; badge: Sticker } | null;
   lights: ModelLights | null;
   animatedSwatches: boolean;
   frame: { value: number };
@@ -189,17 +210,34 @@ function splitLights(
 function ownMaterial(
   mesh: THREE.Mesh | null,
   attributes: THREE.Texture,
-  frame: { value: number }
+  frame: { value: number },
+  albedo: 'map' | 'color' = 'map'
 ): THREE.MeshStandardMaterial | null {
   if (!mesh || !(mesh.material instanceof THREE.MeshStandardMaterial)) return null;
   const material = mesh.material.clone();
-  preparePixPalMaterial(material, attributes, frame);
+  preparePixPalMaterial(material, attributes, frame, albedo);
   mesh.material = material;
   return material;
 }
 
-function addDiscs(tower: THREE.Mesh) {
-  const environment = createDiscEnvironment();
+/** Owns every MeshStandardMaterial under `root` (the root itself if it is a mesh). */
+function ownMaterialsUnder(
+  root: THREE.Object3D | undefined,
+  attributes: THREE.Texture,
+  frame: { value: number },
+  albedo: 'map' | 'color' = 'map'
+): THREE.MeshStandardMaterial[] {
+  if (!root) return [];
+  const owned: THREE.MeshStandardMaterial[] = [];
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const material = ownMaterial(object, attributes, frame, albedo);
+    if (material) owned.push(material);
+  });
+  return owned;
+}
+
+function addDiscs(tower: THREE.Mesh, environment: THREE.Texture | null) {
   const face = createDiscTexture();
   return DRIVE_BAYS.map(({ slot }) => {
     const disc = createCompactDisc();
@@ -210,6 +248,13 @@ function addDiscs(tower: THREE.Mesh) {
     tower.add(disc);
     return disc;
   });
+}
+
+function addStickers(tower: THREE.Mesh, environment: THREE.Texture | null) {
+  const note = createStickyNote();
+  const badge = createInsideBadge(environment);
+  tower.add(note.object, badge.object);
+  return { note, badge };
 }
 
 function decodeBase64(base64: string): ArrayBuffer {
@@ -321,11 +366,19 @@ function useRetroComputerScene() {
             hoverTargets.push({ parts: [button], highlight: createHoverHighlight([material]) });
           }
         }
-        const discs = tower instanceof THREE.Mesh ? addDiscs(tower) : [];
+        const environment = tower instanceof THREE.Mesh ? createDiscEnvironment() : null;
+        const discs = tower instanceof THREE.Mesh ? addDiscs(tower, environment) : [];
+        const stickers = tower instanceof THREE.Mesh ? addStickers(tower, environment) : null;
         const lights = splitLights(
           [tower, gltf.scene.getObjectByName(MONITOR_NODE)],
           attributes,
           frame
+        );
+        const deskMaterials = ownMaterialsUnder(
+          gltf.scene.getObjectByName(DESK_NODE),
+          attributes,
+          frame,
+          'color'
         );
         setModel({
           scene: gltf.scene,
@@ -333,8 +386,10 @@ function useRetroComputerScene() {
           enterKey,
           enterKeyMaterials,
           hoverTargets,
+          deskMaterials,
           ...buttons,
           discs,
+          stickers,
           lights,
           animatedSwatches,
           frame,
@@ -432,6 +487,11 @@ function Model({
   model,
   showCords,
   showDesk,
+  deskColor,
+  showNote,
+  noteText,
+  showBadge,
+  badgeText,
   screen,
   reducedMotion,
   active,
@@ -447,6 +507,11 @@ function Model({
   model: LoadedModel;
   showCords: boolean;
   showDesk: boolean;
+  deskColor: string;
+  showNote: boolean;
+  noteText: string;
+  showBadge: boolean;
+  badgeText: string;
   screen: ScreenRenderer;
   crt: CrtSettings;
   hoverBrightness: number;
@@ -467,9 +532,11 @@ function Model({
     enterKey,
     enterKeyMaterials,
     hoverTargets,
+    deskMaterials,
     powerButton,
     ejectButtons,
     discs,
+    stickers,
     lights,
     frame,
     animatedSwatches,
@@ -511,6 +578,21 @@ function Model({
     if (desk) desk.visible = showDesk;
     invalidate();
   }, [scene, showCords, showDesk, invalidate]);
+
+  useLayoutEffect(() => {
+    if (deskMaterials.length === 0) return;
+    for (const material of deskMaterials) material.color.set(deskColor);
+    invalidate();
+  }, [deskMaterials, deskColor, invalidate]);
+
+  useLayoutEffect(() => {
+    if (!stickers) return;
+    stickers.note.object.visible = showNote;
+    stickers.note.setText(noteText);
+    stickers.badge.object.visible = showBadge;
+    stickers.badge.setText(badgeText);
+    invalidate();
+  }, [stickers, showNote, noteText, showBadge, badgeText, invalidate]);
 
   const [screenMaterial, setScreenMaterial] = useState<THREE.ShaderMaterial | null>(null);
 
@@ -774,6 +856,11 @@ export default function RetroComputer(props: RetroComputerProps) {
   const {
     showCords = true,
     showDesk = true,
+    deskColor = DEFAULT_DESK_COLOR,
+    showNote = true,
+    noteText = DEFAULT_NOTE_TEXT,
+    showBadge = true,
+    badgeText = DEFAULT_BADGE_TEXT,
     screenBackground = '#0a0e16',
     screenText = '#4b8bff',
     cameraPosition = DEFAULT_CAMERA.position,
@@ -857,6 +944,11 @@ export default function RetroComputer(props: RetroComputerProps) {
             model={model}
             showCords={showCords}
             showDesk={showDesk}
+            deskColor={deskColor}
+            showNote={showNote}
+            noteText={noteText}
+            showBadge={showBadge}
+            badgeText={badgeText}
             screen={screen}
             reducedMotion={reducedMotion}
             active={onScreen}
