@@ -14,6 +14,8 @@ export interface LightingSettings {
 }
 
 export interface BackgroundSettings {
+  /** Stands a wall in the background color behind the desk, so the scene lights fall on it. */
+  showWall: boolean;
   backgroundColor: string;
   backgroundGlowColor: string;
   backgroundGlowStrength: number;
@@ -40,6 +42,7 @@ export const DEFAULT_LIGHTING: LightingSettings = {
 };
 
 export const DEFAULT_BACKGROUND: BackgroundSettings = {
+  showWall: false,
   backgroundColor: '#0b0b0c',
   backgroundGlowColor: '#ff9a5a',
   backgroundGlowStrength: 0.12,

@@ -446,6 +446,34 @@ function StudioLights({ lighting }: { lighting: LightingSettings }) {
   );
 }
 
+/** Flush with the desk's back edge, and big enough to fill the frame from any sensible camera. */
+const WALL_Z = -6.3;
+const WALL_SIZE: [number, number] = [400, 200];
+
+/** Stands in for the CSS glow, which the wall would hide: a lamp just in front of the wall. */
+const WALL_GLOW_POSITION: Vector3Tuple = [2, 7, WALL_Z + 2];
+const WALL_GLOW_INTENSITY = 40;
+
+function Wall({ background }: { background: BackgroundSettings }) {
+  if (background.backgroundColor.trim().toLowerCase() === 'transparent') return null;
+  const glow = Math.min(Math.max(background.backgroundGlowStrength, 0), 1);
+  return (
+    <>
+      <mesh position={[0, WALL_SIZE[1] / 2 - 1, WALL_Z]}>
+        <planeGeometry args={WALL_SIZE} />
+        <meshStandardMaterial color={background.backgroundColor} roughness={0.95} />
+      </mesh>
+      <pointLight
+        position={WALL_GLOW_POSITION}
+        color={background.backgroundGlowColor}
+        intensity={glow * WALL_GLOW_INTENSITY}
+        distance={30}
+        decay={1}
+      />
+    </>
+  );
+}
+
 function CameraRig({
   position,
   target,
@@ -952,6 +980,7 @@ export default function RetroComputer(props: RetroComputerProps) {
           onChange={onCameraChange}
         />
         <StudioLights lighting={lighting} />
+        {background.showWall && <Wall background={background} />}
 
         {model && (
           <Model

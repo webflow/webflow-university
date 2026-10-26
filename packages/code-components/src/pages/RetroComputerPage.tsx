@@ -79,6 +79,7 @@ function RetroComputerPage() {
   });
 
   const { pageBackground, ...background } = useControls('Background', {
+    showWall: DEFAULT_BACKGROUND.showWall,
     backgroundColor: DEFAULT_BACKGROUND.backgroundColor,
     backgroundGlowColor: DEFAULT_BACKGROUND.backgroundGlowColor,
     backgroundGlowStrength: {
