@@ -19,8 +19,10 @@ import {
 } from '../components/RetroComputer/settings';
 import {
   DEFAULT_BADGE_TEXT,
+  DEFAULT_NOTE_CONTENT,
   DEFAULT_NOTE_POSITION,
   DEFAULT_NOTE_TEXT,
+  NOTE_CONTENTS,
   NOTE_POSITIONS,
 } from '../components/RetroComputer/stickers';
 
@@ -60,6 +62,7 @@ function RetroComputerPage() {
 
   const stickerControls = useControls('Stickers', {
     showNote: true,
+    noteContent: { value: DEFAULT_NOTE_CONTENT, options: NOTE_CONTENTS },
     noteText: DEFAULT_NOTE_TEXT,
     notePosition: { value: DEFAULT_NOTE_POSITION, options: NOTE_POSITIONS },
     showBadge: true,

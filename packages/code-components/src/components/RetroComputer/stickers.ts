@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 
 import type { Vector3Tuple } from './camera';
+import { STICKY_NOTE_DRAWING } from './stickyNoteDrawing';
 
 export const DEFAULT_NOTE_TEXT = 'S for snake';
 export const DEFAULT_BADGE_TEXT = 'webflow';
@@ -10,6 +11,10 @@ export const INSIDE_BADGE_NODE = 'InsideBadge';
 
 export const NOTE_POSITIONS = ['Monitor', 'Tower Side'];
 export const DEFAULT_NOTE_POSITION = 'Monitor';
+
+/** What the note shows: the built-in doodle, or the handwritten note text. */
+export const NOTE_CONTENTS = ['Drawing', 'Text'];
+export const DEFAULT_NOTE_CONTENT = 'Drawing';
 
 interface NotePlacement {
   parent: 'monitor' | 'tower';
@@ -65,6 +70,12 @@ const BADGE_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 export interface Sticker {
   object: THREE.Object3D;
   setText: (text: string) => void;
+}
+
+export interface StickyNote {
+  object: THREE.Object3D;
+  /** `content` is one of `NOTE_CONTENTS`; `text` only shows for 'Text'. */
+  setContent: (content: string, text: string) => void;
 }
 
 export interface TextLayout {
@@ -131,13 +142,12 @@ function createCanvas(width: number, height: number) {
   return canvas.getContext('2d');
 }
 
-/** Paints with `paint` whenever the text changes; without a 2D canvas the sticker stays blank. */
-function createPaintedSticker(
-  object: THREE.Object3D,
-  material: THREE.MeshStandardMaterial,
-  ctx: CanvasRenderingContext2D | null,
-  paint: (ctx: CanvasRenderingContext2D, text: string) => void
-): Sticker {
+/**
+ * Gives `material` a canvas map and returns a repaint function that only paints when `key`
+ * changes. Without a 2D canvas the material keeps its plain color.
+ */
+function createCanvasMap(material: THREE.MeshStandardMaterial, width: number, height: number) {
+  const ctx = createCanvas(width, height);
   const texture = ctx ? new THREE.CanvasTexture(ctx.canvas) : null;
   if (texture) {
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -146,23 +156,38 @@ function createPaintedSticker(
     material.color.set('#ffffff');
   }
   let painted: string | null = null;
-  return {
-    object,
-    setText: (text) => {
-      if (!ctx || !texture || text === painted) return;
-      painted = text;
-      paint(ctx, text);
-      texture.needsUpdate = true;
-    },
+  return (key: string, paint: (ctx: CanvasRenderingContext2D) => void) => {
+    if (!ctx || !texture || key === painted) return;
+    painted = key;
+    paint(ctx);
+    texture.needsUpdate = true;
   };
 }
 
 const handwriting = (size: number) => `bold ${size}px ${HANDWRITING}`;
 
+function paintPaper(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = NOTE_COLOR;
+  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+}
+
+function paintDrawing(ctx: CanvasRenderingContext2D) {
+  paintPaper(ctx);
+  const rows = STICKY_NOTE_DRAWING;
+  // Whole canvas pixels per drawing pixel keep the doodle's edges crisp.
+  const cell = Math.floor((ctx.canvas.width * 0.94) / rows.length);
+  const offset = (ctx.canvas.width - cell * rows.length) / 2;
+  ctx.fillStyle = NOTE_INK;
+  rows.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) {
+      if (row[x] === '#') ctx.fillRect(offset + x * cell, offset + y * cell, cell, cell);
+    }
+  });
+}
+
 function paintNote(ctx: CanvasRenderingContext2D, text: string) {
   const size = ctx.canvas.width;
-  ctx.fillStyle = NOTE_COLOR;
-  ctx.fillRect(0, 0, size, size);
+  paintPaper(ctx);
   const layout = layoutText(
     text,
     { maxWidth: size * 0.8, maxLines: 4, maxSize: size * 0.2, minSize: size * 0.07 },
@@ -222,8 +247,8 @@ const decalMaterial = (parameters: THREE.MeshStandardMaterialParameters) =>
     ...parameters,
   });
 
-/** A handwritten sticky note. Stick it somewhere with `placeNote`. */
-export function createStickyNote(): Sticker {
+/** A sticky note with a doodle or handwriting on it. Stick it somewhere with `placeNote`. */
+export function createStickyNote(): StickyNote {
   const geometry = createNoteGeometry();
   const paper = { roughness: 0.85, metalness: 0, emissiveIntensity: NOTE_GLOW };
   const front = decalMaterial({ ...paper, color: NOTE_COLOR, emissive: NOTE_COLOR });
@@ -236,17 +261,21 @@ export function createStickyNote(): Sticker {
   const note = new THREE.Group();
   note.name = STICKY_NOTE_NODE;
   note.add(new THREE.Mesh(geometry, front), new THREE.Mesh(geometry, back));
-  const sticker = createPaintedSticker(
-    note,
-    front,
-    createCanvas(NOTE_TEXTURE_SIZE, NOTE_TEXTURE_SIZE),
-    paintNote
-  );
+  const repaint = createCanvasMap(front, NOTE_TEXTURE_SIZE, NOTE_TEXTURE_SIZE);
   if (front.map) {
     front.emissive.set('#ffffff');
     front.emissiveMap = front.map;
   }
-  return sticker;
+  return {
+    object: note,
+    setContent: (content, text) => {
+      if ((NOTE_CONTENTS.includes(content) ? content : DEFAULT_NOTE_CONTENT) === 'Text') {
+        repaint(`text:${text}`, (ctx) => paintNote(ctx, text));
+      } else {
+        repaint('drawing', paintDrawing);
+      }
+    },
+  };
 }
 
 const badgeFont = (weight: string, size: number) => `${weight} ${size}px ${BADGE_FONT}`;
@@ -342,13 +371,13 @@ export function createInsideBadge(environment: THREE.Texture | null): Sticker {
   const badge = new THREE.Mesh(createBadgeGeometry(), material);
   badge.name = INSIDE_BADGE_NODE;
   badge.position.set(...BADGE_CENTRE);
-  return createPaintedSticker(
-    badge,
+  const repaint = createCanvasMap(
     material,
-    createCanvas(
-      Math.round(BADGE_WIDTH * BADGE_PX_PER_UNIT),
-      Math.round(BADGE_HEIGHT * BADGE_PX_PER_UNIT)
-    ),
-    paintBadge
+    Math.round(BADGE_WIDTH * BADGE_PX_PER_UNIT),
+    Math.round(BADGE_HEIGHT * BADGE_PX_PER_UNIT)
   );
+  return {
+    object: badge,
+    setText: (text) => repaint(text, (ctx) => paintBadge(ctx, text)),
+  };
 }

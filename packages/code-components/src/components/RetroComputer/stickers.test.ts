@@ -1,17 +1,20 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createInsideBadge,
   createStickyNote,
+  DEFAULT_NOTE_CONTENT,
   DEFAULT_NOTE_POSITION,
   INSIDE_BADGE_NODE,
   layoutText,
+  NOTE_CONTENTS,
   NOTE_POSITIONS,
   noteLift,
   placeNote,
   STICKY_NOTE_NODE,
 } from './stickers';
+import { STICKY_NOTE_DRAWING } from './stickyNoteDrawing';
 
 /** Every character is half as wide as the font size. */
 const measure = (line: string, size: number) => line.length * size * 0.5;
@@ -85,8 +88,75 @@ describe('createStickyNote', () => {
     expect(front.geometry.boundingBox?.max.z).toBeGreaterThan(0.2);
   });
 
-  it('accepts text without a 2D canvas', () => {
-    expect(() => createStickyNote().setText('Remember to publish')).not.toThrow();
+  it('accepts content without a 2D canvas', () => {
+    expect(() => createStickyNote().setContent('Text', 'Remember to publish')).not.toThrow();
+  });
+});
+
+describe('sticky note content', () => {
+  const inkCells = STICKY_NOTE_DRAWING.join('')
+    .split('')
+    .filter((c) => c === '#').length;
+
+  /** Records what the note paints, since happy-dom has no 2D canvas. */
+  const withFakeCanvas = () => {
+    const calls = { fillRect: 0, fillText: [] as string[] };
+    const ctx = {
+      canvas: { width: 256, height: 256 },
+      fillRect: () => calls.fillRect++,
+      fillText: (text: string) => calls.fillText.push(text),
+      measureText: (text: string) => ({ width: text.length * 10 }),
+      save: () => {},
+      restore: () => {},
+      translate: () => {},
+      rotate: () => {},
+    };
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
+      (() => ctx) as unknown as HTMLCanvasElement['getContext']
+    );
+    return calls;
+  };
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('defaults to the drawing', () => {
+    expect(NOTE_CONTENTS).toEqual(['Drawing', 'Text']);
+    expect(DEFAULT_NOTE_CONTENT).toBe('Drawing');
+  });
+
+  it('has a square drawing of ink and blank pixels', () => {
+    expect(STICKY_NOTE_DRAWING).toHaveLength(48);
+    for (const row of STICKY_NOTE_DRAWING) expect(row).toMatch(/^[#.]{48}$/);
+  });
+
+  it('paints the paper and then one square per ink pixel, ignoring the text', () => {
+    const calls = withFakeCanvas();
+    createStickyNote().setContent('Drawing', 'S for snake');
+    expect(calls.fillRect).toBe(1 + inkCells);
+    expect(calls.fillText).toEqual([]);
+  });
+
+  it('handwrites the text for Text', () => {
+    const calls = withFakeCanvas();
+    createStickyNote().setContent('Text', 'S for snake');
+    expect(calls.fillText.join(' ')).toBe('S for snake');
+  });
+
+  it('falls back to the drawing for an unknown value', () => {
+    const calls = withFakeCanvas();
+    createStickyNote().setContent('Photo', 'S for snake');
+    expect(calls.fillRect).toBe(1 + inkCells);
+  });
+
+  it('only repaints when the content changes', () => {
+    const calls = withFakeCanvas();
+    const note = createStickyNote();
+    note.setContent('Drawing', 'a');
+    note.setContent('Drawing', 'b');
+    expect(calls.fillRect).toBe(1 + inkCells);
+    note.setContent('Text', 'b');
+    note.setContent('Text', 'b');
+    expect(calls.fillText).toEqual(['b']);
   });
 });
 

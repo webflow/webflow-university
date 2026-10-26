@@ -71,10 +71,12 @@ import {
   createInsideBadge,
   createStickyNote,
   DEFAULT_BADGE_TEXT,
+  DEFAULT_NOTE_CONTENT,
   DEFAULT_NOTE_POSITION,
   DEFAULT_NOTE_TEXT,
   placeNote,
   type Sticker,
+  type StickyNote,
 } from './stickers';
 import { useSnakeGame } from './useSnakeGame';
 import {
@@ -117,8 +119,11 @@ export interface RetroComputerProps
   fireworkColors?: string;
   /** How much the keyboard and tower buttons brighten on hover. 1 turns it off. */
   hoverBrightness?: number;
-  /** The handwritten sticky note. */
+  /** The sticky note. */
   showNote?: boolean;
+  /** What the note shows: one of `NOTE_CONTENTS`. */
+  noteContent?: string;
+  /** Handwriting on the note when `noteContent` is 'Text'. */
   noteText?: string;
   /** Where the note is stuck: one of `NOTE_POSITIONS`. */
   notePosition?: string;
@@ -183,7 +188,7 @@ interface LoadedModel extends TowerButtons {
   discs: THREE.Mesh[];
   /** The badge is parented to the tower; the note moves between `noteParents`. */
   stickers: {
-    note: Sticker;
+    note: StickyNote;
     badge: Sticker;
     noteParents: { monitor: THREE.Object3D | null; tower: THREE.Object3D | null };
   } | null;
@@ -527,6 +532,7 @@ function Model({
   showDesk,
   deskColor,
   showNote,
+  noteContent,
   noteText,
   notePosition,
   showBadge,
@@ -548,6 +554,7 @@ function Model({
   showDesk: boolean;
   deskColor: string;
   showNote: boolean;
+  noteContent: string;
   noteText: string;
   notePosition: string;
   showBadge: boolean;
@@ -629,11 +636,11 @@ function Model({
     if (!stickers) return;
     placeNote(stickers.note.object, notePosition, stickers.noteParents);
     stickers.note.object.visible = showNote;
-    stickers.note.setText(noteText);
+    stickers.note.setContent(noteContent, noteText);
     stickers.badge.object.visible = showBadge;
     stickers.badge.setText(badgeText);
     invalidate();
-  }, [stickers, showNote, noteText, notePosition, showBadge, badgeText, invalidate]);
+  }, [stickers, showNote, noteContent, noteText, notePosition, showBadge, badgeText, invalidate]);
 
   const [screenMaterial, setScreenMaterial] = useState<THREE.ShaderMaterial | null>(null);
 
@@ -899,6 +906,7 @@ export default function RetroComputer(props: RetroComputerProps) {
     showDesk = true,
     deskColor = DEFAULT_DESK_COLOR,
     showNote = true,
+    noteContent = DEFAULT_NOTE_CONTENT,
     noteText = DEFAULT_NOTE_TEXT,
     notePosition = DEFAULT_NOTE_POSITION,
     showBadge = true,
@@ -989,6 +997,7 @@ export default function RetroComputer(props: RetroComputerProps) {
             showDesk={showDesk}
             deskColor={deskColor}
             showNote={showNote}
+            noteContent={noteContent}
             noteText={noteText}
             notePosition={notePosition}
             showBadge={showBadge}
