@@ -14,8 +14,10 @@ import {
 } from './settings';
 import {
   DEFAULT_BADGE_TEXT,
+  DEFAULT_NOTE_CONTENT,
   DEFAULT_NOTE_POSITION,
   DEFAULT_NOTE_TEXT,
+  NOTE_CONTENTS,
   NOTE_POSITIONS,
 } from './stickers';
 import { props } from '@webflow/data-types';
@@ -111,7 +113,14 @@ const RetroComputerWebflow = declareComponent(RetroComputerForWebflow, {
       name: 'Show Sticky Note',
       defaultValue: true,
       group: 'Stickers',
-      tooltip: 'Show the handwritten sticky note',
+      tooltip: 'Show the sticky note',
+    }),
+    noteContent: props.Variant({
+      name: 'Sticky Note Content',
+      options: NOTE_CONTENTS,
+      defaultValue: DEFAULT_NOTE_CONTENT,
+      group: 'Stickers',
+      tooltip: 'Show the "S for snake" doodle, or handwrite the Sticky Note Text instead',
     }),
     notePosition: props.Variant({
       name: 'Sticky Note Position',
@@ -126,7 +135,7 @@ const RetroComputerWebflow = declareComponent(RetroComputerForWebflow, {
       defaultValue: DEFAULT_NOTE_TEXT,
       group: 'Stickers',
       tooltip:
-        'Handwritten on the sticky note. Longer text wraps and shrinks to fit, up to 4 lines.',
+        'Handwritten on the sticky note when Sticky Note Content is Text. Longer text wraps and shrinks to fit, up to 4 lines.',
     }),
     showBadge: props.Boolean({
       name: 'Show Badge',
