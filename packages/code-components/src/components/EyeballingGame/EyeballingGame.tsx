@@ -9,7 +9,7 @@ import {
   SUCCESS_ADVANCE_MS,
 } from './gameLogic';
 import { createInitialState, gameReducer, type Feedback } from './gameState';
-import opacitySwatch from './opacity-swatch.jpg';
+import { OPACITY_SWATCH_URL } from './opacitySwatch';
 import { ROUNDS, type Round } from './rounds';
 import './EyeballingGame.css';
 
@@ -316,7 +316,7 @@ function RoundVisual({ round, value }: { round: Round; value: number }) {
       return (
         <div
           className="eyeball-swatch eyeball-swatch-image"
-          style={{ backgroundImage: `url(${opacitySwatch})`, ...style }}
+          style={{ backgroundImage: `url(${OPACITY_SWATCH_URL})`, ...style }}
         />
       );
     case 'shadowBlur':
