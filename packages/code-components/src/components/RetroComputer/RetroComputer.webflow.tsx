@@ -202,17 +202,26 @@ const RetroComputerWebflow = declareComponent(RetroComputerForWebflow, {
       group: 'Lighting',
       tooltip: 'How bright something must be to bloom. Lower values make more of the scene glow.',
     }),
+    showWall: props.Boolean({
+      name: 'Show Wall',
+      defaultValue: DEFAULT_BACKGROUND.showWall,
+      group: 'Background',
+      tooltip:
+        'Stands a wall in the background color behind the desk, so the lights fall on it. Works best with mid to light colors.',
+    }),
     backgroundColor: props.Text({
       name: 'Background',
       defaultValue: DEFAULT_BACKGROUND.backgroundColor,
       group: 'Background',
-      tooltip: 'Any CSS color. Use "transparent" to show the page background behind the scene.',
+      tooltip:
+        'Any CSS color, also used for the wall. Use "transparent" to show the page background behind the scene.',
     }),
     backgroundGlowColor: props.Text({
       name: 'Glow Color',
       defaultValue: DEFAULT_BACKGROUND.backgroundGlowColor,
       group: 'Background',
-      tooltip: 'Color of the soft glow behind the computer. Any CSS color.',
+      tooltip:
+        'Color of the soft glow behind the computer. Any CSS color. With the wall on, it lights the wall.',
     }),
     backgroundGlowStrength: props.Number({
       name: 'Glow Strength',
