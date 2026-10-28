@@ -13,9 +13,18 @@ import {
   DEFAULT_ASPECT_RATIO,
   DEFAULT_BACKGROUND,
   DEFAULT_CRT,
+  DEFAULT_DESK_COLOR,
   DEFAULT_LIGHTING,
   DEFAULT_MAX_PIXEL_RATIO,
 } from '../components/RetroComputer/settings';
+import {
+  DEFAULT_BADGE_TEXT,
+  DEFAULT_NOTE_CONTENT,
+  DEFAULT_NOTE_POSITION,
+  DEFAULT_NOTE_TEXT,
+  NOTE_CONTENTS,
+  NOTE_POSITIONS,
+} from '../components/RetroComputer/stickers';
 
 const RetroComputer = lazy(() => import('../components/RetroComputer/RetroComputer'));
 
@@ -47,7 +56,17 @@ function RetroComputerPage() {
   const modelControls = useControls('Model', {
     showCords: true,
     showDesk: true,
+    deskColor: DEFAULT_DESK_COLOR,
     hoverBrightness: { value: DEFAULT_HOVER_BRIGHTNESS, min: 1, max: 2, step: 0.01 },
+  });
+
+  const stickerControls = useControls('Stickers', {
+    showNote: true,
+    noteContent: { value: DEFAULT_NOTE_CONTENT, options: NOTE_CONTENTS },
+    noteText: DEFAULT_NOTE_TEXT,
+    notePosition: { value: DEFAULT_NOTE_POSITION, options: NOTE_POSITIONS },
+    showBadge: true,
+    badgeText: DEFAULT_BADGE_TEXT,
   });
 
   const lighting = useControls('Lighting', {
@@ -63,6 +82,7 @@ function RetroComputerPage() {
   });
 
   const { pageBackground, ...background } = useControls('Background', {
+    showWall: DEFAULT_BACKGROUND.showWall,
     backgroundColor: DEFAULT_BACKGROUND.backgroundColor,
     backgroundGlowColor: DEFAULT_BACKGROUND.backgroundGlowColor,
     backgroundGlowStrength: {
@@ -153,6 +173,7 @@ function RetroComputerPage() {
         <Suspense fallback={null}>
           <RetroComputer
             {...modelControls}
+            {...stickerControls}
             {...screenControls}
             {...lighting}
             {...background}

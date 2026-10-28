@@ -14,6 +14,8 @@ export interface LightingSettings {
 }
 
 export interface BackgroundSettings {
+  /** Stands a wall in the background color behind the desk, so the scene lights fall on it. */
+  showWall: boolean;
   backgroundColor: string;
   backgroundGlowColor: string;
   backgroundGlowStrength: number;
@@ -40,6 +42,7 @@ export const DEFAULT_LIGHTING: LightingSettings = {
 };
 
 export const DEFAULT_BACKGROUND: BackgroundSettings = {
+  showWall: false,
   backgroundColor: '#0b0b0c',
   backgroundGlowColor: '#ff9a5a',
   backgroundGlowStrength: 0.12,
@@ -54,6 +57,9 @@ export const DEFAULT_CRT: CrtSettings = {
 };
 
 export const DEFAULT_MAX_PIXEL_RATIO = 2;
+
+/** Matches the desk's PixPal wood swatch (`#3d2e1f`). */
+export const DEFAULT_DESK_COLOR = '#3d2e1f';
 
 export const DEFAULT_ACCESSIBLE_NAME = 'Interactive 3D retro computer';
 

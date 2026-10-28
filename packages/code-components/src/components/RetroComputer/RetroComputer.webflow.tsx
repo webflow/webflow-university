@@ -8,9 +8,18 @@ import {
   DEFAULT_ASPECT_RATIO,
   DEFAULT_BACKGROUND,
   DEFAULT_CRT,
+  DEFAULT_DESK_COLOR,
   DEFAULT_LIGHTING,
   DEFAULT_MAX_PIXEL_RATIO,
 } from './settings';
+import {
+  DEFAULT_BADGE_TEXT,
+  DEFAULT_NOTE_CONTENT,
+  DEFAULT_NOTE_POSITION,
+  DEFAULT_NOTE_TEXT,
+  NOTE_CONTENTS,
+  NOTE_POSITIONS,
+} from './stickers';
 import { props } from '@webflow/data-types';
 import { declareComponent } from '@webflow/react';
 
@@ -94,6 +103,52 @@ const RetroComputerWebflow = declareComponent(RetroComputerForWebflow, {
       group: 'Model',
       tooltip: 'Show the desk the computer sits on',
     }),
+    deskColor: props.Text({
+      name: 'Desk Color',
+      defaultValue: DEFAULT_DESK_COLOR,
+      group: 'Model',
+      tooltip: 'Color of the desk surface. Any CSS color.',
+    }),
+    showNote: props.Boolean({
+      name: 'Show Sticky Note',
+      defaultValue: true,
+      group: 'Stickers',
+      tooltip: 'Show the sticky note',
+    }),
+    noteContent: props.Variant({
+      name: 'Sticky Note Content',
+      options: NOTE_CONTENTS,
+      defaultValue: DEFAULT_NOTE_CONTENT,
+      group: 'Stickers',
+      tooltip: 'Show the "S for snake" doodle, or handwrite the Sticky Note Text instead',
+    }),
+    notePosition: props.Variant({
+      name: 'Sticky Note Position',
+      options: NOTE_POSITIONS,
+      defaultValue: DEFAULT_NOTE_POSITION,
+      group: 'Stickers',
+      tooltip:
+        'Where the note is stuck: hanging off the bottom edge of the monitor, or high up on the side of the tower',
+    }),
+    noteText: props.Text({
+      name: 'Sticky Note Text',
+      defaultValue: DEFAULT_NOTE_TEXT,
+      group: 'Stickers',
+      tooltip:
+        'Handwritten on the sticky note when Sticky Note Content is Text. Longer text wraps and shrinks to fit, up to 4 lines.',
+    }),
+    showBadge: props.Boolean({
+      name: 'Show Badge',
+      defaultValue: true,
+      group: 'Stickers',
+      tooltip: 'Show the foil "inside" badge on the front of the tower',
+    }),
+    badgeText: props.Text({
+      name: 'Badge Text',
+      defaultValue: DEFAULT_BADGE_TEXT,
+      group: 'Stickers',
+      tooltip: 'Brand name printed above "inside" on the badge. Keep it to a word or two.',
+    }),
     keyLightColor: props.Text({
       name: 'Key Light Color',
       defaultValue: DEFAULT_LIGHTING.keyLightColor,
@@ -156,17 +211,26 @@ const RetroComputerWebflow = declareComponent(RetroComputerForWebflow, {
       group: 'Lighting',
       tooltip: 'How bright something must be to bloom. Lower values make more of the scene glow.',
     }),
+    showWall: props.Boolean({
+      name: 'Show Wall',
+      defaultValue: DEFAULT_BACKGROUND.showWall,
+      group: 'Background',
+      tooltip:
+        'Stands a wall in the background color behind the desk, so the lights fall on it. Works best with mid to light colors.',
+    }),
     backgroundColor: props.Text({
       name: 'Background',
       defaultValue: DEFAULT_BACKGROUND.backgroundColor,
       group: 'Background',
-      tooltip: 'Any CSS color. Use "transparent" to show the page background behind the scene.',
+      tooltip:
+        'Any CSS color, also used for the wall. Use "transparent" to show the page background behind the scene.',
     }),
     backgroundGlowColor: props.Text({
       name: 'Glow Color',
       defaultValue: DEFAULT_BACKGROUND.backgroundGlowColor,
       group: 'Background',
-      tooltip: 'Color of the soft glow behind the computer. Any CSS color.',
+      tooltip:
+        'Color of the soft glow behind the computer. Any CSS color. With the wall on, it lights the wall.',
     }),
     backgroundGlowStrength: props.Number({
       name: 'Glow Strength',
