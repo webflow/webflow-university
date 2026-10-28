@@ -1,0 +1,590 @@
+.eyeball-root {
+  --eyeball-accent: #7950eb;
+  --eyeball-accent-hover: #5336a3;
+  --eyeball-text: #d9d9d9;
+  --eyeball-text-muted: #bbb;
+  --eyeball-swatch-size: 150px;
+
+  container: eyeball / inline-size;
+  width: 100%;
+  color: var(--eyeball-text);
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.eyeball-root *,
+.eyeball-root *::before,
+.eyeball-root *::after {
+  box-sizing: border-box;
+}
+
+/* ---------- Window chrome ---------- */
+
+.eyeball-card {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 34rem;
+  margin: 0 auto;
+  overflow: hidden;
+  background-color: #1c1d1d;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+}
+
+.eyeball-card.is-error {
+  animation: eyeball-shake 0.5s;
+}
+
+/* Sits between the card background and its translucent panels so the whole window tints */
+.eyeball-glow {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  transition: background-color 0.3s ease-in-out;
+}
+
+.eyeball-glow.is-success {
+  background-color: green;
+}
+
+.eyeball-glow.is-error {
+  background-color: #8b1010;
+}
+
+.eyeball-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.625rem 1rem;
+  background-color: rgba(0, 0, 0, 0.4);
+  font-size: 0.875rem;
+}
+
+.eyeball-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.eyeball-stat-label {
+  font-weight: 600;
+}
+
+.eyeball-mono {
+  font-family: 'Roboto Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.eyeball-muted {
+  color: #737373;
+}
+
+.eyeball-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 25rem;
+  margin: 1rem;
+  padding: 2.5rem 1rem;
+  background-color: rgba(19, 19, 19, 0.9);
+  border: 1px solid #181818;
+  border-radius: 6px;
+}
+
+/* ---------- Intro + finish screens ---------- */
+
+.eyeball-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  max-width: 25rem;
+  animation: eyeball-fade-in 0.3s ease-in-out;
+}
+
+.eyeball-eyebrow {
+  margin: 0 0 1rem;
+  color: var(--eyeball-text-muted);
+  font-family: 'Roboto Mono', ui-monospace, monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.5px;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.eyeball-heading {
+  margin: 0 0 0.4em;
+  color: #fff;
+  font-family: inherit;
+  font-size: 2rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.eyeball-copy {
+  max-width: 50ch;
+  margin: 0 0 2rem;
+  color: var(--eyeball-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.eyeball-fineprint {
+  margin: 1rem 0 0;
+  color: #8a8a8a;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.eyeball-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+}
+
+.eyeball-button-row > .eyeball-button {
+  flex: 1 1 10rem;
+}
+
+/* ---------- Buttons ---------- */
+
+.eyeball-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.eyeball-button:focus-visible {
+  outline: 2px solid var(--eyeball-accent);
+  outline-offset: 3px;
+}
+
+.eyeball-button-primary,
+.eyeball-button-secondary {
+  width: 100%;
+  padding: 16px 24px;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.eyeball-button-primary {
+  color: #fff;
+  background-color: var(--eyeball-accent);
+  border: 0;
+}
+
+.eyeball-button-primary:hover {
+  background-color: var(--eyeball-accent-hover);
+}
+
+.eyeball-button-secondary {
+  color: #fff;
+  background-color: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.eyeball-button-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.eyeball-button-product {
+  padding: 8px 24px;
+  color: var(--eyeball-text);
+  background-color: #5e5e5e;
+  border: 1px solid #363636;
+  border-radius: 2px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.3;
+}
+
+.eyeball-button-product:hover:not([aria-disabled='true']) {
+  background-color: #494949;
+}
+
+.eyeball-button-product[aria-disabled='true'] {
+  cursor: default;
+}
+
+.eyeball-button-product.is-hidden {
+  visibility: hidden;
+}
+
+/* ---------- Countdown ---------- */
+
+.eyeball-countdown {
+  color: #fff;
+  font-size: 12.375rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  line-height: 1;
+  animation: eyeball-pop 1s ease-out;
+}
+
+/* ---------- Rounds ---------- */
+
+.eyeball-round {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  width: 100%;
+  animation: eyeball-fade-in 0.3s ease-in-out;
+}
+
+.eyeball-round-title {
+  margin: 0;
+  color: var(--eyeball-text);
+  font-family: inherit;
+  font-size: 1.2rem;
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.eyeball-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  max-width: 100%;
+}
+
+.eyeball-stage.is-stacked {
+  flex-direction: column;
+  gap: 20px;
+}
+
+.eyeball-stroke-text {
+  color: transparent;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 3.125rem;
+  font-weight: 800;
+  letter-spacing: 3px;
+  line-height: 1;
+  text-align: center;
+  text-transform: uppercase;
+  -webkit-text-stroke-color: #fff;
+}
+
+.eyeball-variable-text {
+  color: var(--eyeball-text);
+  font-family: 'Roboto Flex', sans-serif;
+  font-size: 2.5rem;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.eyeball-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 2rem;
+  color: var(--eyeball-text);
+  background-image: linear-gradient(#242325, #171619);
+  border: 1px solid #181818;
+  box-shadow:
+    0 13px 10px rgba(0, 0, 0, 0.5),
+    inset 0 1px 2px #525154,
+    0 0 100px rgba(255, 255, 255, 0.3);
+}
+
+.eyeball-swatch {
+  flex-shrink: 0;
+  width: var(--eyeball-swatch-size);
+  height: var(--eyeball-swatch-size);
+  border-radius: 10px;
+}
+
+.eyeball-swatch-image {
+  background-position: center;
+  background-size: cover;
+  filter: saturate(200%);
+}
+
+.eyeball-swatch-shadow {
+  background-color: #6b47da;
+  border: 1px solid #23174b;
+}
+
+.eyeball-swatch-padding {
+  overflow: hidden;
+  background-image: linear-gradient(#532dbe, #1a0e3f);
+  border: 1px solid #1c0661;
+  border-radius: 12px;
+  box-shadow:
+    0 13px 10px rgba(0, 0, 0, 0.3),
+    inset 0 1px 2px #525154,
+    0 0 100px #4622ac;
+}
+
+.eyeball-padding-fill {
+  width: 100%;
+  height: 100%;
+  background-color: #6b47da;
+  border-radius: 8px;
+  box-shadow: inset 0 20px 30px rgba(38, 17, 97, 0.5);
+}
+
+/* ---------- Slider ---------- */
+
+.eyeball-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.eyeball-control-label {
+  font-size: 0.6875rem;
+}
+
+.eyeball-radius-icon {
+  width: 2.375rem;
+  height: 1.5rem;
+}
+
+/* Tall hit area with a 2px painted track */
+.eyeball-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 0 1 auto;
+  width: 160px;
+  min-width: 100px;
+  height: 20px;
+  margin: 0;
+  background: linear-gradient(#5e5e5e, #5e5e5e) center / 100% 2px no-repeat;
+  cursor: pointer;
+}
+
+.eyeball-slider:focus {
+  outline: none;
+}
+
+.eyeball-slider:focus-visible {
+  outline: 2px solid var(--eyeball-accent);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+.eyeball-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background-color: whitesmoke;
+  border: 0;
+  border-radius: 50%;
+}
+
+.eyeball-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background-color: whitesmoke;
+  border: 0;
+  border-radius: 50%;
+}
+
+@media (pointer: coarse) {
+  .eyeball-slider::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .eyeball-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.eyeball-value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 56px;
+  height: 24px;
+  padding: 0 4px 0 8px;
+  background-color: #2b2b2b;
+  border: 1px solid #212121;
+  border-radius: 2px;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.eyeball-unit {
+  color: #a6a6a6;
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+}
+
+/* ---------- Feedback ---------- */
+
+.eyeball-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Above the penalty overlay so the countdown stays readable */
+.eyeball-message {
+  position: relative;
+  z-index: 2;
+  min-height: 1.3em;
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.3;
+  text-align: center;
+  opacity: 0;
+  transition:
+    color 0.2s,
+    opacity 0.2s;
+}
+
+.eyeball-message.is-success {
+  color: #37d200;
+  opacity: 1;
+}
+
+.eyeball-message.is-error {
+  color: #ff5c5c;
+  opacity: 1;
+}
+
+.eyeball-penalty {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background-color: rgba(19, 19, 19, 0.8);
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.eyeball-penalty.is-active {
+  opacity: 0.5;
+  pointer-events: auto;
+}
+
+/* ---------- Narrow embeds ---------- */
+
+@container eyeball (max-width: 479px) {
+  .eyeball-root {
+    --eyeball-swatch-size: 120px;
+  }
+
+  .eyeball-panel {
+    margin: 0.5rem;
+    padding: 2.4rem 1rem;
+  }
+
+  .eyeball-stage {
+    gap: 20px;
+  }
+
+  .eyeball-heading {
+    font-size: 1.4rem;
+  }
+
+  .eyeball-stroke-text {
+    font-size: 2rem;
+  }
+
+  .eyeball-variable-text {
+    font-size: 1.8rem;
+  }
+
+  .eyeball-countdown {
+    font-size: 8rem;
+  }
+}
+
+/* ---------- Motion ---------- */
+
+@keyframes eyeball-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes eyeball-pop {
+  from {
+    opacity: 0.2;
+    transform: scale(1.25);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes eyeball-shake {
+  0% {
+    transform: translate(1px, 1px) rotate(0deg);
+  }
+  10% {
+    transform: translate(-1px, -2px) rotate(-1deg);
+  }
+  20% {
+    transform: translate(-3px, 0) rotate(1deg);
+  }
+  30% {
+    transform: translate(3px, 2px) rotate(0deg);
+  }
+  40% {
+    transform: translate(1px, -1px) rotate(1deg);
+  }
+  50% {
+    transform: translate(-1px, 2px) rotate(-1deg);
+  }
+  60% {
+    transform: translate(-3px, 1px) rotate(0deg);
+  }
+  70% {
+    transform: translate(3px, 1px) rotate(-1deg);
+  }
+  80% {
+    transform: translate(-1px, -1px) rotate(1deg);
+  }
+  90% {
+    transform: translate(1px, 2px) rotate(0deg);
+  }
+  100% {
+    transform: translate(1px, -2px) rotate(-1deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eyeball-card.is-error,
+  .eyeball-screen,
+  .eyeball-round,
+  .eyeball-countdown {
+    animation: none;
+  }
+}
