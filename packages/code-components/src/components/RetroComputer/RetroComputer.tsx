@@ -67,6 +67,17 @@ import {
   splitTowerButtons,
   type TowerButtons,
 } from './towerParts';
+import {
+  createInsideBadge,
+  createStickyNote,
+  DEFAULT_BADGE_TEXT,
+  DEFAULT_NOTE_CONTENT,
+  DEFAULT_NOTE_POSITION,
+  DEFAULT_NOTE_TEXT,
+  placeNote,
+  type Sticker,
+  type StickyNote,
+} from './stickers';
 import { useSnakeGame } from './useSnakeGame';
 import {
   aspectRatioCss,
@@ -76,6 +87,7 @@ import {
   DEFAULT_ASPECT_RATIO,
   DEFAULT_BACKGROUND,
   DEFAULT_CRT,
+  DEFAULT_DESK_COLOR,
   DEFAULT_LIGHTING,
   DEFAULT_MAX_PIXEL_RATIO,
   type BackgroundSettings,
@@ -87,6 +99,8 @@ export interface RetroComputerProps
   extends Partial<LightingSettings>, Partial<BackgroundSettings>, Partial<CrtSettings> {
   showCords?: boolean;
   showDesk?: boolean;
+  /** CSS colour for the desk surface. Replaces the exported wood swatch. */
+  deskColor?: string;
   screenBackground?: string;
   screenText?: string;
   cameraPosition?: Vector3Tuple;
@@ -105,6 +119,18 @@ export interface RetroComputerProps
   fireworkColors?: string;
   /** How much the keyboard and tower buttons brighten on hover. 1 turns it off. */
   hoverBrightness?: number;
+  /** The sticky note. */
+  showNote?: boolean;
+  /** What the note shows: one of `NOTE_CONTENTS`. */
+  noteContent?: string;
+  /** Handwriting on the note when `noteContent` is 'Text'. */
+  noteText?: string;
+  /** Where the note is stuck: one of `NOTE_POSITIONS`. */
+  notePosition?: string;
+  /** The foil "inside" badge on the tower's front. */
+  showBadge?: boolean;
+  /** Brand name printed above "inside" on the badge. */
+  badgeText?: string;
   /** What screen readers call the scene. The keyboard instructions are read after it. */
   accessibleName?: string;
 }
@@ -156,8 +182,16 @@ interface LoadedModel extends TowerButtons {
   enterKeyMaterials: { lit: THREE.Material; still: THREE.Material } | null;
   /** The keyboard (with its Enter key), power button and eject buttons. */
   hoverTargets: HoverTarget[];
+  /** Own copies of desk materials so tinting them leaves the rest of the scene alone. */
+  deskMaterials: THREE.MeshStandardMaterial[];
   /** One per entry in `DRIVE_BAYS`, parented to the tower. */
   discs: THREE.Mesh[];
+  /** The badge is parented to the tower; the note moves between `noteParents`. */
+  stickers: {
+    note: StickyNote;
+    badge: Sticker;
+    noteParents: { monitor: THREE.Object3D | null; tower: THREE.Object3D | null };
+  } | null;
   lights: ModelLights | null;
   animatedSwatches: boolean;
   frame: { value: number };
@@ -189,17 +223,34 @@ function splitLights(
 function ownMaterial(
   mesh: THREE.Mesh | null,
   attributes: THREE.Texture,
-  frame: { value: number }
+  frame: { value: number },
+  albedo: 'map' | 'color' = 'map'
 ): THREE.MeshStandardMaterial | null {
   if (!mesh || !(mesh.material instanceof THREE.MeshStandardMaterial)) return null;
   const material = mesh.material.clone();
-  preparePixPalMaterial(material, attributes, frame);
+  preparePixPalMaterial(material, attributes, frame, albedo);
   mesh.material = material;
   return material;
 }
 
-function addDiscs(tower: THREE.Mesh) {
-  const environment = createDiscEnvironment();
+/** Owns every MeshStandardMaterial under `root` (the root itself if it is a mesh). */
+function ownMaterialsUnder(
+  root: THREE.Object3D | undefined,
+  attributes: THREE.Texture,
+  frame: { value: number },
+  albedo: 'map' | 'color' = 'map'
+): THREE.MeshStandardMaterial[] {
+  if (!root) return [];
+  const owned: THREE.MeshStandardMaterial[] = [];
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const material = ownMaterial(object, attributes, frame, albedo);
+    if (material) owned.push(material);
+  });
+  return owned;
+}
+
+function addDiscs(tower: THREE.Mesh, environment: THREE.Texture | null) {
   const face = createDiscTexture();
   return DRIVE_BAYS.map(({ slot }) => {
     const disc = createCompactDisc();
@@ -210,6 +261,17 @@ function addDiscs(tower: THREE.Mesh) {
     tower.add(disc);
     return disc;
   });
+}
+
+function addStickers(
+  tower: THREE.Mesh,
+  monitor: THREE.Object3D | null,
+  environment: THREE.Texture | null
+) {
+  const note = createStickyNote();
+  const badge = createInsideBadge(environment);
+  tower.add(badge.object);
+  return { note, badge, noteParents: { monitor, tower } };
 }
 
 function decodeBase64(base64: string): ArrayBuffer {
@@ -321,11 +383,17 @@ function useRetroComputerScene() {
             hoverTargets.push({ parts: [button], highlight: createHoverHighlight([material]) });
           }
         }
-        const discs = tower instanceof THREE.Mesh ? addDiscs(tower) : [];
-        const lights = splitLights(
-          [tower, gltf.scene.getObjectByName(MONITOR_NODE)],
+        const environment = tower instanceof THREE.Mesh ? createDiscEnvironment() : null;
+        const discs = tower instanceof THREE.Mesh ? addDiscs(tower, environment) : [];
+        const monitor = gltf.scene.getObjectByName(MONITOR_NODE) ?? null;
+        const stickers =
+          tower instanceof THREE.Mesh ? addStickers(tower, monitor, environment) : null;
+        const lights = splitLights([tower, monitor ?? undefined], attributes, frame);
+        const deskMaterials = ownMaterialsUnder(
+          gltf.scene.getObjectByName(DESK_NODE),
           attributes,
-          frame
+          frame,
+          'color'
         );
         setModel({
           scene: gltf.scene,
@@ -333,8 +401,10 @@ function useRetroComputerScene() {
           enterKey,
           enterKeyMaterials,
           hoverTargets,
+          deskMaterials,
           ...buttons,
           discs,
+          stickers,
           lights,
           animatedSwatches,
           frame,
@@ -376,6 +446,34 @@ function StudioLights({ lighting }: { lighting: LightingSettings }) {
         position={RIM_LIGHT_POSITION}
         color={lighting.rimLightColor}
         intensity={lighting.rimLightIntensity}
+      />
+    </>
+  );
+}
+
+/** Flush with the desk's back edge, and big enough to fill the frame from any sensible camera. */
+const WALL_Z = -6.3;
+const WALL_SIZE: [number, number] = [400, 200];
+
+/** Stands in for the CSS glow, which the wall would hide: a lamp just in front of the wall. */
+const WALL_GLOW_POSITION: Vector3Tuple = [2, 7, WALL_Z + 2];
+const WALL_GLOW_INTENSITY = 40;
+
+function Wall({ background }: { background: BackgroundSettings }) {
+  if (background.backgroundColor.trim().toLowerCase() === 'transparent') return null;
+  const glow = Math.min(Math.max(background.backgroundGlowStrength, 0), 1);
+  return (
+    <>
+      <mesh position={[0, WALL_SIZE[1] / 2 - 1, WALL_Z]}>
+        <planeGeometry args={WALL_SIZE} />
+        <meshStandardMaterial color={background.backgroundColor} roughness={0.95} />
+      </mesh>
+      <pointLight
+        position={WALL_GLOW_POSITION}
+        color={background.backgroundGlowColor}
+        intensity={glow * WALL_GLOW_INTENSITY}
+        distance={30}
+        decay={1}
       />
     </>
   );
@@ -432,6 +530,13 @@ function Model({
   model,
   showCords,
   showDesk,
+  deskColor,
+  showNote,
+  noteContent,
+  noteText,
+  notePosition,
+  showBadge,
+  badgeText,
   screen,
   reducedMotion,
   active,
@@ -447,6 +552,13 @@ function Model({
   model: LoadedModel;
   showCords: boolean;
   showDesk: boolean;
+  deskColor: string;
+  showNote: boolean;
+  noteContent: string;
+  noteText: string;
+  notePosition: string;
+  showBadge: boolean;
+  badgeText: string;
   screen: ScreenRenderer;
   crt: CrtSettings;
   hoverBrightness: number;
@@ -467,9 +579,11 @@ function Model({
     enterKey,
     enterKeyMaterials,
     hoverTargets,
+    deskMaterials,
     powerButton,
     ejectButtons,
     discs,
+    stickers,
     lights,
     frame,
     animatedSwatches,
@@ -511,6 +625,22 @@ function Model({
     if (desk) desk.visible = showDesk;
     invalidate();
   }, [scene, showCords, showDesk, invalidate]);
+
+  useLayoutEffect(() => {
+    if (deskMaterials.length === 0) return;
+    for (const material of deskMaterials) material.color.set(deskColor);
+    invalidate();
+  }, [deskMaterials, deskColor, invalidate]);
+
+  useLayoutEffect(() => {
+    if (!stickers) return;
+    placeNote(stickers.note.object, notePosition, stickers.noteParents);
+    stickers.note.object.visible = showNote;
+    stickers.note.setContent(noteContent, noteText);
+    stickers.badge.object.visible = showBadge;
+    stickers.badge.setText(badgeText);
+    invalidate();
+  }, [stickers, showNote, noteContent, noteText, notePosition, showBadge, badgeText, invalidate]);
 
   const [screenMaterial, setScreenMaterial] = useState<THREE.ShaderMaterial | null>(null);
 
@@ -774,6 +904,13 @@ export default function RetroComputer(props: RetroComputerProps) {
   const {
     showCords = true,
     showDesk = true,
+    deskColor = DEFAULT_DESK_COLOR,
+    showNote = true,
+    noteContent = DEFAULT_NOTE_CONTENT,
+    noteText = DEFAULT_NOTE_TEXT,
+    notePosition = DEFAULT_NOTE_POSITION,
+    showBadge = true,
+    badgeText = DEFAULT_BADGE_TEXT,
     screenBackground = '#0a0e16',
     screenText = '#4b8bff',
     cameraPosition = DEFAULT_CAMERA.position,
@@ -851,12 +988,20 @@ export default function RetroComputer(props: RetroComputerProps) {
           onChange={onCameraChange}
         />
         <StudioLights lighting={lighting} />
+        {background.showWall && <Wall background={background} />}
 
         {model && (
           <Model
             model={model}
             showCords={showCords}
             showDesk={showDesk}
+            deskColor={deskColor}
+            showNote={showNote}
+            noteContent={noteContent}
+            noteText={noteText}
+            notePosition={notePosition}
+            showBadge={showBadge}
+            badgeText={badgeText}
             screen={screen}
             reducedMotion={reducedMotion}
             active={onScreen}
