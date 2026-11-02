@@ -116,8 +116,8 @@ importers:
         specifier: ^2.7.0
         version: 2.7.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@webflow/webflow-cli':
-        specifier: ^2.12.0
-        version: 2.12.0(@babel/core@7.28.5)(@types/node@24.10.0)(esbuild@0.27.7)(typescript@5.9.3)
+        specifier: ^2.15.0
+        version: 2.15.0(@babel/core@7.28.5)(@types/node@24.10.0)(esbuild@0.27.7)(typescript@5.9.3)
       eslint:
         specifier: ^9.39.1
         version: 9.39.1(jiti@2.6.1)
@@ -131,8 +131,8 @@ importers:
         specifier: ^16.4.0
         version: 16.5.0
       happy-dom:
-        specifier: 20.9.0
-        version: 20.9.0
+        specifier: 21.0.4
+        version: 21.0.4
       playwright:
         specifier: ^1.61.1
         version: 1.61.1
@@ -147,7 +147,7 @@ importers:
         version: 8.0.16(@types/node@24.10.0)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.44.1)(yaml@2.9.1)
       vitest:
         specifier: 3.2.6
-        version: 3.2.6(@types/node@24.10.0)(esbuild@0.27.7)(happy-dom@20.9.0)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(yaml@2.9.1)
+        version: 3.2.6(@types/node@24.10.0)(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(yaml@2.9.1)
 
   packages/scripts:
     dependencies:
@@ -186,8 +186,8 @@ importers:
         specifier: ^16.4.0
         version: 16.5.0
       happy-dom:
-        specifier: 20.9.0
-        version: 20.9.0
+        specifier: 21.0.4
+        version: 21.0.4
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -196,7 +196,7 @@ importers:
         version: 8.46.4(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3)
       vitest:
         specifier: 3.2.6
-        version: 3.2.6(@types/node@22.19.0)(esbuild@0.27.7)(happy-dom@20.9.0)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(yaml@2.9.1)
+        version: 3.2.6(@types/node@22.19.0)(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(yaml@2.9.1)
 
 packages:
 
@@ -2304,15 +2304,18 @@ packages:
   '@webassemblyjs/wast-printer@1.14.1':
     resolution: {integrity: sha512-kPSSXE6De1XOR820C90RIo2ogvZG+c3KiHzqUoO/F34Y2shGzesfqv7o57xrxovZJH/MetF5UjroJ/R/3isoiw==}
 
-  '@webflow/cloud-app@0.1.0-beta.8':
-    resolution: {integrity: sha512-NUYeWAlkKKfrkVAGcz/4qVqhn8UrPYHetw35GzuKXASQPqOguPCIZAILSSR3ilqqtKGBePQqsOnE82VpXi4o5w==}
-    engines: {node: '>=20'}
+  '@webflow/cloud-app@0.1.0':
+    resolution: {integrity: sha512-8yaXGDZQR33AMMdF8vfO22bR4NuOjU3smG6kwk8h57TigJKgg5z3LRDTfq8UYiG336ebVILrO8S/ZWKnzTl2yQ==}
+    engines: {node: '>=22.13.0'}
 
   '@webflow/cosmic-deploy-contract@1.1.0':
     resolution: {integrity: sha512-e5QPreVnp/x3h9ht9OmtuWZj1pzj5uw6GxekIciVyRhZfJsrlSNN9WKxBf9WaBUnghej9CRdH1Zw2Sp5ZcSLGg==}
 
   '@webflow/data-types@2.7.0':
     resolution: {integrity: sha512-w4qLZ8+jR5FwJ3RXyu2uBKjr/4JG4XIzk5aS9jE5Q3vgnwTslD9O08hirTXmQPvYqSpAih7eJcNu1mL9s8ef4Q==}
+
+  '@webflow/data-types@2.8.0':
+    resolution: {integrity: sha512-pHil+O+WmrXUhtWuXSSmzucIc3YIQd3SOaV24txeZ/u36m9BCCdO4IWzyOB2NNvrB1eQKS7ytyX8XMI6NO2TJQ==}
 
   '@webflow/functions@2.7.0':
     resolution: {integrity: sha512-BpAHR2PO+H971V2s8KimIyDyMejCavJs4l4E39xz0jibHcmOJ1SA0cYHFBpIehaERGKGj14H5RGz6GcbecMp0w==}
@@ -2323,8 +2326,11 @@ packages:
       react: '>=18 <20'
       react-dom: '>=18 <20'
 
-  '@webflow/webflow-cli@2.12.0':
-    resolution: {integrity: sha512-q9vgJOiyOPtEW/bpV6ymD2kBpEpPwh3OeprUDl56/3rwic+0jN1PW5j1nTlBHJbM/VNHJtwTJ2OlIO7Rl23tfA==}
+  '@webflow/variables@2.8.0':
+    resolution: {integrity: sha512-nIIlDWVkQ0Sv23VkfIwDsPKEjRRdArtLUvShKv5Efx7syfX0bajANZGVF46t5BXiq/Kd+GFcTXdwuHPgjqXyoA==}
+
+  '@webflow/webflow-cli@2.15.0':
+    resolution: {integrity: sha512-vJR/L6ExQw9bZzq4rRxQ4i5O9eHE4Pe9xwmkVoC7WUtaYJQDLNrSjaCcPcRbLiZTfawmBb225yIAplZS5kqIBw==}
     engines: {node: '>=22.13.0'}
     hasBin: true
 
@@ -2552,6 +2558,10 @@ packages:
 
   buffer-from@1.1.2:
     resolution: {integrity: sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ==}
+
+  buffer-image-size@0.6.4:
+    resolution: {integrity: sha512-nEh+kZOPY1w+gcCMobZ6ETUp9WfibndnosbpwB1iJk/8Gt5ZF2bhS6+B6bPYz424KtwsR6Rflc3tCz1/ghX2dQ==}
+    engines: {node: '>=4.0'}
 
   buffer-xor@1.0.3:
     resolution: {integrity: sha512-571s0T7nZWK6vB67HI5dyUF7wXiNcfaPPPTl6zYCNApANjIvYJTg7hlud/+cJpdAhS7dVzqMLmfhfHR3rAcOjQ==}
@@ -3202,8 +3212,8 @@ packages:
       typescript: '>3.6.0'
       webpack: ^5.11.0
 
-  form-data@4.0.4:
-    resolution: {integrity: sha512-KrGhL9Q4zjj0kiUt5OO4Mr/A/jlI2jDYs5eHBpYHPcBEVSiipAvn2Ko2HnPe20rmcuuvMHNdZFp+4IlGTMF0Ow==}
+  form-data@4.0.6:
+    resolution: {integrity: sha512-vKatAh4SlVfgbv+YtmhiRjhEMJsYpsG1Y2rMQtR+SVSbytsSD1YGzDIcrAJmdFec88u/+VoGmxnl+80gL1tRCQ==}
     engines: {node: '>= 6'}
 
   formdata-node@6.0.3:
@@ -3326,8 +3336,8 @@ packages:
   graphemer@1.4.0:
     resolution: {integrity: sha512-EtKwoO6kxCL9WO5xipiHTZlSzBm7WLT627TqC/uVRd0HKmq8NXyebnNYxDoBi7wt8eTWrUrKXCOVaFq9x1kgag==}
 
-  happy-dom@20.9.0:
-    resolution: {integrity: sha512-GZZ9mKe8r646NUAf/zemnGbjYh4Bt8/MqASJY+pSm5ZDtc3YQox+4gsLI7yi1hba6o+eCsGxpHn5+iEVn31/FQ==}
+  happy-dom@21.0.4:
+    resolution: {integrity: sha512-tFm+GaLBgo6o0awHnvHaNoraVo27qJ+2tZEtZ+cIa08hXbeitrxAJajLI05hsUy/2/YTKcUjQYzHe5mCcraLBw==}
     engines: {node: '>=20.0.0'}
 
   has-flag@4.0.0:
@@ -3358,6 +3368,10 @@ packages:
 
   hasown@2.0.2:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
+    engines: {node: '>= 0.4'}
+
+  hasown@2.0.4:
+    resolution: {integrity: sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A==}
     engines: {node: '>= 0.4'}
 
   hls.js@1.6.14:
@@ -3418,6 +3432,11 @@ packages:
   ignore@7.0.5:
     resolution: {integrity: sha512-Hs59xBNfUIunMFgWAbGX5cq6893IbWg4KnrjbYwX3tx0ztorVgTDA6B2sxf8ejHJ4wz8BqGUMYlnzNBer5NvGg==}
     engines: {node: '>= 4'}
+
+  image-size@2.0.4:
+    resolution: {integrity: sha512-QRUkFFsRV/6fuESxb9Vkq+a0LkSrgKXuc2NEqfikiXxxN/G3tjWt5EVUlMaImRBZRZK/jRBEbYvpPYZL8t08Zw==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   immediate@3.0.6:
     resolution: {integrity: sha512-XXOFtyqDjNDAQxVfYxuF7g9Il/IbWmmlQg2MYKOH8ExIT1qg6xc4zyS3HaEEATgs1btfzxq15ciUiY7gjSXRGQ==}
@@ -7545,7 +7564,7 @@ snapshots:
       '@webassemblyjs/ast': 1.14.1
       '@xtuc/long': 4.2.2
 
-  '@webflow/cloud-app@0.1.0-beta.8':
+  '@webflow/cloud-app@0.1.0':
     dependencies:
       '@webflow/cosmic-deploy-contract': 1.1.0
       jsonc-parser: 3.3.1
@@ -7559,6 +7578,8 @@ snapshots:
 
   '@webflow/data-types@2.7.0': {}
 
+  '@webflow/data-types@2.8.0': {}
+
   '@webflow/functions@2.7.0':
     dependencies:
       '@webflow/data-types': 2.7.0
@@ -7570,20 +7591,26 @@ snapshots:
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
 
-  '@webflow/webflow-cli@2.12.0(@babel/core@7.28.5)(@types/node@24.10.0)(esbuild@0.27.7)(typescript@5.9.3)':
+  '@webflow/variables@2.8.0':
+    dependencies:
+      '@webflow/data-types': 2.8.0
+
+  '@webflow/webflow-cli@2.15.0(@babel/core@7.28.5)(@types/node@24.10.0)(esbuild@0.27.7)(typescript@5.9.3)':
     dependencies:
       '@babel/parser': 7.29.3
       '@babel/preset-env': 7.28.5(@babel/core@7.28.5)
       '@babel/preset-react': 7.28.5(@babel/core@7.28.5)
       '@babel/preset-typescript': 7.28.5(@babel/core@7.28.5)
+      '@babel/traverse': 7.29.0
       '@babel/types': 7.29.0
       '@dotenvx/dotenvx': 1.51.1
       '@inquirer/prompts': 7.10.0(@types/node@24.10.0)
       '@module-federation/enhanced': 2.5.1(@rspack/core@1.7.12)(node-fetch@2.7.0)(typescript@5.9.3)(webpack@5.102.1(esbuild@0.27.7))
       '@rspack/core': 1.7.12
-      '@webflow/cloud-app': 0.1.0-beta.8
+      '@webflow/cloud-app': 0.1.0
       '@webflow/cosmic-deploy-contract': 1.1.0
-      '@webflow/data-types': 2.7.0
+      '@webflow/data-types': 2.8.0
+      '@webflow/variables': 2.8.0
       ajv: 8.17.1
       archiver: 5.3.2
       babel-loader: 10.0.0(@babel/core@7.28.5)(webpack@5.102.1(esbuild@0.27.7))
@@ -7595,8 +7622,9 @@ snapshots:
       fast-glob: 3.3.3
       filenamify: 6.0.0
       fork-ts-checker-webpack-plugin: 9.1.0(typescript@5.9.3)(webpack@5.102.1(esbuild@0.27.7))
-      form-data: 4.0.4
+      form-data: 4.0.6
       fs-extra: 11.3.2
+      image-size: 2.0.4
       jsdom: 26.1.0
       jsonc-parser: 3.3.1
       md5: 2.3.0
@@ -7610,6 +7638,7 @@ snapshots:
       postcss-loader: 8.2.0(@rspack/core@1.7.12)(postcss@8.5.23)(typescript@5.9.3)(webpack@5.102.1(esbuild@0.27.7))
       postcss-selector-parser: 7.1.0
       prettier: 3.9.10
+      schema-utils: 4.3.3
       semver: 7.8.5
       serve-handler: 6.1.7
       source-map-support: 0.5.21
@@ -7900,6 +7929,10 @@ snapshots:
   buffer-crc32@0.2.13: {}
 
   buffer-from@1.1.2: {}
+
+  buffer-image-size@0.6.4:
+    dependencies:
+      '@types/node': 24.10.0
 
   buffer-xor@1.0.3: {}
 
@@ -8276,7 +8309,7 @@ snapshots:
       es-errors: 1.3.0
       get-intrinsic: 1.3.0
       has-tostringtag: 1.0.2
-      hasown: 2.0.2
+      hasown: 2.0.4
 
   esbuild@0.27.7:
     optionalDependencies:
@@ -8621,12 +8654,12 @@ snapshots:
       typescript: 5.9.3
       webpack: 5.102.1(esbuild@0.27.7)
 
-  form-data@4.0.4:
+  form-data@4.0.6:
     dependencies:
       asynckit: 0.4.0
       combined-stream: 1.0.8
       es-set-tostringtag: 2.1.0
-      hasown: 2.0.2
+      hasown: 2.0.4
       mime-types: 2.1.35
 
   formdata-node@6.0.3: {}
@@ -8683,7 +8716,7 @@ snapshots:
       get-proto: 1.0.1
       gopd: 1.2.0
       has-symbols: 1.1.0
-      hasown: 2.0.2
+      hasown: 2.0.4
       math-intrinsics: 1.1.0
 
   get-proto@1.0.1:
@@ -8753,11 +8786,12 @@ snapshots:
 
   graphemer@1.4.0: {}
 
-  happy-dom@20.9.0:
+  happy-dom@21.0.4:
     dependencies:
       '@types/node': 24.10.0
       '@types/whatwg-mimetype': 3.0.2
       '@types/ws': 8.18.1
+      buffer-image-size: 0.6.4
       entities: 7.0.1
       whatwg-mimetype: 3.0.0
       ws: 8.20.0
@@ -8795,6 +8829,10 @@ snapshots:
       minimalistic-assert: 1.0.1
 
   hasown@2.0.2:
+    dependencies:
+      function-bind: 1.1.2
+
+  hasown@2.0.4:
     dependencies:
       function-bind: 1.1.2
 
@@ -8851,6 +8889,8 @@ snapshots:
   ignore@5.3.2: {}
 
   ignore@7.0.5: {}
+
+  image-size@2.0.4: {}
 
   immediate@3.0.6: {}
 
@@ -10260,7 +10300,7 @@ snapshots:
       terser: 5.44.1
       yaml: 2.9.1
 
-  vitest@3.2.6(@types/node@22.19.0)(esbuild@0.27.7)(happy-dom@20.9.0)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(yaml@2.9.1):
+  vitest@3.2.6(@types/node@22.19.0)(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(yaml@2.9.1):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/expect': 3.2.6
@@ -10287,7 +10327,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 22.19.0
-      happy-dom: 20.9.0
+      happy-dom: 21.0.4
       jsdom: 26.1.0
     transitivePeerDependencies:
       - '@vitejs/devtools'
@@ -10304,7 +10344,7 @@ snapshots:
       - tsx
       - yaml
 
-  vitest@3.2.6(@types/node@24.10.0)(esbuild@0.27.7)(happy-dom@20.9.0)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(yaml@2.9.1):
+  vitest@3.2.6(@types/node@24.10.0)(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(yaml@2.9.1):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/expect': 3.2.6
@@ -10331,7 +10371,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 24.10.0
-      happy-dom: 20.9.0
+      happy-dom: 21.0.4
       jsdom: 26.1.0
     transitivePeerDependencies:
       - '@vitejs/devtools'
@@ -10360,7 +10400,7 @@ snapshots:
   webflow-api@3.3.4:
     dependencies:
       crypto-browserify: 3.12.1
-      form-data: 4.0.4
+      form-data: 4.0.6
       formdata-node: 6.0.3
       node-fetch: 2.7.0
       readable-stream: 4.7.0
