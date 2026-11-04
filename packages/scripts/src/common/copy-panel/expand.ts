@@ -1,9 +1,10 @@
 /**
  * Collapsible body for `[rtc-copy-panel="preview"]` panels. The body starts
- * clipped to `--rtc-collapsed-height` under the footer's gradient, and the
- * `.expand-toggle` button animates it open to its full height and back.
+ * clipped to `--rtc-collapsed-height` with its last `--rtc-fade-height` faded
+ * out, and the `.expand-toggle` button animates it open to its full height and
+ * back.
  *
- * The toggle and gradient hide when the content already fits.
+ * The toggle and fade hide when the content already fits.
  */
 
 const PREVIEW_SELECTOR = '[rtc-copy-panel="preview"]';
@@ -18,17 +19,44 @@ const STYLE_ID = 'wfu-rtc-copy-panel';
 const MORE_LABEL = 'Show more';
 const LESS_LABEL = 'Show less';
 const EASE_OUT_CUBIC = '250ms cubic-bezier(0.33, 1, 0.68, 1)';
+const FADE_SIZE_PROPERTY = '--rtc-fade-size';
+const FADE_STOPS = [
+  ['#000', 1],
+  ['rgb(0 0 0 / 0.6)', 0.6],
+  ['rgb(0 0 0 / 0.2)', 0.3],
+  ['transparent', 0.1],
+] as const;
+const FADE_MASK = `linear-gradient(to bottom, ${FADE_STOPS.map(
+  ([color, offset]) => `${color} calc(100% - var(${FADE_SIZE_PROPERTY}) * ${offset})`
+).join(', ')})`;
 
+/**
+ * The fade is a mask on the body rather than an overlay, so it works on any
+ * background. It eases out and reaches full transparency just above the clip
+ * edge, so a line cut by the edge is never visible. The footer's Designer
+ * shadow stops short of that edge and is dropped. Registering the fade size
+ * lets it animate to zero as the panel opens.
+ */
 const PREVIEW_CSS = `
+@property ${FADE_SIZE_PROPERTY} {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
 ${PREVIEW_SELECTOR} ${BODY_SELECTOR} {
+  ${FADE_SIZE_PROPERTY}: var(--rtc-fade-height, 6rem);
   max-height: var(--rtc-collapsed-height, 16rem);
   overflow: hidden;
-  transition: max-height ${EASE_OUT_CUBIC};
+  -webkit-mask-image: ${FADE_MASK};
+  mask-image: ${FADE_MASK};
+  transition:
+    max-height ${EASE_OUT_CUBIC},
+    ${FADE_SIZE_PROPERTY} ${EASE_OUT_CUBIC};
+}
+${PREVIEW_SELECTOR}:is([${EXPANDED_ATTR}], [${FITS_ATTR}]) ${BODY_SELECTOR} {
+  ${FADE_SIZE_PROPERTY}: 0px;
 }
 ${PREVIEW_SELECTOR} ${FOOTER_SELECTOR} {
-  transition: box-shadow ${EASE_OUT_CUBIC};
-}
-${PREVIEW_SELECTOR}:is([${EXPANDED_ATTR}], [${FITS_ATTR}]) ${FOOTER_SELECTOR} {
   box-shadow: none;
 }
 ${PREVIEW_SELECTOR} ${TOGGLE_ICON_SELECTOR} {
@@ -44,7 +72,7 @@ ${PREVIEW_SELECTOR}[${FITS_ATTR}] ${TOGGLE_SELECTOR} {
   display: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  ${PREVIEW_SELECTOR} :is(${BODY_SELECTOR}, ${FOOTER_SELECTOR}, ${TOGGLE_ICON_SELECTOR}) {
+  ${PREVIEW_SELECTOR} :is(${BODY_SELECTOR}, ${TOGGLE_ICON_SELECTOR}) {
     transition: none;
   }
 }
