@@ -205,7 +205,7 @@ function getBadges(item: HTMLElement): string[] {
   return labels;
 }
 
-function richTextToMarkdown(root: HTMLElement | null): string {
+export function richTextToMarkdown(root: HTMLElement | null): string {
   if (!root) {
     return '';
   }
