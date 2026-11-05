@@ -11,7 +11,7 @@ import {
   serializeChecklistToMarkdown,
 } from '../download-checklist-md/index.js';
 import { downloadCsv, serializeChecklistToCsv } from './csv.js';
-import { setFeedback, showCopyConfirmation, stackCopyIcons } from './feedback.js';
+import { setFeedback, showCopyConfirmation, stackCopyIcons, stackCopyLabel } from './feedback.js';
 import { initHeadingLinks } from './heading-links.js';
 import { type ChecklistItem, getCheckedIds, getChecklistItems, TITLE_SELECTOR } from './items.js';
 import { initChecklistNav } from './nav.js';
@@ -32,6 +32,7 @@ const COPY_URL_SELECTOR = '[data-checklist-copy-url]';
 const CLEAR_SELECTOR = '[data-checklist-clear]';
 const CSV_SELECTOR = '[data-checklist-download="csv"]';
 const MARKDOWN_SELECTOR = '[data-checklist-download="md"], [data-copy-checklist-md]';
+const COPIED_LABEL = 'Copied!';
 
 export function initChecklist(): void {
   // Driven by the rich text headings rather than by the tasks, so they run
@@ -49,9 +50,12 @@ export function initChecklist(): void {
 
   labelCheckboxes(items);
 
-  // Stack the icons on init so both never flash side-by-side before the first
-  // copy click.
-  document.querySelectorAll<HTMLElement>(COPY_URL_SELECTOR).forEach(stackCopyIcons);
+  // Stack the icons and label on init so both icons never flash side-by-side
+  // and the control never changes width on the first copy click.
+  document.querySelectorAll<HTMLElement>(COPY_URL_SELECTOR).forEach((button) => {
+    stackCopyIcons(button);
+    stackCopyLabel(button, COPIED_LABEL);
+  });
 
   const storageKey = getStorageKey();
 
@@ -181,7 +185,7 @@ async function copyShareUrl(items: ChecklistItem[], button: HTMLElement): Promis
   try {
     await navigator.clipboard.writeText(shareUrl);
     setFeedback(button, 'Link copied');
-    showCopyConfirmation(button, { copiedLabel: 'Copied!' });
+    showCopyConfirmation(button, { copiedLabel: COPIED_LABEL });
   } catch {
     setFeedback(button, 'Press Ctrl+C to copy');
   }

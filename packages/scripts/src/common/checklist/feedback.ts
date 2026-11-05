@@ -1,9 +1,13 @@
 /**
  * Shared feedback for checklist controls: the link-to-checkmark crossfade used
- * by every copy-link control, and accessible-name feedback for icon controls.
+ * by every copy control, the matching crossfade of a "Copied!" label, and
+ * accessible-name feedback for icon controls.
  */
 
 export const FEEDBACK_MS = 2000;
+/** The checklist copy-link control's checkmark, shared so every copy control confirms with the same icon. */
+export const CHECK_ICON =
+  '<svg width="100%" height="100%" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path d="M3.5 8.5 6.5 11.5 12.5 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 export const COPIED_ATTR = 'data-checklist-copied';
 /** Set for the length of the confirmation; controls that fade out when idle stay visible while it is present. */
 export const COPY_HOLD_ATTR = 'data-checklist-copy-hold';
@@ -16,11 +20,15 @@ const FADE_TIMEOUT_MS = 1000;
 const ICON_ATTR = 'data-checklist-icon';
 const STACK_ATTR = 'data-checklist-icon-stack';
 const COPY_LABEL_ATTR = 'data-checklist-copy-label';
+const LABEL_STACK_ATTR = 'data-checklist-label-stack';
+const LABEL_ATTR = 'data-checklist-label';
 const COPY_STYLE_ID = 'wfu-checklist-copy-confirm';
-const COPY_TRANSITION = 'transform 220ms ease, filter 220ms ease, opacity 220ms ease';
+const COPY_TRANSITION = 'transform 200ms ease, filter 200ms ease, opacity 200ms ease';
 
 const STACK = `[${STACK_ATTR}] > [${ICON_ATTR}]`;
 const COPIED_STACK = `[${COPIED_ATTR}] ${STACK}`;
+const LABEL_STACK = `[${LABEL_STACK_ATTR}] > [${LABEL_ATTR}]`;
+const COPIED_LABEL_STACK = `[${COPIED_ATTR}] ${LABEL_STACK}`;
 
 /**
  * The icons overlap inside their own stack rather than being positioned against
@@ -60,6 +68,31 @@ ${COPIED_STACK}[${ICON_ATTR}="check"] {
   filter: blur(0);
   opacity: 1;
 }
+[${LABEL_STACK_ATTR}] {
+  display: inline-grid;
+}
+${LABEL_STACK} {
+  grid-area: 1 / 1;
+  justify-self: start;
+}
+${LABEL_STACK}[${LABEL_ATTR}="copied"] {
+  transform: scale(0.9);
+  filter: blur(4px);
+  opacity: 0;
+}
+${COPIED_LABEL_STACK} {
+  transition: ${COPY_TRANSITION};
+}
+${COPIED_LABEL_STACK}[${LABEL_ATTR}="idle"] {
+  transform: scale(0.9);
+  filter: blur(4px);
+  opacity: 0;
+}
+${COPIED_LABEL_STACK}[${LABEL_ATTR}="copied"] {
+  transform: scale(1);
+  filter: blur(0);
+  opacity: 1;
+}
 `;
 
 const copyResets = new WeakMap<HTMLElement, () => void>();
@@ -90,8 +123,9 @@ export function stackCopyIcons(control: HTMLElement): boolean {
 }
 
 /**
- * Crossfades the link icon out (scale + blur) with a checkmark, then snaps
- * back to the link icon after FEEDBACK_MS with no exit transition.
+ * Crossfades the link icon out (scale + blur) with a checkmark, and the label
+ * with `copiedLabel` when one is given, then snaps both back after FEEDBACK_MS
+ * with no exit transition.
  *
  * If releasing the hold makes the control fade out (it is no longer hovered),
  * the checkmark stays until that fade finishes, so the link icon never flashes
@@ -106,13 +140,11 @@ export function showCopyConfirmation(
   }
 
   copyResets.get(control)?.();
+  const labelStack = copiedLabel ? stackCopyLabel(control, copiedLabel) : null;
   control.setAttribute(COPIED_ATTR, '');
   control.setAttribute(COPY_HOLD_ATTR, '');
-
-  const label = copiedLabel ? findTextLabel(control) : null;
-  if (label && copiedLabel) {
-    label.dataset.checklistCopyText ??= label.textContent ?? '';
-    label.textContent = copiedLabel;
+  if (labelStack) {
+    setLabelCopied(labelStack, true);
   }
 
   const timers: number[] = [];
@@ -139,9 +171,8 @@ export function showCopyConfirmation(
   const finish = (): void => {
     cleanup();
     control.removeAttribute(COPIED_ATTR);
-    if (label?.dataset.checklistCopyText !== undefined) {
-      label.textContent = label.dataset.checklistCopyText;
-      delete label.dataset.checklistCopyText;
+    if (labelStack) {
+      setLabelCopied(labelStack, false);
     }
   };
 
@@ -164,6 +195,67 @@ export function showCopyConfirmation(
       );
     }, FEEDBACK_MS)
   );
+}
+
+/**
+ * Overlaps the control's label text with its copied text so the two crossfade
+ * like the icons. Stacking on init rather than on the first click keeps the
+ * control from changing width, since the stack is always as wide as the
+ * longer text. Returns null when the control has no text label.
+ */
+export function stackCopyLabel(control: HTMLElement, copiedLabel: string): HTMLElement | null {
+  const existing = control.querySelector<HTMLElement>(`[${LABEL_STACK_ATTR}]`);
+  if (existing) {
+    const copied = existing.querySelector(`[${LABEL_ATTR}="copied"]`);
+    if (copied) {
+      copied.textContent = copiedLabel;
+    }
+    return existing;
+  }
+
+  const label = findTextLabel(control);
+  if (!label) {
+    return null;
+  }
+
+  ensureCopyConfirmStyles();
+
+  const idle = document.createElement('span');
+  idle.setAttribute(LABEL_ATTR, 'idle');
+  idle.textContent = label.textContent;
+  const copied = document.createElement('span');
+  copied.setAttribute(LABEL_ATTR, 'copied');
+  copied.setAttribute('aria-hidden', 'true');
+  copied.textContent = copiedLabel;
+
+  const stack = document.createElement('span');
+  stack.setAttribute(LABEL_STACK_ATTR, '');
+  stack.append(idle, copied);
+  label.replaceChildren(stack);
+  return stack;
+}
+
+/**
+ * The element holding the control's resting label text, for callers that
+ * change that text directly.
+ */
+export function getCopyLabelText(control: HTMLElement): HTMLElement | null {
+  return (
+    control.querySelector<HTMLElement>(`[${LABEL_STACK_ATTR}] > [${LABEL_ATTR}="idle"]`) ??
+    findTextLabel(control)
+  );
+}
+
+/** Only the visible text stays in the control's accessible name. */
+function setLabelCopied(stack: HTMLElement, copied: boolean): void {
+  stack.querySelectorAll<HTMLElement>(`[${LABEL_ATTR}]`).forEach((text) => {
+    const visible = (text.getAttribute(LABEL_ATTR) === 'copied') === copied;
+    if (visible) {
+      text.removeAttribute('aria-hidden');
+    } else {
+      text.setAttribute('aria-hidden', 'true');
+    }
+  });
 }
 
 /**
