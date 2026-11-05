@@ -23,7 +23,8 @@ const COPY_LABEL_ATTR = 'data-checklist-copy-label';
 const LABEL_STACK_ATTR = 'data-checklist-label-stack';
 const LABEL_ATTR = 'data-checklist-label';
 const COPY_STYLE_ID = 'wfu-checklist-copy-confirm';
-const COPY_TRANSITION = 'transform 200ms ease, filter 200ms ease, opacity 200ms ease';
+const COPY_FADE = 'opacity 200ms ease';
+const COPY_TRANSITION = `transform 200ms ease, filter 200ms ease, ${COPY_FADE}`;
 
 const STACK = `[${STACK_ATTR}] > [${ICON_ATTR}]`;
 const COPIED_STACK = `[${COPIED_ATTR}] ${STACK}`;
@@ -93,6 +94,19 @@ ${COPIED_LABEL_STACK}[${LABEL_ATTR}="copied"] {
   filter: blur(0);
   opacity: 1;
 }
+@media (prefers-reduced-motion: reduce) {
+  ${STACK}[${ICON_ATTR}],
+  ${COPIED_STACK}[${ICON_ATTR}],
+  ${LABEL_STACK}[${LABEL_ATTR}],
+  ${COPIED_LABEL_STACK}[${LABEL_ATTR}] {
+    transform: none;
+    filter: none;
+  }
+  ${COPIED_STACK},
+  ${COPIED_LABEL_STACK} {
+    transition: ${COPY_FADE};
+  }
+}
 `;
 
 const copyResets = new WeakMap<HTMLElement, () => void>();
@@ -123,7 +137,8 @@ export function stackCopyIcons(control: HTMLElement): boolean {
 }
 
 /**
- * Crossfades the link icon out (scale + blur) with a checkmark, and the label
+ * Crossfades the link icon out (scale + blur, or opacity alone under reduced
+ * motion) with a checkmark, and the label
  * with `copiedLabel` when one is given, then snaps both back after FEEDBACK_MS
  * with no exit transition.
  *
