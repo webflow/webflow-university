@@ -1,5 +1,5 @@
 ---
-'scripts': patch
+'scripts': minor
 ---
 
 Copy prompts in Webflow preview mode and shorten collapsed preview panels
