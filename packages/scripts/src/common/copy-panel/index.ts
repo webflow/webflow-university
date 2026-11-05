@@ -8,7 +8,14 @@
  * still copies its full contents.
  */
 
-import { FEEDBACK_MS, showCopyConfirmation, stackCopyIcons } from '../checklist/feedback.js';
+import {
+  CHECK_ICON,
+  FEEDBACK_MS,
+  getCopyLabelText,
+  showCopyConfirmation,
+  stackCopyIcons,
+  stackCopyLabel,
+} from '../checklist/feedback.js';
 import { richTextToMarkdown } from '../download-checklist-md/index.js';
 import { initPreviewPanels } from './expand.js';
 
@@ -20,9 +27,6 @@ const RICH_TEXT_SELECTOR = '.w-richtext';
 const ICON_SELECTOR = '.w-embed:not([data-checklist-icon="check"])';
 const COPIED_LABEL = 'Copied!';
 const FAILED_LABEL = 'Copy failed';
-
-const CHECK_ICON =
-  '<svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path d="M5.75 12.75 9.75 16.75 18.25 7.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 const labelResets = new WeakMap<HTMLElement, number>();
 
@@ -36,9 +40,9 @@ export function initCopyPanels(): void {
       return;
     }
 
-    const label = button.querySelector<HTMLElement>('span');
-    label?.setAttribute('aria-live', 'polite');
+    button.querySelector<HTMLElement>('span')?.setAttribute('aria-live', 'polite');
     prepareCopyButton(button);
+    const label = getCopyLabelText(button);
 
     button.addEventListener('click', (event) => {
       event.preventDefault();
@@ -47,7 +51,10 @@ export function initCopyPanels(): void {
   });
 }
 
-/** Pairs the Designer's copy icon with a checkmark for the copy confirmation. */
+/**
+ * Pairs the Designer's copy icon with the shared checkmark, and its label with
+ * the copied text, for the copy confirmation.
+ */
 function prepareCopyButton(button: HTMLElement): void {
   if (button instanceof HTMLButtonElement) {
     button.type = 'button';
@@ -68,6 +75,7 @@ function prepareCopyButton(button: HTMLElement): void {
   }
 
   stackCopyIcons(button);
+  stackCopyLabel(button, COPIED_LABEL);
 }
 
 async function copyRichText(
@@ -76,7 +84,7 @@ async function copyRichText(
   label: HTMLElement | null
 ): Promise<void> {
   if (await writeClipboard(richTextToMarkdown(richText))) {
-    // The confirmation restores whatever label it finds, so clear a pending failure label first.
+    // The resting label fades back in after the confirmation, so clear a pending failure label first.
     restoreLabel(label);
     showCopyConfirmation(button, { copiedLabel: COPIED_LABEL });
   } else {

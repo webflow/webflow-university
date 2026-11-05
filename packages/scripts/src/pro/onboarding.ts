@@ -14,7 +14,12 @@
  * readers fold the button's label into the link's name.
  */
 
-import { setFeedback, showCopyConfirmation, stackCopyIcons } from '../common/checklist/feedback.js';
+import {
+  CHECK_ICON,
+  setFeedback,
+  showCopyConfirmation,
+  stackCopyIcons,
+} from '../common/checklist/feedback.js';
 import { getSectionUrl } from '../common/checklist/heading-links.js';
 
 const CARD_SELECTOR = 'a.cc_glance_card[href]';
@@ -28,8 +33,7 @@ const LINK_LABEL = 'Copy link to this section';
 const SCROLL_BUFFER_MS = 32;
 
 /** Same gray as the Designer link icon on the glance card. */
-const CHECK_ICON =
-  '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path d="M3.5 8.2 6.4 11.2 12.5 4.8" stroke="#898989" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CHECK_COLOR = '#898989';
 
 let hashController: AbortController | null = null;
 let scrollTimer = 0;
@@ -278,6 +282,7 @@ function prepareCopyButton(button: HTMLElement): void {
     const check = document.createElement('div');
     check.className = linkIcon.className;
     check.setAttribute('data-checklist-icon', 'check');
+    check.style.color = CHECK_COLOR;
     check.innerHTML = CHECK_ICON;
     linkIcon.after(check);
   }

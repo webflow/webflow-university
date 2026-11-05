@@ -10,7 +10,13 @@
  * never navigates or scrolls to the section.
  */
 
-import { COPY_HOLD_ATTR, setFeedback, showCopyConfirmation, stackCopyIcons } from './feedback.js';
+import {
+  CHECK_ICON,
+  COPY_HOLD_ATTR,
+  setFeedback,
+  showCopyConfirmation,
+  stackCopyIcons,
+} from './feedback.js';
 import { cleanText } from './items.js';
 import { assignId, collectIds, HEADING_SELECTOR, RICH_TEXT_SELECTOR } from './nav.js';
 
@@ -23,8 +29,7 @@ const STYLE_ID = 'wfu-checklist-heading-links';
 
 const FALLBACK_ICONS = {
   link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
-  check:
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  check: CHECK_ICON,
 };
 
 /**
