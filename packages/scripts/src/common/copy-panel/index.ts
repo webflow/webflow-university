@@ -19,7 +19,7 @@ const BUTTON_SELECTOR = '[rtc-copy-button], .is-action-button';
 const RICH_TEXT_SELECTOR = '.w-richtext';
 const ICON_SELECTOR = '.w-embed:not([data-checklist-icon="check"])';
 const COPIED_LABEL = 'Copied!';
-const FAILED_LABEL = 'Press Ctrl+C to copy';
+const FAILED_LABEL = 'Copy failed';
 
 const CHECK_ICON =
   '<svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path d="M5.75 12.75 9.75 16.75 18.25 7.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -75,16 +75,51 @@ async function copyRichText(
   button: HTMLElement,
   label: HTMLElement | null
 ): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(richTextToMarkdown(richText));
+  if (await writeClipboard(richTextToMarkdown(richText))) {
     // The confirmation restores whatever label it finds, so clear a pending failure label first.
     restoreLabel(label);
     showCopyConfirmation(button, { copiedLabel: COPIED_LABEL });
-  } catch {
-    // Selecting the text lets the shortcut in the fallback label work.
-    selectContents(richText);
+  } else {
     showLabel(label, FAILED_LABEL);
   }
+}
+
+/**
+ * Frames embedded without the `clipboard-write` permission, such as Webflow's
+ * preview mode, reject the async Clipboard API. The fallback runs a copy
+ * command and fills the clipboard from its copy event, so nothing on the page
+ * gets selected or focused.
+ */
+async function writeClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return copyWithCommand(text);
+  }
+}
+
+function copyWithCommand(text: string): boolean {
+  let copied = false;
+  const onCopy = (event: ClipboardEvent): void => {
+    if (!event.clipboardData) {
+      return;
+    }
+    event.clipboardData.setData('text/plain', text);
+    event.preventDefault();
+    copied = true;
+  };
+
+  document.addEventListener('copy', onCopy);
+  try {
+    document.execCommand('copy');
+  } catch {
+    // Treated as a failed copy below.
+  } finally {
+    document.removeEventListener('copy', onCopy);
+  }
+
+  return copied;
 }
 
 function showLabel(label: HTMLElement | null, message: string): void {
@@ -110,16 +145,4 @@ function restoreLabel(label: HTMLElement | null): void {
   window.clearTimeout(labelResets.get(label));
   label.textContent = label.dataset.rtcCopyText;
   delete label.dataset.rtcCopyText;
-}
-
-function selectContents(element: HTMLElement): void {
-  const selection = window.getSelection();
-  if (!selection) {
-    return;
-  }
-
-  const range = document.createRange();
-  range.selectNodeContents(element);
-  selection.removeAllRanges();
-  selection.addRange(range);
 }
