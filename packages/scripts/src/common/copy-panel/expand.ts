@@ -44,8 +44,8 @@ const PREVIEW_CSS = `
   initial-value: 0px;
 }
 ${PREVIEW_SELECTOR} ${BODY_SELECTOR} {
-  ${FADE_SIZE_PROPERTY}: var(--rtc-fade-height, 6rem);
-  max-height: var(--rtc-collapsed-height, 16rem);
+  ${FADE_SIZE_PROPERTY}: var(--rtc-fade-height, 4rem);
+  max-height: var(--rtc-collapsed-height, 8rem);
   overflow: hidden;
   -webkit-mask-image: ${FADE_MASK};
   mask-image: ${FADE_MASK};
