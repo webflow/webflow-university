@@ -1,2 +1,5 @@
 # Production directory
-dist/
+dist
+
+# Vendored from other repos, kept byte-identical to upstream
+src/vendor/

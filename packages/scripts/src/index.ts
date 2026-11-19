@@ -6,6 +6,7 @@ import { initSidebar, initSidebarHighlight } from './common/sidebar/index.js';
 import { initTheme } from './common/theme/index.js';
 import { initCoursesPage } from './courses/index.js';
 import { initOnCourseCompleted } from './courses/on-course-completed.js';
+import { initDashboardRecommendations } from './dashboard/recommendations.js';
 import { initOnboardingGlance } from './pro/onboarding.js';
 
 // Initialize all functionality when DOM is ready
@@ -19,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initChecklist();
   initCopyPanels();
   initOnboardingGlance();
+  initDashboardRecommendations();
 });
 
 // Initialize sidebar highlight when page loads

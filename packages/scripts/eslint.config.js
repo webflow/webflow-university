@@ -12,8 +12,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export default defineConfig([
-  // Ignore these folders
-  globalIgnores(['coverage', 'dist', 'node_modules']),
+  // Ignore these folders. src/vendor is copied verbatim from other repos.
+  globalIgnores(['coverage', 'dist', 'node_modules', 'src/vendor']),
 
   {
     // Apply to all TypeScript and JavaScript files
