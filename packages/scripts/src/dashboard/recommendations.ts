@@ -2,11 +2,16 @@
  * "Recommended next courses" on the dashboard, served by Nexus.
  *
  * The section is built in the Designer and starts hidden through the site-wide
- * `[data-display-none-on-load]` rule. For a logged-in user this fetches course
- * recommendations, drops courses the user is already enrolled in (Nexus v1 does
- * not know about enrollment), clones the template card once per course, and
- * removes the hiding attribute. With nothing to show, the section stays hidden
- * unless it contains a `[data-nexus-recs-fallback]` element.
+ * `[data-display-none-on-load]` rule. For a logged-in user this fetches up to 12
+ * course recommendations, drops courses the user is already enrolled in (Nexus
+ * v1 does not know about enrollment), clones the template slide once per course,
+ * and removes the hiding attribute. When Nexus has nothing personalised it sends
+ * the surface's fallback list, which is shown the same way. With nothing to
+ * show, the section stays hidden unless it contains a `[data-nexus-recs-fallback]`
+ * element.
+ *
+ * The list is a Swiper slider set up by page custom code before this runs, so it
+ * is refreshed once the slides are in.
  *
  * Each rendered card sends a Nexus `view` event when it is mostly in view and a
  * `click` event when followed. Nexus does not dedupe, so views are sent once
@@ -37,9 +42,11 @@ const IMAGE_SELECTOR = '[data-nexus-rec-image]';
 const CTA_SELECTOR = '[data-nexus-rec-cta]';
 const FALLBACK_SELECTOR = '[data-nexus-recs-fallback]';
 const COUNT_ATTRIBUTE = 'data-nexus-recs-count';
+const SURFACE_ATTRIBUTE = 'data-nexus-recs-surface';
 const HIDDEN_ON_LOAD_ATTRIBUTE = 'data-display-none-on-load';
+const SLIDER_SELECTOR = '.swiper';
 
-const DEFAULT_COUNT = 3;
+const DEFAULT_COUNT = 12;
 /** Nexus caps `n` at 12. Asking for the maximum leaves room to drop enrolled courses. */
 const FETCH_COUNT = 12;
 /** `getEnrolledCourses` never calls back on a network error. */
@@ -51,6 +58,9 @@ type Recommendation = {
   item: NexusItem;
   url: string;
 };
+
+/** Swiper keeps its instance on the element it was created on. */
+type SwiperHost = HTMLElement & { swiper?: { update: () => void } };
 
 export function initDashboardRecommendations(): void {
   const section = document.querySelector<HTMLElement>(SECTION_SELECTOR);
@@ -90,9 +100,10 @@ async function loadRecommendations({
     baseUrl: NEXUS_BASE_URL,
     clientKey: NEXUS_CLIENT_KEY,
   });
+  const surface = section.getAttribute(SURFACE_ATTRIBUTE) || NEXUS_SURFACE;
 
   const [response, enrolledSlugs] = await Promise.all([
-    nexus.getUserItems({ userId, surface: NEXUS_SURFACE, n: FETCH_COUNT }),
+    nexus.getUserItems({ userId, surface, n: FETCH_COUNT }),
     getEnrolledCourseSlugs(university),
   ]);
 
@@ -119,8 +130,9 @@ async function loadRecommendations({
   }));
   list.append(...cards.map(({ card }) => card));
   reveal(section);
+  refreshSlider(list);
 
-  const track = createTracker(nexus, userId);
+  const track = createTracker(nexus, userId, surface);
   cards.forEach(({ recommendation, card }) => {
     const link = findLink(card);
     link?.addEventListener('click', () => track('click', recommendation.item));
@@ -158,17 +170,28 @@ function selectRecommendations(
   return recommendations;
 }
 
-/** CMS course slug for a Nexus item, from its slug or else its `/courses/{slug}` link. */
+/**
+ * CMS course slug for a Nexus item, from its `/courses/{slug}` link or else its
+ * slug. The link is refreshed from the CMS on every sync, while the Nexus slug
+ * is fixed when the item is created and goes stale if the course is renamed.
+ */
 function toCourseSlug(item: Pick<NexusItem, 'slug' | 'buttonUrl'>): string | null {
+  const linkSlug = courseSlugFromUrl(item.buttonUrl);
+  if (linkSlug) {
+    return linkSlug;
+  }
   if (item.slug.startsWith(NEXUS_COURSE_SLUG_PREFIX)) {
     return item.slug.slice(NEXUS_COURSE_SLUG_PREFIX.length) || null;
   }
+  return null;
+}
 
-  if (!item.buttonUrl) {
+function courseSlugFromUrl(value: string | null): string | null {
+  if (!value) {
     return null;
   }
   try {
-    const match = new URL(item.buttonUrl).pathname.match(/^\/courses\/([^/]+)\/?$/);
+    const match = new URL(value).pathname.match(/^\/courses\/([^/]+)\/?$/);
     return match ? decodeURIComponent(match[1]) : null;
   } catch {
     return null;
@@ -260,7 +283,12 @@ function reveal(section: HTMLElement): void {
   section.removeAttribute(HIDDEN_ON_LOAD_ATTRIBUTE);
 }
 
-function createTracker(nexus: NexusBrowserClient, userId: string) {
+/** Swiper does not watch the DOM, so it is told about the new slides. No-op without Swiper. */
+function refreshSlider(list: HTMLElement): void {
+  list.closest<SwiperHost>(SLIDER_SELECTOR)?.swiper?.update();
+}
+
+function createTracker(nexus: NexusBrowserClient, userId: string, surface: string) {
   const sessionId = getSessionId();
   const context = buildEventContext({ path: window.location.pathname });
 
@@ -269,7 +297,7 @@ function createTracker(nexus: NexusBrowserClient, userId: string) {
       feedbackType,
       userId,
       itemId: item.itemId,
-      surface: NEXUS_SURFACE,
+      surface,
       sessionId,
       context,
     });

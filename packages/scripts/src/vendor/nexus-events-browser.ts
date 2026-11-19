@@ -2,9 +2,14 @@
  * nexus-events-browser.ts — browser-side client for CX Nexus (GPS):
  * event tracking + user-only recommendation fetching.
  *
- * Copy/vendor this file into your web app — it is self-contained (no imports,
- * native fetch). Source of truth: the cx-nexus repo
- * (docs/events-integration.md). Check back there for updates.
+ * Two ways to use it (same code, built from this one file):
+ *   1. Vendor: copy this file into your web app. It is self-contained (no
+ *      imports, native fetch).
+ *   2. Hosted: load it from Nexus, e.g.
+ *      https://nexus.webflow.com/sdk/nexus-events-browser@<version>.js
+ *      (classic <script>, sets window.NexusEvents) or the `.mjs` ES module.
+ *      Pin a version and use its integrity hash from /sdk/manifest.json.
+ * Source of truth: the cx-nexus repo (docs/events-integration.md).
  *
  * Auth: use a PER-CONSUMER CLIENT KEY (`nxk_…`), issued via the Nexus admin
  * `/admin/api-consumers` page — NOT the server NEXUS_API_TOKEN. Client keys
@@ -15,8 +20,17 @@
  * on your consumer record's allowed-origins list, or both the CORS preflight
  * and the request itself will be rejected.
  *
- * Workspace-scoped recommendations (`/api/items/{workspaceId}/{userId}`)
- * require the server token and must stay server-side (see nexus-events.ts).
+ * Key scopes (CXP-963): each key is limited to the surfaces on its consumer
+ * record. A surface outside that list is refused (403, `surface_not_allowed`).
+ * `userId` / `workspaceId` must be raw Webflow IDs (400 `invalid_request`
+ * otherwise). A user Nexus has not seen is created when your key allows it;
+ * otherwise their events are still recorded and item requests return the
+ * surface's fallback list (`meta.fallback`).
+ *
+ * This client covers user-only recommendations (`getUserItems`). Workspace
+ * recommendations (`/api/items/{workspaceId}/{userId}`) accept a client key
+ * with item reads too, but have no method here: use nexus-events.ts
+ * server-side, or call the endpoint directly.
  */
 
 /**
@@ -24,27 +38,129 @@
  * recorded in the impressions log, so a vendored copy that has drifted behind
  * cx-nexus is visible in a query instead of being guessed at.
  */
-export const NEXUS_CLIENT_VERSION = '2026.08.14'
+export const NEXUS_CLIENT_VERSION = '2026.11.09.1'
+
+/**
+ * Set to true only in the copy Nexus hosts at /sdk/ (scripts/build-sdk.mjs
+ * defines it at build time). A vendored copy leaves it undefined.
+ */
+declare const __NEXUS_HOSTED__: boolean | undefined
+
+/**
+ * What this copy stamps as `clientVersion`: `2026.11.09.1` when vendored,
+ * `2026.11.09.1-hosted` when loaded from Nexus, so the impressions log shows
+ * which way each consumer integrates.
+ */
+export const NEXUS_CLIENT_VERSION_STAMP =
+  typeof __NEXUS_HOSTED__ !== 'undefined' && __NEXUS_HOSTED__
+    ? `${NEXUS_CLIENT_VERSION}-hosted`
+    : NEXUS_CLIENT_VERSION
+
+/** Hosted ES module only: its own URL, set by a banner in scripts/build-sdk.mjs. */
+declare const __NEXUS_MODULE_URL__: string | undefined
+
+/**
+ * Hosted copy only: the origin this file was loaded from, e.g.
+ * https://nexus.webflowtest.com. It is the default `baseUrl`, so the script
+ * and the API always come from the same environment. Captured while the file
+ * runs, because `document.currentScript` is null afterwards. Undefined in a
+ * vendored copy.
+ */
+export const NEXUS_SCRIPT_ORIGIN: string | undefined = (() => {
+  if (typeof __NEXUS_HOSTED__ === 'undefined' || !__NEXUS_HOSTED__) return undefined
+  try {
+    const moduleUrl = typeof __NEXUS_MODULE_URL__ !== 'undefined' ? __NEXUS_MODULE_URL__ : undefined
+    const script = typeof document !== 'undefined' ? document.currentScript : null
+    const src = moduleUrl || (script && 'src' in script ? (script as HTMLScriptElement).src : '')
+    const origin = src ? new URL(src).origin : ''
+    return origin && origin !== 'null' ? origin : undefined
+  } catch {
+    return undefined
+  }
+})()
+
+// ── Errors ───────────────────────────────────────────────────────────────────
+
+/**
+ * Why a request failed. The browser client never throws: failures resolve to
+ * `{ ok: false, error }` / `null` and are reported to `onError` if you set it.
+ *
+ *   invalid_request         400 — bad payload, or a userId/workspaceId that is
+ *                           not a Webflow ID
+ *   unauthorized            401 — wrong key, revoked key, or page origin not on
+ *                           the key's allowed origins
+ *   surface_not_allowed     403 — surface not in the key's allowed surfaces
+ *   items_read_not_enabled  403 — key may send events but not read items
+ *   forbidden               403 — any other refusal
+ *   unknown_item            404 — itemId does not exist in Nexus (your bug)
+ *   server_error            5xx — transient, safe to retry later
+ *   network                 request never completed
+ *   invalid_key             not an `nxk_` key: nothing was sent
+ *   invalid_config          no baseUrl (vendored copies must pass one): nothing was sent
+ */
+export type NexusErrorCode =
+  | 'invalid_request'
+  | 'unauthorized'
+  | 'surface_not_allowed'
+  | 'items_read_not_enabled'
+  | 'forbidden'
+  | 'unknown_item'
+  | 'server_error'
+  | 'network'
+  | 'invalid_key'
+  | 'invalid_config'
+
+export type NexusClientError = {
+  code: NexusErrorCode
+  /** HTTP status, or 0 when no response was received. */
+  status: number
+  /** Server message when there was one. */
+  message: string
+  /** Which call failed. */
+  operation: 'sendEvent' | 'getUserItems'
+}
+
+/** Map an HTTP failure to a NexusErrorCode. */
+export function classifyNexusError(status: number, message: string): NexusErrorCode {
+  if (status === 400) return 'invalid_request'
+  if (status === 401) return 'unauthorized'
+  if (status === 403) {
+    if (/^Surface .* not allowed/i.test(message)) return 'surface_not_allowed'
+    if (/not enabled for item reads/i.test(message)) return 'items_read_not_enabled'
+    return 'forbidden'
+  }
+  if (status === 404) return 'unknown_item'
+  return 'server_error'
+}
+
+async function errorMessage(res: Response): Promise<string> {
+  const text = await res.text().catch(() => '')
+  try {
+    const parsed = JSON.parse(text) as { error?: unknown }
+    if (typeof parsed?.error === 'string') return parsed.error
+  } catch {
+    // not JSON
+  }
+  return text
+}
 
 // ── Feedback types (mirror of the server client) ─────────────────────────────
+
+// Only the types a consumer page or service sends. Opportunity, feature-usage,
+// upgrade and support signals (and health_tier_reached) are produced by Nexus
+// itself from CRM and usage data, so they are not part of this client. The
+// server still accepts any catalogue type.
 
 export type ReadFeedbackType =
   | 'view' // item rendered in front of the user
   | 'click_read' // clicked through to read the item content
-  | 'opportunity' // opportunity-related view/interaction
-  | 'feature_usage' // interacted with the related feature
   | 'uni_start' // started a University course/video
-  | 'support' // support-related view
   | 'dismiss' // explicitly dismissed the item
   | 'snooze' // snoozed the item
 
 export type PositiveFeedbackType =
   | 'click' // general click engagement on the item
-  | 'opportunity_won' // related opportunity closed-won
-  | 'feature_usage_task' // completed a feature-usage task
   | 'uni_complete' // completed a University course/video
-  | 'support_positive' // positive support outcome
-  | 'upgrade' // initiated/completed an upgrade
   | 'share' // shared the content
   | 'complete' // task/action finished. Also advances Nexus onboarding progress for the item.
 
@@ -189,35 +305,92 @@ export type NexusItem = {
   documentationLink: string | null
 }
 
+/**
+ * Why the surface fallback list was served instead of personalised results:
+ *   unknown_user  Nexus has not seen the user and your key may not create users
+ *   new_user      this request created the user, so there is no history yet
+ *   gorse_failed  the recommender was unavailable
+ *   gorse_empty   the recommender had nothing for this surface
+ */
+export type FallbackReason = 'unknown_user' | 'new_user' | 'gorse_failed' | 'gorse_empty'
+
+/** The surface's configured fallback: a fixed list, a playbook, or newest items. */
+export type FallbackSource = 'items' | 'playbook' | 'latest'
+
 export type UserItemsResponse = {
   surface: string
   type: 'user' | 'related'
+  /** May be empty, including when `meta.fallback` is true and no fallback is configured. */
   items: NexusItem[]
-  meta: { userId: string; requested: number; governanceApplied: string[] }
+  meta: {
+    userId: string
+    requested: number
+    governanceApplied: string[]
+    /** True when these are the surface's fallback items, not personalised results. */
+    fallback: boolean
+    /** Set when `fallback` is true. */
+    fallbackReason: FallbackReason | null
+    /** The fallback that produced the items; null when the surface has none. */
+    fallbackSource: FallbackSource | null
+  }
 }
 
 // ── Client ───────────────────────────────────────────────────────────────────
 
 export type NexusBrowserClientOptions = {
-  /** https://nexus.webflow.com (prod), https://nexus.webflowtest.com (acceptance), or http://localhost:3001 (local). */
-  baseUrl: string
+  /**
+   * https://nexus.webflow.com (prod), https://nexus.webflowtest.com
+   * (acceptance), or http://localhost:3001 (local). Optional when the file is
+   * loaded from Nexus (/sdk/): it defaults to the origin the file came from.
+   * Required in a vendored copy.
+   */
+  baseUrl?: string
   /** Per-consumer client key (`nxk_…`) from the Nexus admin API-consumers page. */
   clientKey: string
+  /**
+   * Called for every failed request, e.g. to send to your own error tracking.
+   * Must not throw; if it does, the error is caught and logged.
+   */
+  onError?: (error: NexusClientError) => void
 }
 
-export function createNexusBrowserClient({ baseUrl, clientKey }: NexusBrowserClientOptions) {
-  const base = baseUrl.replace(/\/$/, '')
+export function createNexusBrowserClient({ baseUrl, clientKey, onError }: NexusBrowserClientOptions) {
+  const base = (baseUrl ?? NEXUS_SCRIPT_ORIGIN ?? '').replace(/\/$/, '')
+
+  function report(error: NexusClientError): NexusClientError {
+    console.warn(`[nexus-events] ${error.operation} failed: ${error.code} (${error.status})`, error.message)
+    try {
+      onError?.(error)
+    } catch (err) {
+      console.warn('[nexus-events] onError threw', err)
+    }
+    return error
+  }
+
+  async function httpError(res: Response, operation: NexusClientError['operation']): Promise<NexusClientError> {
+    const message = await errorMessage(res)
+    return report({ code: classifyNexusError(res.status, message), status: res.status, message, operation })
+  }
+
+  function networkError(err: unknown, operation: NexusClientError['operation']): NexusClientError {
+    return report({ code: 'network', status: 0, message: err instanceof Error ? err.message : String(err), operation })
+  }
 
   // The server token (NEXUS_API_TOKEN) grants every Nexus endpoint and must
   // never reach a browser bundle. Consumer keys are the only browser-safe
   // credential and always start `nxk_`, so anything else here is a
   // misconfiguration worth failing loudly rather than shipping.
-  const keyIsValid = clientKey.startsWith('nxk_')
-  if (!keyIsValid) {
+  // Configuration problems are reported once here and make every call a no-op.
+  let configError: NexusClientError | null = null
+  if (!clientKey.startsWith('nxk_')) {
     console.error(
       '[nexus-events] clientKey must be an `nxk_…` consumer key from /admin/api-consumers, ' +
         'never NEXUS_API_TOKEN. Refusing to send.'
     )
+    configError = { code: 'invalid_key', status: 0, message: 'clientKey is not an nxk_ key', operation: 'sendEvent' }
+  } else if (!base) {
+    console.error('[nexus-events] baseUrl is required when this file is not loaded from Nexus. Refusing to send.')
+    configError = { code: 'invalid_config', status: 0, message: 'baseUrl is missing', operation: 'sendEvent' }
   }
 
   return {
@@ -229,12 +402,13 @@ export function createNexusBrowserClient({ baseUrl, clientKey }: NexusBrowserCli
      * request survive page navigation (e.g. a click event right before the
      * browser follows a link).
      *
-     * A 404 means the item slug does not exist in Nexus — that is a bug in the
-     * identifier you passed, not a Nexus outage. Check you sent
-     * toItemId(item.slug) and not an internal ID.
+     * `error.code` says why it failed. `unknown_item` (404) means the item slug
+     * does not exist in Nexus — a bug in the identifier you passed, not an
+     * outage: check you sent toItemId(item.slug). Only `server_error` and
+     * `network` are worth retrying.
      */
-    async sendEvent(event: NexusEvent): Promise<{ ok: boolean }> {
-      if (!keyIsValid) return { ok: false }
+    async sendEvent(event: NexusEvent): Promise<{ ok: true } | { ok: false; error: NexusClientError }> {
+      if (configError) return { ok: false, error: { ...configError, operation: 'sendEvent' } }
       try {
         const res = await fetch(`${base}/api/events`, {
           method: 'POST',
@@ -243,28 +417,28 @@ export function createNexusBrowserClient({ baseUrl, clientKey }: NexusBrowserCli
             Authorization: `Bearer ${clientKey}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ ...event, clientVersion: NEXUS_CLIENT_VERSION }),
+          body: JSON.stringify({ ...event, clientVersion: NEXUS_CLIENT_VERSION_STAMP }),
         })
-        if (!res.ok) {
-          console.warn(`[nexus-events] event rejected (${res.status})`, await res.text().catch(() => ''))
-          return { ok: false }
-        }
+        if (!res.ok) return { ok: false, error: await httpError(res, 'sendEvent') }
         return { ok: true }
       } catch (err) {
-        console.warn('[nexus-events] event failed to send', err)
-        return { ok: false }
+        return { ok: false, error: networkError(err, 'sendEvent') }
       }
     },
 
     /**
      * Fetch recommendations for a user-only surface.
      *
-     * Requires the consumer's "allow item reads" flag (403 otherwise).
-     * Never throws — returns null on any failure so the UI can fall back to
-     * its default (non-personalized) content.
+     * Requires the consumer's "allow item reads" flag
+     * (`items_read_not_enabled` otherwise) and a surface in the key's scope
+     * (`surface_not_allowed`). Never throws — returns null on any failure so
+     * the UI can fall back to its default content; set `onError` to see why.
+     *
+     * A successful response can still be a fallback: check `meta.fallback`
+     * before treating the items as personalised.
      */
     async getUserItems(req: UserItemsRequest): Promise<UserItemsResponse | null> {
-      if (!keyIsValid) return null
+      if (configError) return null
       try {
         const qs = new URLSearchParams({ surface: req.surface })
         if (req.type) qs.set('type', req.type)
@@ -275,12 +449,12 @@ export function createNexusBrowserClient({ baseUrl, clientKey }: NexusBrowserCli
           { headers: { Authorization: `Bearer ${clientKey}` } }
         )
         if (!res.ok) {
-          console.warn(`[nexus-events] items fetch rejected (${res.status})`, await res.text().catch(() => ''))
+          await httpError(res, 'getUserItems')
           return null
         }
         return (await res.json()) as UserItemsResponse
       } catch (err) {
-        console.warn('[nexus-events] items fetch failed', err)
+        networkError(err, 'getUserItems')
         return null
       }
     },
